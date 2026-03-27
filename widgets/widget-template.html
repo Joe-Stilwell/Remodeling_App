@@ -1,0 +1,77 @@
+<div
+  class="widget-instance flex flex-col overflow-hidden rounded-xl bg-[#B8C8DB] shadow-lg transition-all duration-200"
+>
+  <div
+    class="widget-header relative z-[1000] flex h-[34px] shrink-0 cursor-move items-center border-b border-slate-300 bg-[#B8C8DB] px-3"
+  >
+    <span
+      class="widget-title-centered pointer-events-none text-center text-[11px] font-bold tracking-wider whitespace-nowrap text-slate-800 uppercase select-none"
+    >
+      Widget Title
+    </span>
+
+    <div
+      class="relative z-[2000] ml-auto flex h-[26px] items-center gap-1 rounded-md bg-black/10 px-1"
+    >
+      <button
+        onclick="
+          window.shellMinimize(this);
+          event.stopPropagation();
+        "
+        class="flex h-5 w-5 items-center justify-center rounded text-sm font-bold transition-colors hover:bg-white/40"
+      >
+        &ndash;
+      </button>
+
+      <button
+        onclick="
+          window.toggleMaximize(this);
+          event.stopPropagation();
+        "
+        class="flex h-5 w-5 items-center justify-center rounded text-[10px] font-bold transition-colors hover:bg-white/40"
+      >
+        &#9633;
+      </button>
+
+      <button
+        onclick="
+          window.closeWidget(this);
+          event.stopPropagation();
+        "
+        class="flex h-5 w-5 items-center justify-center rounded text-sm font-bold transition-colors hover:bg-red-500 hover:text-white"
+      >
+        &times;
+      </button>
+    </div>
+  </div>
+  <div class="relative flex min-h-0 flex-1 flex-col bg-[#B8C8DB]">
+    <div class="widget-content-area custom-scroll p-2 shadow-inner"></div>
+    <div
+      class="resizer-handle absolute right-0 bottom-0 z-[100] flex h-8 w-8 cursor-nwse-resize items-end justify-end p-1"
+    >
+      <svg
+        width="10"
+        height="10"
+        viewBox="0 0 10 10"
+        class="text-slate-400 opacity-60"
+      >
+        <line
+          x1="2"
+          y1="10"
+          x2="10"
+          y2="2"
+          stroke="currentColor"
+          stroke-width="1.5"
+        />
+        <line
+          x1="6"
+          y1="10"
+          x2="10"
+          y2="6"
+          stroke="currentColor"
+          stroke-width="1.5"
+        />
+      </svg>
+    </div>
+  </div>
+</div>
