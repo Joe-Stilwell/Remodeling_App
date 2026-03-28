@@ -1,172 +1,136 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" style="height: 100%; margin: 0; padding: 0;">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Service Dashboard</title>
+    <title>Remodeling App V2</title>
+    <link rel="stylesheet" href="css/output.css" />
+    <style>
+      /* THE RULEBOOK */
+      * { box-sizing: border-box; }
 
-    <link href="./css/output.css" rel="stylesheet" />
+      .sidebar-column {
+        width: 165px;
+        min-width: 165px;
+        flex: 0 0 165px;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+      }
+
+      .menu-item {
+        padding: 3px 16px 3px 32px;
+        cursor: pointer;
+        font-size: 18px;
+        color: white;
+        transition: background-color 0.2s;
+      }
+      .menu-item:hover { background-color: rgba(255, 255, 255, 0.1); }
+
+      .hamburger-box {
+        width: 24px;
+        height: 18px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        cursor: pointer;
+      }
+      .hamburger-line {
+        height: 2px;
+        width: 100%;
+        background-color: white;
+      }
+
+      .status-bar {
+        height: 20px;
+        background-color: #1e293b;
+        color: rgba(255, 255, 255, 0.5);
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        display: flex;
+        align-items: center;
+        padding: 0 16px;
+        flex-shrink: 0;
+      }
+
+      /* Clean Widget Dock */
+      .widget-area {
+        padding: 12px;
+        flex: 1;
+        border: none !important;
+      }
+    </style>
   </head>
+  <body class="bg-brand-tint font-sans text-ink-dark antialiased" style="height: 100%; margin: 0; padding: 0; overflow: hidden; display: flex; flex-direction: column;">
+    
+  <div style="height: 2px; width: 100%; flex-shrink: 0; background-color: #006699;"></div>
 
-  <body
-    class="flex h-screen w-screen flex-col overflow-hidden border-t-2 border-brand-primary bg-brand-tint font-sans"
-  >
-    <header class="app-header shrink-0 shadow-soft-sm">
-      <div class="side-tower">
-        <div
-          class="text-center text-xl font-bold text-brand-primary select-none"
-        >
-          Company<br />Logo
-        </div>
+  <div style="flex: 1; display: flex; width: 100%; overflow: hidden;">
+    
+    <div class="sidebar-column bg-brand-primary text-white">
+      <div style="height: 105px; flex-shrink: 0;" class="flex items-center justify-center border-b border-slate-100 bg-white">
+        <span class="text-center text-[10px] leading-tight font-black text-brand-primary uppercase">Company<br />Logo</span>
       </div>
-
-      <div class="flex h-header-top items-center justify-center">
-        <h1
-          class="text-3xl leading-none font-light tracking-tight text-brand-orange select-none"
-        >
-          Company Name
-        </h1>
-      </div>
-
-      <div class="side-tower">
-        <div
-          class="text-center text-xs leading-tight font-bold text-brand-primary uppercase select-none"
-        >
-          Contractor<br />Advantage
-        </div>
-      </div>
-
-      <div class="col-start-2 flex h-header-bottom items-center">
-        <div
-          class="flex h-header-bottom w-full items-center gap-6 bg-brand-primary px-4 shadow-soft-md"
-        >
-          <div
-            class="search-container group my-1 ml-6 flex h-[26px] items-center rounded-sm border border-transparent px-2 transition-all focus-within:border-brand-orange hover:border-brand-orange"
-          >
-            <span
-              class="mr-2 text-[9px] font-extrabold text-slate-400 uppercase transition-colors group-focus-within:text-brand-orange"
-            >
-              Search
-            </span>
-            <input
-              id="global-search"
-              type="text"
-              placeholder="Name, Company, or Address"
-              class="w-[240px] bg-transparent text-[11px] text-white outline-none placeholder:text-slate-300"
-            />
-          </div>
-          <div class="text-sm font-medium text-white select-none">
-            Activity Bar
+      <nav style="flex: 1; display: flex; flex-direction: column;">
+        <div style="padding: 8px 16px; display: flex; justify-content: flex-end; flex-shrink: 0;">
+          <div class="hamburger-box">
+            <div class="hamburger-line"></div><div class="hamburger-line"></div><div class="hamburger-line"></div>
           </div>
         </div>
-      </div>
-    </header>
-    <div class="flex flex-1 overflow-hidden">
-  <aside
-    id="left-sidebar"
-    class="flex w-sidebar-w shrink-0 flex-col bg-brand-primary"
-  >
-    <div
-      class="group flex h-nav-item-h cursor-pointer items-center justify-end px-4 transition-colors hover:bg-white/10"
-      onclick="toggleSidebar()"
-    >
-      <div id="hamburger-icon" class="flex w-5 flex-col gap-1">
-        <span class="h-0.5 w-full bg-white transition-all group-hover:shadow-[0_0_8px_white]"></span>
-        <span class="h-0.5 w-full bg-white transition-all group-hover:shadow-[0_0_8px_white]"></span>
-        <span class="h-0.5 w-full bg-white transition-all group-hover:shadow-[0_0_8px_white]"></span>
-      </div>
+        <div style="padding: 3px 16px; font-size: 18px; flex-shrink: 0;">Home</div>
+        <ul style="margin: 0; padding: 0; list-style: none;">
+          <li class="menu-item">Phone Book</li>
+          <li class="menu-item">Work Order</li>
+          <li class="menu-item">Estimating</li>
+        </ul>
+        
+        <div style="flex: 1;"></div> 
+
+        <div style="padding-bottom: 12px; border-top: 1px solid rgba(255,255,255,0.1);">
+          <ul style="margin: 0; padding: 8px 0 0 0; list-style: none;">
+            <li class="menu-item">Settings</li>
+            <li class="menu-item">Help</li>
+          </ul>
+        </div>
+      </nav>
     </div>
 
-    <nav class="flex-1 pt-2">
-      <div
-        class="nav-item nav-item-primary text-white"
-        onclick="setActive(this)"
-      >
-        <div class="active-bar"></div>
-        <span>Home</span>
-      </div>
-          <div class="mt-1 space-y-0">
-            <div class="nav-item nav-item-secondary" onclick="setActive(this)">
-              <div class="active-bar"></div>
-              <span>Phone Book</span>
-              <div class="submenu">
-                <div class="sub-tab" onclick="setSubActive(this)">
-                  <div class="active-bar"></div>
-                  <span>Rolodex</span>
-                </div>
-                <div class="sub-tab" onclick="setSubActive(this)">
-                  <div class="active-bar"></div>
-                  <span>New Client</span>
-                </div>
-                <div class="sub-tab" onclick="setSubActive(this)">
-                  <div class="active-bar"></div>
-                  <span>New Vendor</span>
-                </div>
-                <div class="sub-tab" onclick="setSubActive(this)">
-                  <div class="active-bar"></div>
-                  <span>New Employee</span>
-                </div>
-              </div>
-            </div>
-            <div class="nav-item nav-item-secondary" onclick="setActive(this)">
-              <div class="active-bar"></div>
-              <span>Work Order</span>
-            </div>
-            <div class="nav-item nav-item-secondary" onclick="setActive(this)">
-              <div class="active-bar"></div>
-              <span>Estimating</span>
-            </div>
-            <div class="nav-item nav-item-secondary" onclick="setActive(this)">
-              <div class="active-bar"></div>
-              <span>Scheduling</span>
-            </div>
-            <div class="nav-item nav-item-secondary" onclick="setActive(this)">
-              <div class="active-bar"></div>
-              <span>Reports</span>
-            </div>
-          </div>
-        </nav>
-        <div class="pb-4">
-          <div class="nav-item nav-item-secondary" onclick="setActive(this)">
-            <div class="active-bar"></div>
-            <span>Settings</span>
-          </div>
-          <div class="nav-item nav-item-secondary" onclick="setActive(this)">
-            <div class="active-bar"></div>
-            <span>Help</span>
-          </div>
+    <div style="flex: 1; display: flex; flex-direction: column; min-width: 0;" class="bg-white border-x border-slate-200">
+      <header style="height: 105px; flex-shrink: 0;" class="flex flex-col border-b border-slate-200">
+        <div style="height: 70px; flex-shrink: 0;" class="flex items-center justify-center bg-white">
+          <h1 class="text-3xl font-semibold tracking-tight text-brand-primary" style="margin: 0; padding: 0; line-height: 1;">Company Name</h1>
         </div>
-      </aside>
-      <main
-        id="main-content"
-        class="bg-blue-tint relative flex-1 overflow-hidden shadow-inner"
-      >
-        <div
-          class="pointer-events-none absolute inset-0 opacity-[0.05]"
-          style="
-            background-image: radial-gradient(#000 1px, transparent 1px);
-            background-size: 30px 30px;
-          "
-        ></div>
+        <div style="height: 35px; flex-shrink: 0;" class="flex items-center bg-brand-primary px-4">
+          <div class="flex h-6 w-48 flex-none items-center rounded bg-white px-2 shadow-sm">
+            <span class="mr-2 text-[9px] font-black text-brand-primary uppercase">Search</span>
+            <input type="text" class="w-full text-[11px] outline-none" placeholder="Search...">
+          </div>
+          <div class="flex-1 text-center text-[10px] font-bold tracking-[0.4em] text-white uppercase">Activity Bar</div>
+        </div>
+      </header>
+      <main style="flex: 1; overflow-y: auto;" class="bg-slate-50 p-8">
+        <div style="height: 100%;" class="flex items-center justify-center rounded-xl border-2 border-dashed border-slate-200 text-xs font-bold tracking-widest text-slate-400 uppercase">
+          Workspace Area
+        </div>
       </main>
-      <aside
-        class="w-[160px] shrink-0 overflow-y-auto border-l border-slate-200 bg-brand-tint p-4"
-      >
-        <div
-          class="mb-4 text-center text-[10px] font-bold tracking-widest text-brand-primary uppercase opacity-50 select-none"
-        >
+    </div>
+
+    <div class="sidebar-column bg-brand-header">
+      <div style="height: 105px; flex-shrink: 0;" class="flex items-center justify-center bg-white">
+        <span class="text-center text-[10px] leading-tight font-black text-brand-primary uppercase">Contractor<br />Advantage</span>
+      </div>
+      <div class="widget-area">
+        <div style="text-align: center; font-size: 9px; font-weight: 900; letter-spacing: 0.1em; color: #006699; text-transform: uppercase;">
           Widget Dock
         </div>
-        <div id="widget-dock" class="flex flex-col items-center gap-3"></div>
-      </aside>
+      </div>
     </div>
-    <footer
-      class="z-50 flex h-[25px] w-full shrink-0 items-center bg-slate-600 px-4 text-[10px] text-white"
-    >
-      <span class="mr-2 h-2 w-2 animate-pulse rounded-full bg-green-400"></span>
-      System Ready
-    </footer>
-    <script src="js/shell.js"></script>
-    <script src="js/widget-logic.js"></script>
-  </body>
-</html>
+
+  </div> <footer class="status-bar">
+    <div style="flex: 1;">System Ready</div>
+    <div style="flex: none;">v2.0.4 Build</div>
+  </footer>
+
+</body>

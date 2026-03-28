@@ -38,9 +38,4 @@
   --spacing-header-bottom: 35px;
   --spacing-header-total: 105px;
 
-  @theme {
-  /* ... existing spacing ... */
-  --spacing-sidebar-w: 160px;
-  --spacing-nav-item-h: 50px;
-}
-}
+  }
