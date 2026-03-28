@@ -11,7 +11,7 @@
   <body
     class="flex h-screen w-screen flex-col overflow-hidden border-t-2 border-brand-primary bg-brand-tint font-sans"
   >
-    <header class="app-header shrink-0 shadow-sm">
+    <header class="app-header shrink-0 shadow-soft-sm">
       <div class="side-tower">
         <div
           class="text-center text-xl font-bold text-brand-primary select-none"
@@ -19,13 +19,15 @@
           Company<br />Logo
         </div>
       </div>
-      <div class="flex h-[70px] items-center justify-center">
+
+      <div class="flex h-header-top items-center justify-center">
         <h1
-          class="text-[32px] leading-none font-light tracking-tight text-brand-orange select-none"
+          class="text-3xl leading-none font-light tracking-tight text-brand-orange select-none"
         >
           Company Name
         </h1>
       </div>
+
       <div class="side-tower">
         <div
           class="text-center text-xs leading-tight font-bold text-brand-primary uppercase select-none"
@@ -33,17 +35,19 @@
           Contractor<br />Advantage
         </div>
       </div>
-      <div class="col-start-2 flex h-[35px] items-center">
+
+      <div class="col-start-2 flex h-header-bottom items-center">
         <div
-          class="flex h-[35px] w-full items-center gap-6 bg-brand-primary px-4 shadow-md"
+          class="flex h-header-bottom w-full items-center gap-6 bg-brand-primary px-4 shadow-soft-md"
         >
           <div
             class="search-container group my-1 ml-6 flex h-[26px] items-center rounded-sm border border-transparent px-2 transition-all focus-within:border-brand-orange hover:border-brand-orange"
           >
             <span
               class="mr-2 text-[9px] font-extrabold text-slate-400 uppercase transition-colors group-focus-within:text-brand-orange"
-              >Search</span
             >
+              Search
+            </span>
             <input
               id="global-search"
               type="text"
@@ -58,34 +62,29 @@
       </div>
     </header>
     <div class="flex flex-1 overflow-hidden">
-      <aside
-        id="left-sidebar"
-        class="flex w-[160px] shrink-0 flex-col bg-brand-primary"
+  <aside
+    id="left-sidebar"
+    class="flex w-sidebar-w shrink-0 flex-col bg-brand-primary"
+  >
+    <div
+      class="group flex h-nav-item-h cursor-pointer items-center justify-end px-4 transition-colors hover:bg-white/10"
+      onclick="toggleSidebar()"
+    >
+      <div id="hamburger-icon" class="flex w-5 flex-col gap-1">
+        <span class="h-0.5 w-full bg-white transition-all group-hover:shadow-[0_0_8px_white]"></span>
+        <span class="h-0.5 w-full bg-white transition-all group-hover:shadow-[0_0_8px_white]"></span>
+        <span class="h-0.5 w-full bg-white transition-all group-hover:shadow-[0_0_8px_white]"></span>
+      </div>
+    </div>
+
+    <nav class="flex-1 pt-2">
+      <div
+        class="nav-item nav-item-primary text-white"
+        onclick="setActive(this)"
       >
-        <div
-          class="group flex h-[50px] cursor-pointer items-center justify-end px-4 transition-colors hover:bg-white/10"
-          onclick="toggleSidebar()"
-        >
-          <div id="hamburger-icon" class="flex w-5 flex-col gap-1">
-            <span
-              class="h-0.5 w-full bg-white transition-all group-hover:shadow-[0_0_8px_#fff]"
-            ></span>
-            <span
-              class="h-0.5 w-full bg-white transition-all group-hover:shadow-[0_0_8px_#fff]"
-            ></span>
-            <span
-              class="h-0.5 w-full bg-white transition-all group-hover:shadow-[0_0_8px_#fff]"
-            ></span>
-          </div>
-        </div>
-        <nav class="flex-1 pt-2">
-          <div
-            class="nav-item nav-item-primary text-white"
-            onclick="setActive(this)"
-          >
-            <div class="active-bar"></div>
-            <span>Home</span>
-          </div>
+        <div class="active-bar"></div>
+        <span>Home</span>
+      </div>
           <div class="mt-1 space-y-0">
             <div class="nav-item nav-item-secondary" onclick="setActive(this)">
               <div class="active-bar"></div>

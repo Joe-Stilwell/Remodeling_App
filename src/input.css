@@ -32,4 +32,15 @@
   /* Custom Shadows */
   --shadow-soft-sm: 0 2px 4px rgba(0,0,0,0.05);
   --shadow-soft-md: 0 10px 15px -3px rgba(0,0,0,0.1);
+
+  /* Spacing: This enables h-header-top, w-header-top, p-header-top, etc. */
+  --spacing-header-top: 70px;
+  --spacing-header-bottom: 35px;
+  --spacing-header-total: 105px;
+
+  @theme {
+  /* ... existing spacing ... */
+  --spacing-sidebar-w: 160px;
+  --spacing-nav-item-h: 50px;
+}
 }
