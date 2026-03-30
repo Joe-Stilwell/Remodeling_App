@@ -127,13 +127,8 @@
         </nav>
       </aside>
 
-      <div
-        style="flex: 1; display: flex; flex-direction: column; min-width: 0"
-        >
-        <header
-          style="height: 105px; flex-shrink: 0"
-          class="flex flex-col"
-        >
+      <div style="flex: 1; display: flex; flex-direction: column; min-width: 0">
+        <header style="height: 105px; flex-shrink: 0" class="flex flex-col">
           <div
             style="height: 70px"
             class="flex items-center justify-center bg-white"
@@ -145,26 +140,24 @@
               Company Name
             </h1>
           </div>
-          <div
-            style="height: 35px"
-            class="flex items-center bg-brand-primary"
-          >
-            <div 
-  style="margin-left: 16px; height: 28px; width: 350px;"
-  class="search-container flex items-center rounded bg-white px-3 shadow-sm transition-all"
->
-  <span
-    style="margin-left: 8px;"
-    class="search-label text-[10px] font-black text-brand-primary uppercase transition-colors"
-  >Search</span>
-  
-  <input
-    type="text"
-    style="padding-left: 10px;"
-    class="search-input w-full text-[11px] bg-transparent outline-none"
-    placeholder="Search..."
-  />
-</div>
+          <div style="height: 35px" class="flex items-center bg-brand-primary">
+            <div
+              style="margin-left: 16px; height: 28px; width: 350px"
+              class="search-container flex items-center rounded bg-white px-3 shadow-sm"
+            >
+              <span
+                style="margin-left: 8px"
+                class="search-label text-[10px] font-black text-brand-primary uppercase"
+                >Search</span
+              >
+              <input
+                id="universal-search"
+                type="text"
+                style="padding-left: 10px"
+                class="search-input w-full bg-transparent text-[14px] outline-none"
+                placeholder="Search..."
+              />
+            </div>
             <div
               class="flex-1 text-center text-[10px] font-bold tracking-[0.4em] text-white uppercase"
             >
@@ -172,7 +165,10 @@
             </div>
           </div>
         </header>
-        <main style="flex: 1; overflow-y: auto; border-right: 1px solid #cbd5e1;" class="bg-slate-50 p-8">
+        <main
+          style="flex: 1; overflow-y: auto; border-right: 1px solid #cbd5e1"
+          class="bg-slate-50 p-8"
+        >
           <div
             style="height: 100%"
             class="flex items-center justify-center text-xs font-bold tracking-widest text-slate-400 uppercase"
@@ -213,5 +209,22 @@
       <div style="flex: 1">System Ready</div>
       <div style="flex: none">v2.0.4 Build</div>
     </footer>
+
+    
+    <script>
+      /*Universal Search Function */
+  const searchInput = document.getElementById('universal-search');
+  searchInput.addEventListener('keydown', function(event) {
+    if (event.key === 'Enter') {
+      const query = event.target.value.trim();
+      if (query) {
+        console.log("Searching for:", query);
+        event.target.value = '';
+        event.target.blur();
+        alert("Searching for: " + query); 
+      }
+    }
+  });
+</script>
   </body>
 </html>

@@ -97,23 +97,32 @@ ul, ol {
   opacity: 1;
 }
 
-/* 1. Hover State: When mouse is over the box */
-.search-container:hover {
-  outline: 1px solid var(--color-brand-accent, #ff9900); /* Use your accent hex if var isn't set */
-}
-.search-container:hover .search-label {
-  color: var(--color-brand-accent, #ff9900);
+/* --- Interactive Search Bar --- */
+.search-container {
+  @apply transition-all duration-100;
+  outline: 1px solid transparent; /* Prevents "jumping" when the border appears */
+
+  /* 1. HOVER: Soft Peach Glow */
+  &:hover {
+    outline: 2.5px solid var(--color-brand-accent);
+    
+    .search-label {
+      color: var(--color-brand-accent);
+    }
+  }
+
+  /* 2. CLICKED/TYPING: Bold Brand Orange */
+  &:focus-within {
+    outline: 2.5px solid var(--color-brand-orange);
+    box-shadow: 0 0 8px rgba(255, 121, 54, 0.2); /* Optional: Adds a subtle outer glow */
+    
+    .search-label {
+      color: var(--color-brand-orange);
+    }
+  }
 }
 
-/* 2. Focus State: When you click in to type */
-.search-container:focus-within {
-  outline: 2px solid var(--color-brand-accent, #ff9900);
-}
-.search-container:focus-within .search-label {
-  color: var(--color-brand-accent, #ff9900);
-}
-
-/* 3. Text Entry Color */
 .search-input {
+  /* Ensuring typed text uses your Dark Ink variable or Slate 900 */
   color: var(--color-dark-ink, #1e293b);
 }
