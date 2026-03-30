@@ -4,12 +4,11 @@
   /* Typography */
   --color-ink-dark: #003956;
   --color-ink-light: #E4EAF2;
-  /* Mixes 60% of your dark ink with 40% transparency for a "muted" look */
   --color-ink-muted: color-mix(in srgb, #003956 60%, transparent);
 
   /* Brand Blues */
   --color-brand-primary: #006496;
-  --color-brand-header: #6F94B8; /* Used for Widget/Pop-up Headers */
+  --color-brand-header: #6F94B8;
   --color-brand-tint: #F4FCFF;
   --color-brand-dark: #003366;
 
@@ -21,41 +20,99 @@
   --color-success: #4ADE80;
   --color-danger: #EF4444;
   --color-surface-white: #FFFFFF;
-  --color-surface-charcoal: #1E2229; /* Added for Status Bar */
+  --color-surface-charcoal: #1E2229;
   --color-border-slate: #CBD5E1;
 
   /* Custom Heights & Spacing */
   --spacing-header-top: 70px;
   --spacing-header-bottom: 35px;
   --spacing-header-total: 105px;
-  --spacing-status-bar: 20px; /* Added for Status Bar */
+  --spacing-status-bar: 20px;
 
   /* Custom Shadows */
   --shadow-soft-sm: 0 2px 4px rgba(0,0,0,0.05);
   --shadow-soft-md: 0 10px 15px -3px rgba(0,0,0,0.1);
 }
 
- /* Removes Browser padding */
+/* --- Global Reset --- */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
-/* THE CONTAINER RESET */
 ul, ol {
   list-style: none;
 }
 
-.sidebar {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between; /* This pushes the first UL up and the second UL down */
+html, body {
   height: 100%;
 }
 
+/* --- App Shell Layout --- */
+.app-layout {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.top-accent-bar {
+  height: 2px;
+  flex-shrink: 0;
+  background-color: var(--color-brand-primary);
+}
+
+.app-body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* --- Sidebar --- */
+.sidebar-column {
+  width: 165px;
+  min-width: 165px;
+  flex: 0 0 165px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.hamburger-wrapper {
+  display: flex;
+  justify-content: flex-end;
+  padding: 12px 12px 12px 16px;
+}
+
+.hamburger-box {
+  width: 24px;
+  height: 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  cursor: pointer;
+}
+
+.hamburger-line {
+  height: 2px;
+  width: 100%;
+  background-color: white;
+}
+
+/* --- Navigation --- */
+.nav-footer {
+  padding-bottom: 20px;
+}
+
 .menu-sub-item {
-  margin-left: 16px; 
+  margin-left: 16px;
 }
 
 .menu-item {
@@ -63,7 +120,7 @@ ul, ol {
   z-index: 1;
   display: block;
   width: 100%;
-  padding: 4px 0 4px 16px; 
+  padding: 2px 0 2px 16px;
   cursor: pointer;
   font-size: 18px;
   color: var(--color-ink-light);
@@ -82,47 +139,111 @@ ul, ol {
   top: 0;
   bottom: 0;
   left: 12px;
-  right: 0px;
-  background-color: var(--color-brand-header); /* Change to your desired color */
-  border-left: 4px solid var(--color-brand-accent); 
-  z-index: -1;          /* Slides the color UNDER the text */
+  right: 0;
+  background-color: var(--color-brand-header);
+  border-left: 4px solid var(--color-brand-accent);
+  z-index: -1;
   opacity: 0;
   pointer-events: none;
-  display: none;        /* Keeps it hidden normally */
+  display: none;
 }
 
-/* This makes the box appear when you hover */
 .menu-item:hover::before {
   display: block;
   opacity: 1;
 }
 
-/* --- Interactive Search Bar --- */
+/* --- Header --- */
+.app-header {
+  height: var(--spacing-header-total);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.header-flank {
+  height: var(--spacing-header-total);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background-color: white;
+}
+
+.header-top {
+  height: var(--spacing-header-top);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: white;
+}
+
+.header-sub {
+  height: var(--spacing-header-bottom);
+  display: flex;
+  align-items: center;
+  background-color: var(--color-brand-primary);
+}
+
+/* --- Search Bar --- */
 .search-container {
   @apply transition-all duration-100;
-  outline: 1px solid transparent; /* Prevents "jumping" when the border appears */
+  margin-left: 16px;
+  height: 28px;
+  width: 350px;
+  outline: 1px solid transparent;
 
-  /* 1. HOVER: Soft Peach Glow */
   &:hover {
     outline: 2.5px solid var(--color-brand-accent);
-    
+
     .search-label {
       color: var(--color-brand-accent);
     }
   }
 
-  /* 2. CLICKED/TYPING: Bold Brand Orange */
   &:focus-within {
     outline: 2.5px solid var(--color-brand-orange);
-    box-shadow: 0 0 8px rgba(255, 121, 54, 0.2); /* Optional: Adds a subtle outer glow */
-    
+    box-shadow: 0 0 8px rgba(255, 121, 54, 0.2);
+
     .search-label {
       color: var(--color-brand-orange);
     }
   }
 }
 
+.search-label {
+  margin-left: 4px;
+}
+
 .search-input {
-  /* Ensuring typed text uses your Dark Ink variable or Slate 900 */
-  color: var(--color-dark-ink, #1e293b);
+  padding-left: 8px;
+  color: var(--color-ink-dark);
+}
+
+/* --- Workspace --- */
+.workspace {
+  flex: 1;
+  overflow-y: auto;
+  border-right: 1px solid var(--color-border-slate);
+}
+
+/* --- Widget Area --- */
+.widget-area {
+  padding: 12px;
+  flex: 1;
+}
+
+/* --- Status Bar --- */
+.status-bar {
+  height: var(--spacing-status-bar);
+  background-color: var(--color-surface-charcoal);
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  flex-shrink: 0;
 }
