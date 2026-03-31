@@ -14,24 +14,27 @@ const WidgetManager = (function () {
   let cascadeCount = 0;
 
   /* ── Public: open ─────────────────────────────────────────── */
-  function open(id, title, contentHTML = '') {
+  function open(id, title, contentHTML = '', options = {}) {
     if (state[id]) {
       restore(id);
       return;
     }
+
+    const w = options.width  || 320;
+    const h = options.height || 400;
 
     const widget = document.createElement('div');
     widget.className = 'widget';
     widget.id = 'widget-' + id;
     const workspace = WORKSPACE();
     const offset    = cascadeCount * CASCADE_STEP;
-    const maxLeft   = workspace.clientWidth  - 320;
-    const maxTop    = workspace.clientHeight - 200;
+    const maxLeft   = workspace.clientWidth  - w;
+    const maxTop    = workspace.clientHeight - h;
     const top       = Math.min(CASCADE_BASE.top  + offset, maxTop);
     const left      = Math.min(CASCADE_BASE.left + offset, maxLeft);
     cascadeCount++;
 
-    widget.style.cssText = `width:320px; height:400px; top:${top}px; left:${left}px;`;
+    widget.style.cssText = `width:${w}px; height:${h}px; top:${top}px; left:${left}px;`;
 
     widget.innerHTML = `
       <div class="widget-header">
@@ -68,6 +71,7 @@ const WidgetManager = (function () {
     state[id].el.remove();
     state[id].dockIcon.remove();
     delete state[id];
+    if (Object.keys(state).length === 0) cascadeCount = 0;
     if (wasActive) _activateNext();
   }
 

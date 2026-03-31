@@ -12,6 +12,22 @@ searchInput.addEventListener('keydown', function (event) {
   }
 });
 
+/* --- Widget Routing --- */
+// Maps submenu widget keys to CRM actions.
+// If no match, falls back to a generic empty widget.
+const WIDGET_ROUTES = {
+  'new-client': () => CRM.openNewClient(),
+};
+
+function _routeWidget(key, title) {
+  const action = WIDGET_ROUTES[key];
+  if (action) {
+    action();
+  } else {
+    WidgetManager.open(key, title);
+  }
+}
+
 /* --- Collapsible Navigation --- */
 const navSidebar = document.getElementById('nav-sidebar');
 const hamburger  = document.getElementById('hamburger');
@@ -103,7 +119,7 @@ function _renderSubmenu(key, anchorEl) {
   submenuPanel.querySelectorAll('.submenu-item').forEach(item => {
     item.addEventListener('click', function (e) {
       e.preventDefault();
-      WidgetManager.open(this.dataset.widget, this.dataset.title);
+      _routeWidget(this.dataset.widget, this.dataset.title);
       hideSubmenu(true);
     });
   });
