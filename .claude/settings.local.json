@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./tailwindcss.exe -i src/input.css -o css/output.css)"
+    ]
+  }
+}

@@ -4,21 +4,52 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Remodeling App V2</title>
-    <link rel="stylesheet" href="css/output.css?v=2" />
+    <link rel="stylesheet" href="css/output.css?v=5" />
   </head>
   <body class="app-layout bg-brand-tint font-sans text-ink-dark antialiased">
 
     <div class="top-accent-bar"></div>
 
+    <!-- Fixed Header Row: spans full width, never reflows -->
+    <div class="app-header-row">
+
+      <div class="header-flank bg-white">
+        <span class="text-center text-[10px] leading-tight font-black text-brand-primary uppercase">Company<br />Logo</span>
+      </div>
+
+      <header class="app-header">
+        <div class="header-top">
+          <h1 class="text-3xl font-semibold tracking-tight text-brand-primary">Company Name</h1>
+        </div>
+        <div class="header-sub">
+          <div class="search-container flex items-center rounded bg-white px-3 shadow-sm">
+            <span class="search-label text-[10px] font-black text-brand-primary uppercase">Search</span>
+            <input
+              id="universal-search"
+              type="text"
+              class="search-input w-full bg-transparent text-[14px] outline-none"
+              placeholder="Search..."
+            />
+          </div>
+          <div class="flex-1 text-center text-[10px] font-bold tracking-[0.4em] text-white uppercase">
+            Activity Bar
+          </div>
+        </div>
+      </header>
+
+      <div class="header-flank bg-white">
+        <span class="text-center text-[16px] leading-tight font-black text-brand-primary uppercase">Contractor<br />Advantage</span>
+      </div>
+
+    </div>
+
+    <!-- Body Row: sidebar collapses independently -->
     <div class="app-body">
 
       <!-- Left Navigation Sidebar -->
-      <aside class="sidebar-column bg-brand-primary">
-        <div class="header-flank border-b border-slate-200">
-          <span class="text-center text-[10px] leading-tight font-black text-brand-primary uppercase">Company<br />Logo</span>
-        </div>
+      <aside id="nav-sidebar" class="sidebar-column bg-brand-primary">
         <nav class="flex flex-1 flex-col">
-          <div class="hamburger-wrapper">
+          <div id="hamburger" class="hamburger-wrapper">
             <div class="hamburger-box">
               <div class="hamburger-line"></div>
               <div class="hamburger-line"></div>
@@ -26,58 +57,33 @@
             </div>
           </div>
           <ul>
-            <li><a href="#" class="menu-item">Home</a></li>
-            <li class="menu-sub-item"><a href="#" class="menu-item">Phone Book</a></li>
-            <li class="menu-sub-item"><a href="#" class="menu-item">Work Order</a></li>
-            <li class="menu-sub-item"><a href="#" class="menu-item">Estimating</a></li>
+            <li><a href="#" class="menu-item" data-nav="home">Home</a></li>
+            <li class="menu-sub-item"><a href="#" class="menu-item" data-submenu="phonebook">Phone Book</a></li>
+            <li class="menu-sub-item"><a href="#" class="menu-item" data-submenu="workorder">Work Order</a></li>
+            <li class="menu-sub-item"><a href="#" class="menu-item" data-submenu="estimating">Estimating</a></li>
           </ul>
           <div class="flex-1"></div>
           <div class="nav-footer">
             <ul class="pt-2">
-              <li class="menu-sub-item"><a href="#" class="menu-item">Settings</a></li>
-              <li class="menu-sub-item"><a href="#" class="menu-item">Help</a></li>
+              <li class="menu-sub-item"><a href="#" class="menu-item" data-submenu="settings">Settings</a></li>
+              <li class="menu-sub-item"><a href="#" class="menu-item" data-submenu="help">Help</a></li>
             </ul>
           </div>
         </nav>
       </aside>
 
-      <!-- Main Content Area -->
-      <div class="main-content">
-        <header class="app-header">
-          <div class="header-top">
-            <h1 class="text-3xl font-semibold tracking-tight text-brand-primary">Company Name</h1>
-          </div>
-          <div class="header-sub">
-            <div class="search-container flex items-center rounded bg-white px-3 shadow-sm">
-              <span class="search-label text-[10px] font-black text-brand-primary uppercase">Search</span>
-              <input
-                id="universal-search"
-                type="text"
-                class="search-input w-full bg-transparent text-[14px] outline-none"
-                placeholder="Search..."
-              />
-            </div>
-            <div class="flex-1 text-center text-[10px] font-bold tracking-[0.4em] text-white uppercase">
-              Activity Bar
-            </div>
-          </div>
-        </header>
-        <main class="workspace bg-slate-50 p-8">
-          <div class="flex h-full items-center justify-center text-xs font-bold tracking-widest text-slate-400 uppercase">
-            Workspace Area
-          </div>
-        </main>
-      </div>
+      <!-- Workspace -->
+      <main class="workspace bg-slate-50">
+        <div class="flex h-full items-center justify-center text-xs font-bold tracking-widest text-slate-400 uppercase">
+          Workspace Area
+        </div>
+      </main>
 
       <!-- Right Widget Sidebar -->
       <aside class="sidebar-column bg-brand-tint">
-        <div class="header-flank">
-          <span class="text-center text-[16px] leading-tight font-black text-brand-primary uppercase">Contractor<br />Advantage</span>
-        </div>
         <div class="widget-area">
-          <div class="text-center text-[9px] font-black tracking-widest text-brand-primary uppercase">
-            Widget Dock
-          </div>
+          <div class="dock-label">Widget Dock</div>
+          <div class="widget-dock-icons"></div>
         </div>
       </aside>
 
@@ -88,6 +94,7 @@
       <div>v2.0.4 Build</div>
     </footer>
 
+    <script src="js/widgets.js"></script>
     <script src="js/shell.js"></script>
   </body>
 </html>

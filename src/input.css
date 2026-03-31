@@ -111,6 +111,77 @@ html, body {
   padding-bottom: 20px;
 }
 
+/* --- Collapsible Sidebar --- */
+.sidebar-column {
+  transition: width 0.2s ease, min-width 0.2s ease, flex-basis 0.2s ease;
+  overflow: hidden;
+}
+
+#nav-sidebar.is-collapsed {
+  width: 40px;
+  min-width: 40px;
+  flex: 0 0 40px;
+}
+
+#nav-sidebar.is-collapsed .hamburger-wrapper {
+  justify-content: center;
+  padding: 12px 8px;
+}
+
+#nav-sidebar.is-collapsed .menu-item,
+#nav-sidebar.is-collapsed .nav-footer {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.1s ease;
+}
+
+/* --- Submenu Flyout --- */
+.submenu {
+  position: fixed;
+  top: 0;
+  left: 165px;
+  min-width: 160px;
+  background-color: var(--color-brand-dark);
+  border-left: 3px solid var(--color-brand-accent);
+  box-shadow: 4px 4px 12px rgba(0, 0, 0, 0.25);
+  display: none;
+  flex-direction: column;
+  padding: 6px 0;
+  z-index: 9999;
+}
+
+.submenu.is-visible {
+  display: flex;
+}
+
+
+.submenu-item {
+  padding: 7px 16px;
+  color: var(--color-ink-light);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  text-decoration: none;
+  display: block;
+}
+
+.submenu-item:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.submenu-label {
+  padding: 4px 16px 6px;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-brand-accent);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  margin-bottom: 4px;
+}
+
 .menu-sub-item {
   margin-left: 16px;
 }
@@ -126,6 +197,8 @@ html, body {
   color: var(--color-ink-light);
   font-weight: 400;
   text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
   transition: all 0.1s ease;
 }
 
@@ -153,21 +226,27 @@ html, body {
   opacity: 1;
 }
 
-/* --- Header --- */
-.app-header {
-  height: var(--spacing-header-total);
-  flex-shrink: 0;
+/* --- Header Row (fixed, never reflows on sidebar collapse) --- */
+.app-header-row {
   display: flex;
-  flex-direction: column;
+  flex-shrink: 0;
+  height: var(--spacing-header-total);
 }
 
 .header-flank {
-  height: var(--spacing-header-total);
+  width: 165px;
+  min-width: 165px;
+  flex: 0 0 165px;
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
-  background-color: white;
+}
+
+.app-header {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 
 .header-top {
@@ -222,15 +301,204 @@ html, body {
 
 /* --- Workspace --- */
 .workspace {
+  position: relative;
   flex: 1;
-  overflow-y: auto;
+  overflow: hidden;
   border-right: 1px solid var(--color-border-slate);
 }
 
-/* --- Widget Area --- */
+/* --- Widget Area (Dock) --- */
 .widget-area {
-  padding: 12px;
+  padding: 8px;
   flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.widget-dock-icons {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dock-label {
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  color: var(--color-brand-primary);
+  text-transform: uppercase;
+  text-align: center;
+  padding-bottom: 6px;
+}
+
+.dock-icon {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  background-color: var(--color-brand-primary);
+  border-radius: 3px;
+  border-top: 3px solid transparent;
+  overflow: hidden;
+  transition: border-color 0.1s;
+}
+
+.dock-icon.is-active {
+  border-top-color: var(--color-brand-accent);
+}
+
+.dock-icon.is-minimized {
+  opacity: 0.5;
+}
+
+.dock-icon-title {
+  flex: 1;
+  padding: 5px 6px;
+  color: white;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dock-icon-title:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.dock-icon-btns {
+  display: flex;
+  align-items: center;
+  padding: 0 4px;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.dock-icon-btn {
+  width: 14px;
+  height: 14px;
+  background: rgba(255, 255, 255, 0.15);
+  border: none;
+  border-radius: 2px;
+  color: white;
+  font-size: 9px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.dock-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.dock-icon-btn-close:hover {
+  background-color: var(--color-danger);
+}
+
+/* --- Widgets --- */
+.widget {
+  position: absolute;
+  min-width: 280px;
+  min-height: 200px;
+  background-color: white;
+  border: 1px solid var(--color-border-slate);
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.widget.is-active {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  border-top: 3px solid var(--color-brand-accent);
+}
+
+.widget-header {
+  position: relative;
+  height: 30px;
+  background-color: var(--color-brand-header);
+  color: white;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  cursor: move;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.widget-title {
+  position: absolute;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: black;
+  pointer-events: none;
+}
+
+.widget-controls {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.widget-btn {
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 2px;
+  background-color: rgba(255, 255, 255, 0.2);
+  color: white;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.widget-btn:hover {
+  background-color: rgba(255, 255, 255, 0.4);
+}
+
+.widget-btn-close:hover {
+  background-color: var(--color-danger);
+}
+
+.widget-body {
+  flex: 1;
+  overflow: auto;
+  padding: 12px;
+  background-color: var(--color-brand-tint);
+}
+
+.widget-resize-handle {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+}
+
+.widget-resize-handle::after {
+  content: '';
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  width: 7px;
+  height: 7px;
+  border-bottom: 2px solid var(--color-border-slate);
+  border-right: 2px solid var(--color-border-slate);
 }
 
 /* --- Status Bar --- */
