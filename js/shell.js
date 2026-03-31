@@ -5,7 +5,6 @@ searchInput.addEventListener('keydown', function (event) {
   if (event.key === 'Enter') {
     const query = event.target.value.trim();
     if (query) {
-      // TODO: route query to the appropriate module (CRM, Estimating, etc.)
       console.log('Universal search:', query);
       event.target.value = '';
       event.target.blur();
@@ -14,8 +13,8 @@ searchInput.addEventListener('keydown', function (event) {
 });
 
 /* --- Collapsible Navigation --- */
-const navSidebar  = document.getElementById('nav-sidebar');
-const hamburger   = document.getElementById('hamburger');
+const navSidebar = document.getElementById('nav-sidebar');
+const hamburger  = document.getElementById('hamburger');
 
 hamburger.addEventListener('click', function () {
   navSidebar.classList.toggle('is-collapsed');
@@ -36,7 +35,7 @@ const SUBMENUS = {
   workorder: {
     label: 'Work Order',
     items: [
-      { title: 'Work Orders',  widget: 'workorder' },
+      { title: 'Work Orders',    widget: 'workorder' },
       { title: 'New Work Order', widget: 'new-workorder' },
     ],
   },
@@ -56,8 +55,8 @@ const SUBMENUS = {
   help: {
     label: 'Help',
     items: [
-      { title: 'Help',    widget: 'help' },
-      { title: 'About',   widget: 'about' },
+      { title: 'Help',  widget: 'help' },
+      { title: 'About', widget: 'about' },
     ],
   },
 };
@@ -67,27 +66,38 @@ const submenuPanel = document.createElement('div');
 submenuPanel.className = 'submenu';
 document.body.appendChild(submenuPanel);
 
-let hideTimer     = null;
 let activeMenuKey = null;
+let hideTimer     = null;
+let switchTimer   = null;
 
-function showSubmenu(key, anchorEl) {
+function getSidebarWidth() {
+  return navSidebar.classList.contains('is-collapsed') ? 40 : 165;
+}
+
+function _renderSubmenu(key, anchorEl) {
   if (!SUBMENUS[key]) return;
-  clearTimeout(hideTimer);
 
-  const def  = SUBMENUS[key];
-  const rect = anchorEl.getBoundingClientRect();
-  const sidebarWidth = navSidebar.classList.contains('is-collapsed') ? 40 : 165;
+  const def = SUBMENUS[key];
 
-  submenuPanel.innerHTML = `
-    <div class="submenu-label">${def.label}</div>
-    ${def.items.map(item =>
-      `<a class="submenu-item" data-widget="${item.widget}" data-title="${item.title}">${item.title}</a>`
-    ).join('')}
-  `;
+  submenuPanel.innerHTML = def.items.map(item =>
+    `<a class="submenu-item" data-widget="${item.widget}" data-title="${item.title}">${item.title}</a>`
+  ).join('');
 
-  submenuPanel.style.top  = rect.top + 'px';
-  submenuPanel.style.left = sidebarWidth + 'px';
+  // Measure first item height with panel temporarily visible off-screen
+  submenuPanel.style.visibility = 'hidden';
+  submenuPanel.style.left = getSidebarWidth() + 'px';
+  submenuPanel.style.top  = '0px';
   submenuPanel.classList.add('is-visible');
+
+  const anchorRect    = anchorEl.getBoundingClientRect();
+  const firstItem     = submenuPanel.firstElementChild;
+  const firstItemRect = firstItem.getBoundingClientRect();
+
+  // Align first item's bottom to anchor's bottom
+  const topPos = anchorRect.bottom - firstItemRect.height;
+
+  submenuPanel.style.top        = topPos + 'px';
+  submenuPanel.style.visibility = '';
   activeMenuKey = key;
 
   submenuPanel.querySelectorAll('.submenu-item').forEach(item => {
@@ -99,16 +109,33 @@ function showSubmenu(key, anchorEl) {
   });
 }
 
-function hideSubmenu(immediate) {
+function showSubmenu(key, anchorEl) {
   clearTimeout(hideTimer);
+
+  // If a different submenu is already open, wait briefly before switching —
+  // this prevents accidental switches when the mouse skims a lower nav item
+  // while traveling diagonally toward the open submenu.
+  if (activeMenuKey && activeMenuKey !== key) {
+    clearTimeout(switchTimer);
+    switchTimer = setTimeout(() => _renderSubmenu(key, anchorEl), 300);
+  } else {
+    clearTimeout(switchTimer);
+    _renderSubmenu(key, anchorEl);
+  }
+}
+
+function hideSubmenu(immediate) {
+  clearTimeout(switchTimer);
   if (immediate) {
+    clearTimeout(hideTimer);
     submenuPanel.classList.remove('is-visible');
     activeMenuKey = null;
   } else {
+    clearTimeout(hideTimer);
     hideTimer = setTimeout(() => {
       submenuPanel.classList.remove('is-visible');
       activeMenuKey = null;
-    }, 200);
+    }, 250);
   }
 }
 
@@ -118,7 +145,7 @@ document.querySelectorAll('.menu-item[data-submenu]').forEach(link => {
     showSubmenu(this.dataset.submenu, this);
   });
   link.addEventListener('mouseleave', function () {
-    hideSubmenu(false);
+    hideSubmenu(false);   // 250ms grace period
   });
   link.addEventListener('click', function (e) {
     e.preventDefault();
@@ -127,7 +154,8 @@ document.querySelectorAll('.menu-item[data-submenu]').forEach(link => {
 
 submenuPanel.addEventListener('mouseenter', function () {
   clearTimeout(hideTimer);
+  clearTimeout(switchTimer);
 });
 submenuPanel.addEventListener('mouseleave', function () {
-  hideSubmenu(false);
+  hideSubmenu(true);
 });
