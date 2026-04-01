@@ -27,40 +27,54 @@ const WidgetManager = (function () {
     widget.className = 'widget';
     widget.id = 'widget-' + id;
     const workspace = WORKSPACE();
-    const offset    = cascadeCount * CASCADE_STEP;
-    const maxLeft   = workspace.clientWidth  - w;
-    const maxTop    = workspace.clientHeight - h;
-    const top       = Math.min(CASCADE_BASE.top  + offset, maxTop);
-    const left      = Math.min(CASCADE_BASE.left + offset, maxLeft);
-    cascadeCount++;
+    let top, left;
+    if (options.top !== undefined && options.left !== undefined) {
+      top  = options.top;
+      left = options.left;
+    } else {
+      const offset = cascadeCount * CASCADE_STEP;
+      const maxLeft = workspace.clientWidth  - w;
+      const maxTop  = workspace.clientHeight - h;
+      top  = Math.min(CASCADE_BASE.top  + offset, maxTop);
+      left = Math.min(CASCADE_BASE.left + offset, maxLeft);
+      cascadeCount++;
+    }
 
+    const isPanel = !!options.panel;
     widget.style.cssText = `width:${w}px; height:${h}px; top:${top}px; left:${left}px;`;
+    if (isPanel) widget.classList.add('is-panel');
 
-    widget.innerHTML = `
-      <div class="widget-header">
-        <span class="widget-title">${title}</span>
-        <div class="widget-controls">
-          <button class="widget-btn widget-btn-minimize" title="Minimize">&#8722;</button>
-          <button class="widget-btn widget-btn-maximize" title="Maximize">&#9633;</button>
-          <button class="widget-btn widget-btn-close" title="Close">&#10005;</button>
+    if (isPanel) {
+      widget.innerHTML = `<div class="widget-body">${contentHTML}</div>`;
+    } else {
+      widget.innerHTML = `
+        <div class="widget-header">
+          <span class="widget-title">${title}</span>
+          <div class="widget-controls">
+            <button class="widget-btn widget-btn-minimize" title="Minimize">&#8722;</button>
+            <button class="widget-btn widget-btn-maximize" title="Maximize">&#9633;</button>
+            <button class="widget-btn widget-btn-close" title="Close">&#10005;</button>
+          </div>
         </div>
-      </div>
-      <div class="widget-body">${contentHTML}</div>
-      <div class="widget-resize-handle"></div>
-    `;
+        <div class="widget-body">${contentHTML}</div>
+        <div class="widget-resize-handle"></div>
+      `;
+    }
 
     workspace.appendChild(widget);
 
-    const dockIcon = _createDockIcon(id, title);
+    let dockIcon = null;
+    if (!isPanel) {
+      dockIcon = _createDockIcon(id, title);
+      widget.querySelector('.widget-btn-minimize').addEventListener('click', () => minimize(id));
+      widget.querySelector('.widget-btn-maximize').addEventListener('click', () => toggleMaximize(id));
+      widget.querySelector('.widget-btn-close').addEventListener('click', () => close(id));
+      _initDrag(widget);
+      _initResize(widget);
+    }
     state[id] = { el: widget, dockIcon, isMinimized: false, preMaximize: null };
 
-    widget.querySelector('.widget-btn-minimize').addEventListener('click', () => minimize(id));
-    widget.querySelector('.widget-btn-maximize').addEventListener('click', () => toggleMaximize(id));
-    widget.querySelector('.widget-btn-close').addEventListener('click', () => close(id));
     widget.addEventListener('mousedown', () => _bringToFront(widget));
-
-    _initDrag(widget);
-    _initResize(widget);
     _bringToFront(widget);
   }
 
@@ -69,7 +83,7 @@ const WidgetManager = (function () {
     if (!state[id]) return;
     const wasActive = state[id].el.classList.contains('is-active');
     state[id].el.remove();
-    state[id].dockIcon.remove();
+    if (state[id].dockIcon) state[id].dockIcon.remove();
     delete state[id];
     if (Object.keys(state).length === 0) cascadeCount = 0;
     if (wasActive) _activateNext();
