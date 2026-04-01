@@ -377,7 +377,7 @@ html, body {
 .dock-icon-btn {
   width: 14px;
   height: 14px;
-  background: var(--color-btn-ghost);
+  background-color: var(--color-btn-ghost);
   border: none;
   border-radius: 2px;
   color: white;
@@ -389,12 +389,18 @@ html, body {
   line-height: 1;
 }
 
-.dock-icon-btn:hover {
-  background: var(--color-btn-ghost-hover);
+.dock-icon-btn {
+  transition: background-color 0.3s ease 0.2s;
 }
 
-.dock-icon-btn-close:hover {
-  background-color: var(--color-danger);
+.dock-icon-btn:hover {
+  background-color: var(--color-brand-accent);
+  transition: background-color 0.1s ease;
+}
+
+.dock-icon-btn:active {
+  background-color: var(--color-brand-orange);
+  transition: background-color 0.05s ease;
 }
 
 /* --- Widgets --- */
@@ -410,6 +416,13 @@ html, body {
   overflow: hidden;
 }
 
+.widget::after {
+  content: '';
+  height: 16px;
+  flex-shrink: 0;
+  background-color: var(--color-brand-primary);
+}
+
 .widget.is-active {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
   border-top: 3px solid var(--color-brand-accent);
@@ -422,7 +435,7 @@ html, body {
   color: white;
   display: flex;
   align-items: center;
-  padding: 0 8px;
+  padding: 0 0 0 8px;
   cursor: move;
   user-select: none;
   flex-shrink: 0;
@@ -443,37 +456,48 @@ html, body {
 
 .widget-controls {
   display: flex;
-  gap: 4px;
+  gap: 0;
   margin-left: auto;
+  border-left: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 .widget-btn {
-  width: 18px;
-  height: 18px;
+  width: 28px;
+  height: 30px;
   border: none;
-  border-radius: 2px;
+  border-left: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 0;
   background-color: var(--color-btn-ghost);
   color: white;
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: background-color 0.3s ease 0.2s, color 0.3s ease 0.2s;
+}
+
+.widget-btn:first-child {
+  border-left: none;
 }
 
 .widget-btn:hover {
-  background-color: var(--color-btn-ghost-hover);
+  background-color: var(--color-brand-accent);
+  color: var(--color-ink-dark);
+  transition: background-color 0.1s ease, color 0.1s ease;
 }
 
-.widget-btn-close:hover {
-  background-color: var(--color-danger);
+.widget-btn:active {
+  background-color: var(--color-brand-orange);
+  color: white;
+  transition: background-color 0.05s ease, color 0.05s ease;
 }
 
 .widget-body {
   flex: 1;
   overflow: auto;
-  padding: 12px;
+  padding: 12px 12px 0;
   background-color: var(--color-brand-tint);
 }
 
@@ -493,14 +517,14 @@ html, body {
   position: relative;
   display: flex;
   flex-direction: column;
-  padding-top: 8px;
+  padding-top: 10px;
   flex: 1;
   min-width: 0;
 }
 
 .form-label {
   position: absolute;
-  top: 2px;
+  top: -3px;
   left: 6px;
   z-index: 1;
   font-size: 9px;
@@ -508,17 +532,25 @@ html, body {
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: #64748B;
-  background: linear-gradient(to bottom, var(--color-brand-tint) 50%, var(--color-surface-white) 50%);
+  background: var(--color-brand-tint);
   padding: 0 2px;
   line-height: 12px;
   pointer-events: none;
+}
+
+/* Inner form containers — same vertical rhythm as .widget-form */
+[data-container],
+[data-address-block],
+[data-person-block] {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .form-input,
 .form-select,
 .form-textarea {
   width: 100%;
-  padding: 2px 6px;
   font-size: 13px;
   color: var(--color-ink-dark);
   background-color: var(--color-surface-white);
@@ -526,6 +558,16 @@ html, body {
   border-radius: 3px;
   outline: none;
   box-sizing: border-box;
+}
+
+.form-input,
+.form-select {
+  height: 24px;
+  padding: 0 6px;
+}
+
+.form-textarea {
+  padding: 2px 6px;
 }
 
 .form-input:focus,
@@ -587,6 +629,7 @@ html, body {
 .widget-footer {
   position: sticky;
   bottom: 0;
+  z-index: 1;
   display: flex;
   justify-content: flex-end;
   gap: 8px;
@@ -596,43 +639,65 @@ html, body {
   margin-top: 8px;
 }
 
-/* Action buttons — accent at rest, orange on interact */
+/* Action buttons — tint at rest, accent on hover, orange on click */
 .btn-action {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 3px;
-  padding: 3px 10px;
+  min-width: 88px;
+  height: 24px;
+  padding: 0 10px;
   font-size: 11px;
   font-weight: 700;
   color: var(--color-ink-dark);
-  background-color: var(--color-brand-accent);
-  border: none;
+  background-color: var(--color-brand-tint);
+  border: 1px solid var(--color-border-slate);
   border-radius: 3px;
+  box-sizing: border-box;
   cursor: pointer;
-  transition: background-color 0.1s ease, color 0.1s ease;
+  transition: background-color 0.3s ease 0.2s, border-color 0.3s ease 0.2s, color 0.3s ease 0.2s;
   white-space: nowrap;
 }
 
-.btn-action:hover,
+.btn-action:hover {
+  background-color: var(--color-brand-accent);
+  border-color: var(--color-brand-accent);
+  transition: background-color 0.1s ease, border-color 0.1s ease, color 0.1s ease;
+}
+
 .btn-action:active {
   background-color: var(--color-brand-orange);
+  border-color: var(--color-brand-orange);
   color: white;
+  transition: background-color 0.05s ease, border-color 0.05s ease, color 0.05s ease;
 }
 
 .btn-primary {
   padding: 5px 18px;
   font-size: 12px;
   font-weight: 700;
-  background-color: var(--color-brand-primary);
-  color: white;
-  border: none;
+  background-color: var(--color-brand-tint);
+  color: var(--color-ink-dark);
+  border: 1px solid var(--color-border-slate);
   border-radius: 3px;
+  box-sizing: border-box;
   cursor: pointer;
+  transition: background-color 0.3s ease 0.2s, border-color 0.3s ease 0.2s, color 0.3s ease 0.2s;
 }
 
 .btn-primary:hover {
-  background-color: var(--color-brand-dark);
+  background-color: var(--color-brand-accent);
+  border-color: var(--color-brand-accent);
+  color: var(--color-ink-dark);
+  transition: background-color 0.1s ease, border-color 0.1s ease, color 0.1s ease;
+}
+
+.btn-primary:active {
+  background-color: var(--color-brand-orange);
+  border-color: var(--color-brand-orange);
+  color: white;
+  transition: background-color 0.05s ease, border-color 0.05s ease, color 0.05s ease;
 }
 
 .btn-secondary {
@@ -643,11 +708,23 @@ html, body {
   color: var(--color-ink-dark);
   border: 1px solid var(--color-border-slate);
   border-radius: 3px;
+  box-sizing: border-box;
   cursor: pointer;
+  transition: background-color 0.3s ease 0.2s, border-color 0.3s ease 0.2s, color 0.3s ease 0.2s;
 }
 
 .btn-secondary:hover {
-  background-color: var(--color-brand-tint);
+  background-color: var(--color-brand-accent);
+  border-color: var(--color-brand-accent);
+  color: var(--color-ink-dark);
+  transition: background-color 0.1s ease, border-color 0.1s ease, color 0.1s ease;
+}
+
+.btn-secondary:active {
+  background-color: var(--color-brand-orange);
+  border-color: var(--color-brand-orange);
+  color: white;
+  transition: background-color 0.05s ease, border-color 0.05s ease, color 0.05s ease;
 }
 
 .widget-resize-handle {
@@ -666,8 +743,8 @@ html, body {
   right: 4px;
   width: 7px;
   height: 7px;
-  border-bottom: 2px solid var(--color-border-slate);
-  border-right: 2px solid var(--color-border-slate);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.5);
+  border-right: 2px solid rgba(255, 255, 255, 0.5);
 }
 
 /* --- Status Bar --- */

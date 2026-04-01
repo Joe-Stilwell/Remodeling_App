@@ -102,8 +102,7 @@ const CRM = (function () {
   function _additionalPersonHTML(index) {
     return `
       <div data-person-block data-person-index="${index}"
-           style="border-left:3px solid var(--color-brand-accent);
-                  padding-left:8px; margin-top:6px">
+           style="border-left:3px solid var(--color-brand-accent); padding-left:8px">
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">First Name</label>
@@ -116,7 +115,7 @@ const CRM = (function () {
                    placeholder="Last" autocomplete="off">
           </div>
         </div>
-        <div class="contact-row" style="margin-top:6px">
+        <div class="contact-row">
           <div class="form-group">
             <label class="form-label">Phone</label>
             <input class="form-input" data-ap="phone" type="tel"
@@ -129,7 +128,7 @@ const CRM = (function () {
             </select>
           </div>
         </div>
-        <div class="contact-row" style="margin-top:6px">
+        <div class="contact-row">
           <div class="form-group">
             <label class="form-label">Email</label>
             <input class="form-input" data-ap="email" type="email"
@@ -142,7 +141,7 @@ const CRM = (function () {
             </select>
           </div>
         </div>
-        <div class="form-group" style="margin-top:6px">
+        <div class="form-group">
           <label class="form-label">Relationship</label>
           <select class="form-select" data-ap="relationship">
             <option>Spouse</option>
@@ -171,6 +170,8 @@ const CRM = (function () {
     return `
       <div class="widget-form">
 
+        <div class="form-divider"></div>
+
         <!-- Name -->
         <div class="form-row" style="align-items:flex-end">
           <div class="form-group" style="flex:0 0 68px">
@@ -194,10 +195,8 @@ const CRM = (function () {
             <input class="form-input" data-field="last-name" type="text"
                    placeholder="Last" autocomplete="off">
           </div>
-          <button class="btn-action" data-action="add-person" tabindex="-1">+ Add Person</button>
+          <button class="btn-action" data-action="add-person" tabindex="-1" style="align-self:flex-end"><b style="font-size:14px">+</b> Person</button>
         </div>
-
-        <div class="form-divider"></div>
 
         <!-- Phones -->
         <div data-container="phones">
@@ -218,11 +217,9 @@ const CRM = (function () {
                 ${_options('phoneTypes')}
               </select>
             </div>
-            <button class="btn-action" data-action="add-phone" tabindex="-1">+ Add Phone</button>
+            <button class="btn-action" data-action="add-phone" tabindex="-1"><b style="font-size:14px">+</b> Phone</button>
           </div>
         </div>
-
-        <div class="form-divider"></div>
 
         <!-- Emails -->
         <div data-container="emails">
@@ -239,11 +236,9 @@ const CRM = (function () {
                 ${_options('emailTypes')}
               </select>
             </div>
-            <button class="btn-action" data-action="add-email" tabindex="-1">+ Add Email</button>
+            <button class="btn-action" data-action="add-email" tabindex="-1"><b style="font-size:14px">+</b> Email</button>
           </div>
         </div>
-
-        <div class="form-divider"></div>
 
         <!-- Lead Source / Referred By -->
         <div class="form-row">
@@ -278,7 +273,7 @@ const CRM = (function () {
         <!-- Additional Addresses -->
         <div data-container="additional-addresses"></div>
         <button class="btn-action" data-action="add-address"
-                tabindex="-1" style="margin-top:6px">+ Add Address</button>
+                tabindex="-1" style="align-self:flex-end"><b style="font-size:14px">+</b> Address</button>
 
         <div class="form-divider"></div>
 
@@ -321,7 +316,6 @@ const CRM = (function () {
       const idx = phoneCount++;
       const row = document.createElement('div');
       row.className = 'contact-row';
-      row.style.marginTop = '4px';
       row.innerHTML = `
         <div class="form-group" style="flex:0 0 46px">
           <label class="form-label">CC</label>
@@ -350,7 +344,6 @@ const CRM = (function () {
       const idx = emailCount++;
       const row = document.createElement('div');
       row.className = 'contact-row';
-      row.style.marginTop = '4px';
       row.innerHTML = `
         <div style="flex:0 0 46px"></div>
         <div class="form-group">
@@ -383,8 +376,6 @@ const CRM = (function () {
       const wrap = document.createElement('div');
       wrap.innerHTML = _addressBlockHTML(idx);
       const block = wrap.firstElementChild;
-      block.style.marginTop = '8px';
-      block.style.paddingTop = '8px';
       block.style.borderTop = '1px solid var(--color-border-slate)';
       el.querySelector('[data-container="additional-addresses"]').appendChild(block);
     });
