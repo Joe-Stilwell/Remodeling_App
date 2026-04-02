@@ -36,6 +36,11 @@
   --shadow-soft-md: 0 10px 15px -3px rgba(0,0,0,0.1);
 }
 
+/* --- Layout Variables --- */
+:root {
+  --btn-col: 90px;
+}
+
 /* --- Global Reset --- */
 * {
   margin: 0;
@@ -49,6 +54,7 @@ ul, ol {
 
 html, body {
   height: 100%;
+  font-family: Arial, Helvetica, sans-serif;
 }
 
 /* --- App Shell Layout --- */
@@ -523,7 +529,7 @@ html, body {
 .widget-body {
   flex: 1;
   overflow: auto;
-  padding: 12px 12px 0;
+  padding: 6px 12px 0;
   background-color: var(--color-brand-tint);
 }
 
@@ -531,12 +537,24 @@ html, body {
 .widget-form {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .form-row {
   display: flex;
-  gap: 8px;
+  gap: 6px;
+  align-items: flex-end;
+}
+
+.btn-spacer {
+  width: var(--btn-col);
+  flex-shrink: 0;
+  margin-left: 6px;
+}
+
+.form-row > .btn-action,
+.contact-row > .btn-action {
+  margin-left: 6px;
 }
 
 .form-group {
@@ -564,13 +582,18 @@ html, body {
   pointer-events: none;
 }
 
+/* Collapse empty containers so they don't create double gaps */
+[data-container]:empty {
+  display: none;
+}
+
 /* Inner form containers — same vertical rhythm as .widget-form */
 [data-container],
 [data-address-block],
 [data-person-block] {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .form-input,
@@ -589,11 +612,11 @@ html, body {
 .form-input,
 .form-select {
   height: 24px;
-  padding: 0 6px;
+  padding: 0 6px 0 3px;
 }
 
 .form-textarea {
-  padding: 2px 6px;
+  padding: 2px 6px 2px 3px;
 }
 
 .form-input:focus,
@@ -605,14 +628,16 @@ html, body {
 
 .form-textarea {
   resize: vertical;
-  min-height: 56px;
+  min-height: 24px;
+  height: 24px;
+  overflow: hidden;
   font-family: inherit;
 }
 
 .form-divider {
   height: 1px;
   background-color: var(--color-border-slate);
-  margin: 2px 0;
+  margin: 0;
 }
 
 .contact-row {
@@ -795,8 +820,9 @@ html, body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 3px;
-  min-width: 88px;
+  letter-spacing: 0.02em;
+  width: var(--btn-col);
+  flex-shrink: 0;
   height: 24px;
   padding: 0 10px;
   font-size: 11px;
@@ -828,8 +854,14 @@ html, body {
 }
 
 .btn-primary {
-  padding: 5px 18px;
-  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--btn-col);
+  flex-shrink: 0;
+  height: 24px;
+  padding: 0 10px;
+  font-size: 11px;
   font-weight: 700;
   background-color: var(--color-brand-tint);
   color: var(--color-ink-dark);
@@ -858,8 +890,14 @@ html, body {
 }
 
 .btn-secondary {
-  padding: 5px 18px;
-  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--btn-col);
+  flex-shrink: 0;
+  height: 24px;
+  padding: 0 10px;
+  font-size: 11px;
   font-weight: 700;
   background-color: var(--color-brand-tint);
   color: var(--color-ink-dark);

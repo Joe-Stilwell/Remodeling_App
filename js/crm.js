@@ -38,10 +38,51 @@ const CRM = (function () {
     localStorage.setItem(key, JSON.stringify(data));
   }
 
+  /* ── Input formatters ────────────────────────────────────── */
+  function _formatPhone(e) {
+    const digits = e.target.value.replace(/\D/g, '').substring(0, 10);
+    let val = '';
+    if (digits.length > 6)      val = '(' + digits.substring(0,3) + ') ' + digits.substring(3,6) + '-' + digits.substring(6);
+    else if (digits.length > 3) val = '(' + digits.substring(0,3) + ') ' + digits.substring(3);
+    else if (digits.length)     val = '(' + digits;
+    e.target.value = val;
+  }
+
+  function _formatZip(e) {
+    const digits = e.target.value.replace(/\D/g, '').substring(0, 9);
+    e.target.value = digits.length > 5 ? digits.substring(0,5) + '-' + digits.substring(5) : digits;
+  }
+
+  function _formatState(e) {
+    e.target.value = e.target.value.toUpperCase();
+  }
+
+  function _formatExt(e) {
+    e.target.value = e.target.value.replace(/\D/g, '');
+  }
+
+  function _formatEmail(e) {
+    const pos = e.target.selectionStart;
+    e.target.value = e.target.value.toLowerCase();
+    e.target.setSelectionRange(pos, pos);
+  }
+
+  function _formatNameField(e) {
+    const pos = e.target.selectionStart;
+    e.target.value = e.target.value.replace(/\b\w/g, c => c.toUpperCase());
+    e.target.setSelectionRange(pos, pos);
+  }
+
+  function _formatCC(e) {
+    let val = e.target.value.replace(/[^\d+]/g, '');
+    if (val && !val.startsWith('+')) val = '+' + val;
+    e.target.value = val;
+  }
+
   /* ── Build select options HTML ────────────────────────────── */
-  function _options(listKey, includeBlank = false) {
+  function _options(listKey, defaultFirst = false) {
     const items = _getList(listKey);
-    const blank = includeBlank ? '<option value="">-- Select --</option>' : '';
+    const blank = defaultFirst ? '' : '<option value="">-- Select --</option>';
     return blank + items.map(i => `<option>${i}</option>`).join('');
   }
 
@@ -49,24 +90,29 @@ const CRM = (function () {
   function _phoneRowHTML(idx, includeAddBtn) {
     return `
       <div class="contact-row">
-        <div class="form-group" style="flex:0 0 46px">
+        <div class="form-group" style="flex:0 0 36px">
           <label class="form-label">CC</label>
           <input class="form-input" type="text" data-phone-cc data-index="${idx}"
                  value="+1" maxlength="5" autocomplete="off">
         </div>
-        <div class="form-group">
+        <div class="form-group" style="flex:1">
           <label class="form-label">Phone</label>
-          <input class="form-input" type="tel" placeholder="(000) 000-0000"
+          <input class="form-input" type="tel" placeholder=""
                  data-phone data-index="${idx}" autocomplete="off">
         </div>
-        <div class="form-group" style="flex:0 0 100px">
+        <div class="form-group" style="flex:0 0 40px">
+          <label class="form-label">Ext.</label>
+          <input class="form-input" type="text" data-phone-ext data-index="${idx}"
+                 maxlength="6" autocomplete="off">
+        </div>
+        <div class="form-group" style="flex:0 0 82px">
           <label class="form-label">Type</label>
           <select class="form-select" data-phone-type data-index="${idx}">
-            ${_options('phoneTypes')}
+            ${_options('phoneTypes', true)}
           </select>
         </div>
         ${includeAddBtn
-          ? `<button class="btn-action" data-action="add-phone" tabindex="-1" disabled><b style="font-size:14px">+</b> Phone</button>`
+          ? `<button class="btn-action" data-action="add-phone" tabindex="-1" disabled>+ Phone</button>`
           : `<button class="btn-remove" type="button" title="Remove">&#10005;</button>`}
       </div>
     `;
@@ -76,20 +122,19 @@ const CRM = (function () {
   function _emailRowHTML(idx, includeAddBtn) {
     return `
       <div class="contact-row">
-        <div style="flex:0 0 46px"></div>
-        <div class="form-group">
+        <div class="form-group" style="flex:1">
           <label class="form-label">Email</label>
-          <input class="form-input" type="email" placeholder="email@example.com"
+          <input class="form-input" type="email" placeholder=""
                  data-email data-index="${idx}" autocomplete="off">
         </div>
-        <div class="form-group" style="flex:0 0 100px">
+        <div class="form-group" style="flex:0 0 82px">
           <label class="form-label">Type</label>
           <select class="form-select" data-email-type data-index="${idx}">
-            ${_options('emailTypes')}
+            ${_options('emailTypes', true)}
           </select>
         </div>
         ${includeAddBtn
-          ? `<button class="btn-action" data-action="add-email" tabindex="-1" disabled><b style="font-size:14px">+</b> Email</button>`
+          ? `<button class="btn-action" data-action="add-email" tabindex="-1" disabled>+ Email</button>`
           : `<button class="btn-remove" type="button" title="Remove">&#10005;</button>`}
       </div>
     `;
@@ -134,7 +179,11 @@ const CRM = (function () {
         phoneCount--;
         _updatePhoneBtn();
       });
-      rowEl.querySelector('input[data-phone]').addEventListener('input', _updatePhoneBtn);
+      const phoneInput = rowEl.querySelector('input[data-phone]');
+      phoneInput.addEventListener('input', _updatePhoneBtn);
+      phoneInput.addEventListener('input', _formatPhone);
+      rowEl.querySelector('input[data-phone-cc]').addEventListener('input', _formatCC);
+      rowEl.querySelector('input[data-phone-ext]').addEventListener('input', _formatExt);
       containerEl.querySelector(phoneContainerSel).appendChild(rowEl);
       _updatePhoneBtn();
     });
@@ -149,7 +198,9 @@ const CRM = (function () {
         emailCount--;
         _updateEmailBtn();
       });
-      rowEl.querySelector('input[data-email]').addEventListener('input', _updateEmailBtn);
+      const emailInput = rowEl.querySelector('input[data-email]');
+      emailInput.addEventListener('input', _updateEmailBtn);
+      emailInput.addEventListener('input', _formatEmail);
       containerEl.querySelector(emailContainerSel).appendChild(rowEl);
       _updateEmailBtn();
     });
@@ -163,7 +214,8 @@ const CRM = (function () {
       const idx  = input.dataset.index;
       const type = containerEl.querySelector(`[data-phone-type][data-index="${idx}"]`)?.value || 'Mobile';
       const cc   = containerEl.querySelector(`[data-phone-cc][data-index="${idx}"]`)?.value.trim() || '+1';
-      phones.push({ number: input.value.trim(), countryCode: cc, type, preferred: phones.length === 0 });
+      const ext  = containerEl.querySelector(`[data-phone-ext][data-index="${idx}"]`)?.value.trim() || '';
+      phones.push({ number: input.value.trim(), countryCode: cc, ext, type, preferred: phones.length === 0 });
     });
     return phones;
   }
@@ -181,52 +233,63 @@ const CRM = (function () {
 
   /* ── Address block HTML ───────────────────────────────────── */
   function _addressBlockHTML(index) {
+    const isFirst = index === 0;
     return `
       <div data-address-block data-addr-index="${index}">
-        <div class="form-group">
-          <label class="form-label">Street Address</label>
-          <input class="form-input" data-addr="street1" type="text"
-                 placeholder="123 Main St" autocomplete="off">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Street 2 / Unit / PO Box</label>
-          <input class="form-input" data-addr="street2" type="text"
-                 placeholder="Apt, Suite, Unit, PO Box..." autocomplete="off">
+        <div class="form-row">
+          <div class="form-group" style="flex:1">
+            <label class="form-label">Street Address</label>
+            <input class="form-input" data-addr="street1" type="text"
+                   placeholder="" autocomplete="off">
+          </div>
+          <div class="form-group" style="flex:0 0 80px">
+            <label class="form-label">Unit / PO Box</label>
+            <input class="form-input" data-addr="street2" type="text"
+                   placeholder="" autocomplete="off">
+          </div>
+          ${isFirst
+            ? `<button class="btn-action" data-action="add-address" tabindex="-1">+ Address</button>`
+            : `<div class="btn-spacer"></div>`}
         </div>
         <div class="form-row">
-          <div class="form-group" style="flex:2">
+          <div class="form-group" style="flex:1">
             <label class="form-label">City</label>
             <input class="form-input" data-addr="city" type="text" autocomplete="off">
           </div>
-          <div class="form-group" style="flex:0 0 44px">
-            <label class="form-label">State</label>
+          <div class="form-group" style="flex:0 0 30px">
+            <label class="form-label" style="left:0;right:0;text-align:center;padding:0">State</label>
             <input class="form-input" data-addr="state" type="text"
-                   maxlength="2" autocomplete="off">
+                   maxlength="3" autocomplete="off">
           </div>
-          <div class="form-group" style="flex:0 0 72px">
-            <label class="form-label">Zip</label>
+          <div class="form-group" style="flex:0 0 78px">
+            <label class="form-label">Zip Code</label>
             <input class="form-input" data-addr="zip" type="text"
                    maxlength="10" autocomplete="off">
           </div>
+          <div class="btn-spacer"></div>
         </div>
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">Property Type</label>
             <select class="form-select" data-addr="prop-type">
-              ${_options('propertyTypes', true)}
+              ${_options('propertyTypes')}
             </select>
           </div>
           <div class="form-group">
             <label class="form-label">Property Use</label>
             <select class="form-select" data-addr="prop-use">
-              ${_options('propertyUses', true)}
+              ${_options('propertyUses')}
             </select>
           </div>
+          <div class="btn-spacer"></div>
         </div>
-        <div class="form-group">
-          <label class="form-label">Property Notes</label>
-          <textarea class="form-textarea" data-addr="notes"
-                    placeholder="Gate code, parking, access notes..."></textarea>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Property Notes</label>
+            <textarea class="form-textarea" data-addr="notes"
+                      placeholder=""></textarea>
+          </div>
+          <div class="btn-spacer"></div>
         </div>
       </div>
     `;
@@ -240,12 +303,12 @@ const CRM = (function () {
           <div class="form-group">
             <label class="form-label">First Name</label>
             <input class="form-input" data-ap="first-name" type="text"
-                   placeholder="First" autocomplete="off">
+                   placeholder="" autocomplete="off">
           </div>
           <div class="form-group">
             <label class="form-label">Last Name</label>
             <input class="form-input" data-ap="last-name" type="text"
-                   placeholder="Last" autocomplete="off">
+                   placeholder="" autocomplete="off">
           </div>
         </div>
         <div class="form-group">
@@ -277,7 +340,7 @@ const CRM = (function () {
   function _addressSideWidgetHTML() {
     return `
       <div class="widget-form">
-        ${_addressBlockHTML(0)}
+        ${_addressBlockHTML(1)}
         <div class="widget-footer">
           <button class="btn-secondary" data-action="cancel">Cancel</button>
           <button class="btn-primary" data-action="save">Save</button>
@@ -342,7 +405,7 @@ const CRM = (function () {
   /* ── New Residential Client ───────────────────────────────── */
   function openNewClient() {
     const id = 'new-client-' + Date.now();
-    WidgetManager.open(id, 'New Client', _newClientHTML(), { width: 500, height: 600 });
+    WidgetManager.open(id, 'New Client', _newClientHTML(), { width: 425, height: 510 });
     _bindNewClientForm(id);
     requestAnimationFrame(() => {
       document.getElementById('widget-' + id)
@@ -355,11 +418,9 @@ const CRM = (function () {
     return `
       <div class="widget-form">
 
-        <div class="form-divider"></div>
-
         <!-- Name -->
-        <div class="form-row" style="align-items:flex-end">
-          <div class="form-group" style="flex:0 0 68px">
+        <div class="form-row">
+          <div class="form-group" style="flex:0 0 62px">
             <label class="form-label">Title</label>
             <select class="form-select" data-field="title">
               <option value=""></option>
@@ -370,18 +431,18 @@ const CRM = (function () {
               <option>Prof.</option>
             </select>
           </div>
-          <div class="form-group">
+          <div class="form-group" style="flex:0 0 100px">
             <label class="form-label">First Name</label>
             <input class="form-input" data-field="first-name" type="text"
-                   placeholder="First" autocomplete="off">
+                   placeholder="" autocomplete="off">
           </div>
-          <div class="form-group">
+          <div class="form-group" style="flex:1">
             <label class="form-label">Last Name</label>
             <input class="form-input" data-field="last-name" type="text"
-                   placeholder="Last" autocomplete="off">
+                   placeholder="" autocomplete="off">
           </div>
           <button class="btn-action" data-action="add-person"
-                  tabindex="-1" style="align-self:flex-end" disabled><b style="font-size:14px">+</b> Person</button>
+                  tabindex="-1" disabled>+ Person</button>
         </div>
 
         <!-- Phones -->
@@ -399,21 +460,25 @@ const CRM = (function () {
           <div class="form-group">
             <label class="form-label">Lead Source</label>
             <select class="form-select" data-field="lead-source">
-              ${_options('leadSources', true)}
+              ${_options('leadSources')}
             </select>
           </div>
           <div class="form-group">
             <label class="form-label">Referred By</label>
             <input class="form-input" data-field="referred-by" type="text"
-                   placeholder="Name" autocomplete="off">
+                   placeholder="" autocomplete="off">
           </div>
+          <div class="btn-spacer"></div>
         </div>
 
         <!-- Client Notes -->
-        <div class="form-group">
-          <label class="form-label">Client Notes</label>
-          <textarea class="form-textarea" data-field="client-notes"
-                    placeholder="Personal notes about this client..."></textarea>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Client Notes</label>
+            <textarea class="form-textarea" data-field="client-notes"
+                      placeholder=""></textarea>
+          </div>
+          <div class="btn-spacer"></div>
         </div>
 
         <!-- Additional People (summary rows appear here) -->
@@ -426,28 +491,22 @@ const CRM = (function () {
 
         <!-- Additional Addresses (summary rows appear here) -->
         <div data-container="additional-addresses"></div>
-        <button class="btn-action" data-action="add-address"
-                tabindex="-1" style="align-self:flex-end"><b style="font-size:14px">+</b> Address</button>
 
-        <div class="form-divider"></div>
-
-        <!-- Status -->
-        <div class="form-group">
-          <label class="form-label">Status</label>
-          <div class="status-row">
-            <label class="status-option">
-              <input type="radio" name="client-status" value="Active" checked> Active
-            </label>
-            <label class="status-option">
-              <input type="radio" name="client-status" value="Inactive"> Inactive
-            </label>
+        <!-- Status + actions on same row -->
+        <div class="form-row" style="align-items:center">
+          <div class="form-group" style="flex:1">
+            <label class="form-label">Status</label>
+            <div class="status-row">
+              <label class="status-option">
+                <input type="radio" name="client-status" value="Active" checked> Active
+              </label>
+              <label class="status-option">
+                <input type="radio" name="client-status" value="Inactive"> Inactive
+              </label>
+            </div>
           </div>
-        </div>
-
-        <!-- Footer -->
-        <div class="widget-footer">
-          <button class="btn-secondary" data-action="cancel">Cancel</button>
-          <button class="btn-primary" data-action="save">Save Client</button>
+          <button class="btn-secondary" data-action="cancel" style="margin-left:6px">Cancel</button>
+          <button class="btn-primary" data-action="save" style="margin-left:6px">Save Client</button>
         </div>
 
       </div>
@@ -461,6 +520,17 @@ const CRM = (function () {
 
     // Phone / Email add buttons
     _bindPhoneEmailRows(el, '[data-container="phones"]', '[data-container="emails"]');
+
+    // Field formatters
+    el.querySelector('input[data-phone][data-index="0"]').addEventListener('input', _formatPhone);
+    el.querySelector('input[data-phone-cc][data-index="0"]').addEventListener('input', _formatCC);
+    el.querySelector('input[data-phone-ext][data-index="0"]').addEventListener('input', _formatExt);
+    el.querySelector('input[data-email][data-index="0"]').addEventListener('input', _formatEmail);
+    el.querySelector('[data-field="first-name"]').addEventListener('input', _formatNameField);
+    el.querySelector('[data-field="last-name"]').addEventListener('input', _formatNameField);
+    el.querySelector('[data-field="referred-by"]').addEventListener('input', _formatNameField);
+    el.querySelector('[data-addr="state"]').addEventListener('input', _formatState);
+    el.querySelector('[data-addr="zip"]').addEventListener('input', _formatZip);
 
     // Track any open panel so parent Cancel can close it
     let openPanelId = null;
@@ -532,6 +602,14 @@ const CRM = (function () {
     // Phone / Email add buttons within the side widget
     _bindPhoneEmailRows(sideEl, '[data-container="ap-phones"]', '[data-container="ap-emails"]');
 
+    // Formatters
+    sideEl.querySelector('[data-ap="first-name"]').addEventListener('input', _formatNameField);
+    sideEl.querySelector('[data-ap="last-name"]').addEventListener('input', _formatNameField);
+    sideEl.querySelector('input[data-phone]').addEventListener('input', _formatPhone);
+    sideEl.querySelector('input[data-phone-cc]').addEventListener('input', _formatCC);
+    sideEl.querySelector('input[data-phone-ext]')?.addEventListener('input', _formatExt);
+    sideEl.querySelector('input[data-email]').addEventListener('input', _formatEmail);
+
     function _reEnable() { addPersonBtn.disabled = false; if (onClose) onClose(); }
 
     sideEl.querySelector('[data-action="cancel"]').addEventListener('click', () => {
@@ -582,6 +660,9 @@ const CRM = (function () {
     if (!sideEl) return;
 
     function _reEnable() { addAddressBtn.disabled = false; if (onClose) onClose(); }
+
+    sideEl.querySelector('[data-addr="zip"]').addEventListener('input', _formatZip);
+    sideEl.querySelector('[data-addr="state"]').addEventListener('input', _formatState);
 
     sideEl.querySelector('[data-action="cancel"]').addEventListener('click', () => {
       WidgetManager.close(sideId);
