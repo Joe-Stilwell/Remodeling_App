@@ -20,8 +20,9 @@ const WidgetManager = (function () {
       return;
     }
 
-    const w = options.width  || 320;
-    const h = options.height || 400;
+    const w          = options.width  || 320;
+    const autoHeight = !!options.autoHeight;
+    const h          = autoHeight ? 0 : (options.height || 400);
 
     const widget = document.createElement('div');
     widget.className = 'widget';
@@ -32,16 +33,17 @@ const WidgetManager = (function () {
       top  = options.top;
       left = options.left;
     } else {
-      const offset = cascadeCount * CASCADE_STEP;
+      const offset  = cascadeCount * CASCADE_STEP;
       const maxLeft = workspace.clientWidth  - w;
-      const maxTop  = workspace.clientHeight - h;
+      const maxTop  = workspace.clientHeight - (autoHeight ? MIN_HEIGHT : h);
       top  = Math.min(CASCADE_BASE.top  + offset, maxTop);
       left = Math.min(CASCADE_BASE.left + offset, maxLeft);
       cascadeCount++;
     }
 
     const isPanel = !!options.panel;
-    widget.style.cssText = `width:${w}px; height:${h}px; top:${top}px; left:${left}px;`;
+    widget.style.cssText = `width:${w}px; height:${autoHeight ? workspace.clientHeight + 'px' : h + 'px'}; top:${top}px; left:${left}px;`;
+    if (autoHeight) widget.style.visibility = 'hidden';
     if (isPanel) widget.classList.add('is-panel');
 
     if (isPanel) {
@@ -73,6 +75,22 @@ const WidgetManager = (function () {
       _initResize(widget);
     }
     state[id] = { el: widget, dockIcon, isMinimized: false, preMaximize: null };
+
+    if (autoHeight) {
+      requestAnimationFrame(() => {
+        const header  = widget.querySelector('.widget-header');
+        const body    = widget.querySelector('.widget-body');
+        const form    = widget.querySelector('.widget-form');
+        const headerH = header ? header.offsetHeight : 0;
+        const padTop  = parseInt(getComputedStyle(body).paddingTop) || 0;
+        const formH   = form ? form.offsetHeight : body.scrollHeight;
+        const afterH  = 16; // ::after chrome strip
+        const natural = headerH + padTop + formH + afterH;
+        const maxH    = workspace.clientHeight - top;
+        widget.style.height      = Math.min(natural, maxH) + 'px';
+        widget.style.visibility  = '';
+      });
+    }
 
     widget.addEventListener('mousedown', () => _bringToFront(widget));
     _bringToFront(widget);

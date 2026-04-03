@@ -38,7 +38,7 @@
 
 /* --- Layout Variables --- */
 :root {
-  --btn-col: 90px;
+  --btn-col: 80px;
 }
 
 /* --- Global Reset --- */
@@ -322,8 +322,9 @@ html, body {
 .widget-dock-icons {
   display: flex;
   flex-direction: column;
-  gap: 0;
+  gap: 4px;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 4px 6px;
 }
 
 .dock-label {
@@ -341,24 +342,62 @@ html, body {
   display: flex;
   align-items: stretch;
   background-color: var(--color-brand-primary);
-  border-left: 3px solid transparent;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border: 2px solid transparent;
+  border-radius: 999px;
   overflow: hidden;
-  transition: border-color 0.1s;
+  transition: border-color 0.1s, background-color 0.1s;
 }
 
 .dock-icon.is-active {
-  border-left-color: var(--color-brand-accent);
-  background-color: var(--color-brand-dark);
+  border-top-color: var(--color-brand-accent);
+  border-right-color: var(--color-brand-primary);
+  border-bottom-color: var(--color-brand-primary);
+  border-left-color: var(--color-brand-primary);
 }
 
 .dock-icon.is-minimized {
   opacity: 0.5;
 }
 
+/* Hover: title area only */
+.dock-icon:has(.dock-icon-title:hover) {
+  background-color: var(--color-brand-accent);
+  border-color: var(--color-brand-accent);
+}
+
+.dock-icon:has(.dock-icon-title:hover) .dock-icon-title {
+  color: var(--color-ink-dark);
+}
+
+/* Hover: individual button only */
+.dock-icon:has(.dock-icon-btn:hover) {
+  border-color: var(--color-brand-accent);
+}
+
+.dock-icon-btn:hover {
+  background-color: var(--color-brand-accent);
+  color: var(--color-ink-dark);
+}
+
+/* Click state: pill + buttons → orange */
+.dock-icon:has(:active) {
+  background-color: var(--color-brand-orange);
+  border-color: var(--color-brand-orange);
+}
+
+.dock-icon:has(:active) .dock-icon-title {
+  color: var(--color-ink-dark);
+}
+
+.dock-icon:has(:active) .dock-icon-btn {
+  background-color: var(--color-brand-orange);
+  color: var(--color-ink-dark);
+}
+
 .dock-icon-title {
   flex: 1;
-  padding: 6px 6px;
+  padding: 4px 6px 4px 12px;
+  text-align: center;
   color: white;
   font-size: 10px;
   font-weight: 700;
@@ -368,10 +407,6 @@ html, body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.dock-icon-title:hover {
-  background-color: rgba(255, 255, 255, 0.1);
 }
 
 .dock-icon-btns {
@@ -386,34 +421,28 @@ html, body {
 .dock-icon-btn {
   width: 20px;
   height: auto;
-  background-color: var(--color-btn-ghost);
+  background-color: var(--color-brand-primary);
   border: none;
   border-left: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 0;
-  color: white;
+  color: var(--color-ink-light);
   font-size: 11px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   line-height: 1;
-  transition: background-color 0.3s ease 0.2s, color 0.3s ease 0.2s;
+  transition: background-color 0.1s ease, color 0.1s ease;
 }
 
 .dock-icon-btn:first-child {
   border-left: none;
 }
 
-.dock-icon-btn:hover {
-  background-color: var(--color-brand-accent);
-  color: var(--color-ink-dark);
-  transition: background-color 0.1s ease, color 0.1s ease;
-}
-
+/* (hover and active handled by parent :has rules above) */
 .dock-icon-btn:active {
   background-color: var(--color-brand-orange);
-  color: white;
-  transition: background-color 0.05s ease, color 0.05s ease;
+  color: var(--color-ink-dark);
 }
 
 /* --- Widgets --- */
@@ -537,24 +566,26 @@ html, body {
 .widget-form {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .form-row {
   display: flex;
   gap: 6px;
-  align-items: flex-end;
+  align-items: flex-start;
 }
 
 .btn-spacer {
   width: var(--btn-col);
   flex-shrink: 0;
   margin-left: 6px;
+  margin-top: 10px;
 }
 
 .form-row > .btn-action,
 .contact-row > .btn-action {
   margin-left: 6px;
+  margin-top: 10px;
 }
 
 .form-group {
@@ -568,8 +599,8 @@ html, body {
 
 .form-label {
   position: absolute;
-  top: -3px;
-  left: 6px;
+  top: 0px;
+  left: 1px;
   z-index: 1;
   font-size: 9px;
   font-weight: 500;
@@ -578,7 +609,7 @@ html, body {
   color: #64748B;
   background: var(--color-brand-tint);
   padding: 0 2px;
-  line-height: 12px;
+  line-height: 10px;
   pointer-events: none;
 }
 
@@ -640,10 +671,41 @@ html, body {
   margin: 0;
 }
 
+.comm-pref-options {
+  display: flex;
+  flex-direction: row;
+  gap: 16px;
+  align-items: center;
+  height: 24px;
+  border: 1px solid var(--color-border-slate);
+  border-radius: 3px;
+  padding: 0 8px;
+  background-color: var(--color-surface-white);
+}
+
+.comm-pref-option {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--color-ink-dark);
+  cursor: pointer;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.comm-pref-option input[type="radio"] {
+  width: 10px;
+  height: 10px;
+  margin: 0;
+  cursor: pointer;
+  accent-color: var(--color-brand-primary);
+}
+
 .contact-row {
   display: flex;
   gap: 6px;
-  align-items: flex-end;
+  align-items: flex-start;
 }
 
 .btn-preferred {
@@ -655,7 +717,7 @@ html, body {
   color: var(--color-ink-dark);
   white-space: nowrap;
   cursor: pointer;
-  padding-bottom: 5px;
+  padding-bottom: 6px;
   flex-shrink: 0;
 }
 
@@ -769,7 +831,7 @@ html, body {
   background-color: white;
   border: 1px solid var(--color-border-slate);
   border-left: 3px solid var(--color-brand-accent);
-  border-radius: 3px;
+  border-radius: 6px;
   font-size: 12px;
   color: var(--color-ink-dark);
 }
@@ -820,17 +882,17 @@ html, body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  letter-spacing: 0.02em;
   width: var(--btn-col);
   flex-shrink: 0;
-  height: 24px;
-  padding: 0 10px;
+  height: 22px;
+  padding: 0 5px;
+  line-height: 1;
   font-size: 11px;
   font-weight: 700;
   color: var(--color-ink-dark);
   background-color: var(--color-brand-tint);
   border: 2px solid var(--color-ink-dark);
-  border-radius: 3px;
+  border-radius: 6px;
   box-sizing: border-box;
   cursor: pointer;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
@@ -859,14 +921,15 @@ html, body {
   justify-content: center;
   width: var(--btn-col);
   flex-shrink: 0;
-  height: 24px;
-  padding: 0 10px;
+  height: 22px;
+  padding: 0 5px;
+  line-height: 1;
   font-size: 11px;
   font-weight: 700;
   background-color: var(--color-brand-tint);
   color: var(--color-ink-dark);
   border: 2px solid var(--color-ink-dark);
-  border-radius: 3px;
+  border-radius: 6px;
   box-sizing: border-box;
   cursor: pointer;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
@@ -895,14 +958,15 @@ html, body {
   justify-content: center;
   width: var(--btn-col);
   flex-shrink: 0;
-  height: 24px;
-  padding: 0 10px;
+  height: 22px;
+  padding: 0 5px;
+  line-height: 1;
   font-size: 11px;
   font-weight: 700;
   background-color: var(--color-brand-tint);
   color: var(--color-ink-dark);
   border: 2px solid var(--color-ink-dark);
-  border-radius: 3px;
+  border-radius: 6px;
   box-sizing: border-box;
   cursor: pointer;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);

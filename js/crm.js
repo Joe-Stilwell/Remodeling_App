@@ -261,7 +261,7 @@ const CRM = (function () {
             <input class="form-input" data-addr="state" type="text"
                    maxlength="3" autocomplete="off">
           </div>
-          <div class="form-group" style="flex:0 0 78px">
+          <div class="form-group" style="flex:0 0 81px">
             <label class="form-label">Zip Code</label>
             <input class="form-input" data-addr="zip" type="text"
                    maxlength="10" autocomplete="off">
@@ -405,7 +405,7 @@ const CRM = (function () {
   /* ── New Residential Client ───────────────────────────────── */
   function openNewClient() {
     const id = 'new-client-' + Date.now();
-    WidgetManager.open(id, 'New Client', _newClientHTML(), { width: 425, height: 510 });
+    WidgetManager.open(id, 'New Client', _newClientHTML(id), { width: 425, autoHeight: true });
     _bindNewClientForm(id);
     requestAnimationFrame(() => {
       document.getElementById('widget-' + id)
@@ -414,7 +414,7 @@ const CRM = (function () {
     });
   }
 
-  function _newClientHTML() {
+  function _newClientHTML(id) {
     return `
       <div class="widget-form">
 
@@ -453,6 +453,19 @@ const CRM = (function () {
         <!-- Emails -->
         <div data-container="emails">
           ${_emailRowHTML(0, true)}
+        </div>
+
+        <!-- Communication Preference -->
+        <div class="form-row">
+          <div class="form-group" style="flex:1">
+            <label class="form-label">Comm. Preference</label>
+            <div class="comm-pref-options">
+              <label class="comm-pref-option"><input type="radio" name="comm-pref-${id}" data-field="comm-pref" value="Email"> Email</label>
+              <label class="comm-pref-option"><input type="radio" name="comm-pref-${id}" data-field="comm-pref" value="Text"> Text</label>
+              <label class="comm-pref-option"><input type="radio" name="comm-pref-${id}" data-field="comm-pref" value="Phone"> Phone</label>
+            </div>
+          </div>
+          <div class="btn-spacer"></div>
         </div>
 
         <!-- Lead Source / Referred By -->
@@ -754,6 +767,7 @@ const CRM = (function () {
       emails:       _collectEmails(el),
       leadSource:   el.querySelector('[data-field="lead-source"]').value,
       referredBy:   el.querySelector('[data-field="referred-by"]').value.trim(),
+      commPref:     el.querySelector('input[data-field="comm-pref"]:checked')?.value || '',
       notes:        el.querySelector('[data-field="client-notes"]').value.trim(),
     };
     people.push(person);
