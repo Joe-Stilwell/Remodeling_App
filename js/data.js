@@ -15,10 +15,10 @@ const AppData = (function () {
     'DB_Property',
     'DB_Estimates',
     'DB_Workflow_Templates',
-    'Link_Comp_Peop',
-    'Link_Prop_Peop',
-    'Link_Prop_Comp',
-    'Link_Peop_Relationship',
+    'Link_Company_People',
+    'Link_Property_People',
+    'Link_Property_Company',
+    'Link_People_Relationship',
   ];
 
   // Converts a sheet tab (rows of values) into an array of objects
