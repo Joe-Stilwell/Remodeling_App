@@ -42,6 +42,13 @@ const WidgetManager = (function () {
     }
 
     const isPanel = !!options.panel;
+
+    // Check workspace has room for the widget before opening
+    if (!isPanel && (w > workspace.clientWidth || (autoHeight ? MIN_HEIGHT : h) > workspace.clientHeight)) {
+      _showToast('Not enough room — please widen the workspace or close other windows.');
+      return false;
+    }
+
     widget.style.cssText = `width:${w}px; height:${autoHeight ? workspace.clientHeight + 'px' : h + 'px'}; top:${top}px; left:${left}px;`;
     if (autoHeight) widget.style.visibility = 'hidden';
     if (isPanel) widget.classList.add('is-panel');
@@ -71,10 +78,44 @@ const WidgetManager = (function () {
       widget.querySelector('.widget-btn-minimize').addEventListener('click', () => minimize(id));
       widget.querySelector('.widget-btn-maximize').addEventListener('click', () => toggleMaximize(id));
       widget.querySelector('.widget-btn-close').addEventListener('click', () => close(id));
-      _initDrag(widget);
-      _initResize(widget);
+      _initDrag(widget, id);
+      _initResize(widget, id);
     }
-    state[id] = { el: widget, dockIcon, isMinimized: false, preMaximize: null };
+    state[id] = { el: widget, dockIcon, isMinimized: false, preMaximize: null, panelIds: [], parentId: options.parentId || null };
+
+    if (options.parentId && state[options.parentId]) {
+      state[options.parentId].panelIds.push(id);
+      _updateMaximizeBtn(options.parentId);
+
+      // If panel would extend beyond the right workspace edge, push the group left
+      const ww        = workspace.clientWidth;
+      const overflow  = left + w - ww;
+      if (overflow > 0) {
+        const parentEl   = state[options.parentId].el;
+        const parentLeft = parseInt(parentEl.style.left) || 0;
+        const newLeft    = Math.max(0, parentLeft - overflow);
+        const dx         = newLeft - parentLeft;
+
+        // If even pushing to left:0 isn't enough, workspace is too narrow — abort
+        if (newLeft === 0 && parentEl.offsetWidth + w > ww) {
+          state[options.parentId].panelIds = state[options.parentId].panelIds.filter(pid => pid !== id);
+          _updateMaximizeBtn(options.parentId);
+          widget.remove();
+          delete state[id];
+          _showToast('Not enough room — please widen the workspace or close other windows.');
+          return false;
+        }
+
+        parentEl.style.left = newLeft + 'px';
+        widget.style.left   = (left + dx) + 'px';
+        // Shift any sibling panels already open
+        state[options.parentId].panelIds.forEach(pid => {
+          if (pid === id || !state[pid]) return;
+          const sibEl = state[pid].el;
+          sibEl.style.left = (parseInt(sibEl.style.left) || 0) + dx + 'px';
+        });
+      }
+    }
 
     if (autoHeight) {
       requestAnimationFrame(() => {
@@ -82,27 +123,49 @@ const WidgetManager = (function () {
         const body    = widget.querySelector('.widget-body');
         const form    = widget.querySelector('.widget-form');
         const headerH = header ? header.offsetHeight : 0;
-        const padTop  = parseInt(getComputedStyle(body).paddingTop) || 0;
+        const padTop  = parseInt(getComputedStyle(body).paddingTop)    || 0;
+        const padBot  = parseInt(getComputedStyle(body).paddingBottom) || 0;
         const formH   = form ? form.offsetHeight : body.scrollHeight;
-        const afterH  = 16; // ::after chrome strip
-        const natural = headerH + padTop + formH + afterH;
+        const afterH  = isPanel ? 0 : 16; // panels have no ::after chrome strip
+        const natural = headerH + padTop + formH + padBot + afterH + 6; // buffer prevents scrollbar from pixel rounding
         const maxH    = workspace.clientHeight - top;
         widget.style.height      = Math.min(natural, maxH) + 'px';
         widget.style.visibility  = '';
       });
     }
 
-    widget.addEventListener('mousedown', () => _bringToFront(widget));
-    _bringToFront(widget);
+    if (isPanel) {
+      // Clicking a panel keeps focus on the parent
+      widget.addEventListener('mousedown', () => {
+        const parentId = state[widget.id.replace('widget-', '')]?.parentId;
+        if (parentId && state[parentId]) _bringToFront(state[parentId].el);
+      });
+      // Activate parent when panel opens
+      if (options.parentId && state[options.parentId]) {
+        _bringToFront(state[options.parentId].el);
+      }
+    } else {
+      widget.addEventListener('mousedown', () => _bringToFront(widget));
+      _bringToFront(widget);
+    }
   }
 
   /* ── Public: close ────────────────────────────────────────── */
   function close(id) {
     if (!state[id]) return;
+    const { parentId, panelIds } = state[id];
     const wasActive = state[id].el.classList.contains('is-active');
+
+    // Close all attached panels first
+    [...panelIds].forEach(pid => close(pid));
+
     state[id].el.remove();
     if (state[id].dockIcon) state[id].dockIcon.remove();
     delete state[id];
+    if (parentId && state[parentId]) {
+      state[parentId].panelIds = state[parentId].panelIds.filter(pid => pid !== id);
+      _updateMaximizeBtn(parentId);
+    }
     if (Object.keys(state).length === 0) cascadeCount = 0;
     if (wasActive) _activateNext();
   }
@@ -116,6 +179,10 @@ const WidgetManager = (function () {
     state[id].dockIcon.classList.add('is-minimized');
     state[id].dockIcon.classList.remove('is-active');
     state[id].isMinimized = true;
+    // Hide all attached panels
+    state[id].panelIds.forEach(pid => {
+      if (state[pid]) state[pid].el.style.display = 'none';
+    });
     if (wasActive) _activateNext();
   }
 
@@ -125,6 +192,10 @@ const WidgetManager = (function () {
     state[id].el.style.display = 'flex';
     state[id].dockIcon.classList.remove('is-minimized');
     state[id].isMinimized = false;
+    // Restore all attached panels
+    state[id].panelIds.forEach(pid => {
+      if (state[pid]) state[pid].el.style.display = 'flex';
+    });
     _bringToFront(state[id].el);
   }
 
@@ -153,6 +224,34 @@ const WidgetManager = (function () {
       widget.style.width  = workspace.clientWidth  + 'px';
       widget.style.height = workspace.clientHeight + 'px';
     }
+  }
+
+  /* ── Private: enable/disable maximize btn based on panels ─── */
+  function _updateMaximizeBtn(id) {
+    if (!state[id]) return;
+    const hasPanels = state[id].panelIds.length > 0;
+    [
+      state[id].el.querySelector('.widget-btn-maximize'),
+      state[id].dockIcon?.querySelector('.dock-icon-btn:first-child'),
+    ].forEach(btn => {
+      if (!btn) return;
+      btn.disabled = hasPanels;
+      btn.style.opacity = hasPanels ? '0.3' : '';
+      btn.style.cursor  = hasPanels ? 'not-allowed' : '';
+    });
+  }
+
+  /* ── Private: toast notification ────────────────────────────── */
+  function _showToast(message) {
+    const toast = document.createElement('div');
+    toast.className = 'widget-toast';
+    toast.textContent = message;
+    WORKSPACE().appendChild(toast);
+    requestAnimationFrame(() => toast.classList.add('widget-toast-visible'));
+    setTimeout(() => {
+      toast.classList.remove('widget-toast-visible');
+      toast.addEventListener('transitionend', () => toast.remove(), { once: true });
+    }, 5000);
   }
 
   /* ── Private: dock icon ───────────────────────────────────── */
@@ -208,16 +307,16 @@ const WidgetManager = (function () {
     });
     if (topId) {
       document.querySelectorAll('.widget').forEach(w => w.classList.remove('is-active'));
-      Object.values(state).forEach(s => s.dockIcon.classList.remove('is-active'));
+      Object.values(state).forEach(s => s.dockIcon?.classList.remove('is-active'));
       state[topId].el.classList.add('is-active');
-      state[topId].dockIcon.classList.add('is-active');
+      state[topId].dockIcon?.classList.add('is-active');
     }
   }
 
   /* ── Private: z-index management + active state ──────────── */
   function _bringToFront(widget) {
     document.querySelectorAll('.widget').forEach(w => w.classList.remove('is-active'));
-    Object.values(state).forEach(s => s.dockIcon.classList.remove('is-active'));
+    Object.values(state).forEach(s => s.dockIcon?.classList.remove('is-active'));
 
     let maxZ = 100;
     document.querySelectorAll('.widget').forEach(w => {
@@ -228,7 +327,13 @@ const WidgetManager = (function () {
     widget.classList.add('is-active');
 
     const id = widget.id.replace('widget-', '');
-    if (state[id]) state[id].dockIcon.classList.add('is-active');
+    if (state[id]) {
+      state[id].dockIcon?.classList.add('is-active');
+      // Keep panels always above their parent
+      state[id].panelIds.forEach((pid, i) => {
+        if (state[pid]) state[pid].el.style.zIndex = maxZ + 2 + i;
+      });
+    }
   }
 
   /* ── Private: collect snap lines from workspace + widgets ─── */
@@ -332,7 +437,7 @@ const WidgetManager = (function () {
   }
 
   /* ── Private: drag ────────────────────────────────────────── */
-  function _initDrag(widget) {
+  function _initDrag(widget, id) {
     const header = widget.querySelector('.widget-header');
 
     header.addEventListener('mousedown', function (e) {
@@ -344,15 +449,45 @@ const WidgetManager = (function () {
       const startLeft = parseInt(widget.style.left) || 0;
       const startTop  = parseInt(widget.style.top)  || 0;
 
+      // Capture all attached panels and their start positions at mousedown
+      const panels = (state[id]?.panelIds || []).map(pid => {
+        const el = state[pid]?.el;
+        return el ? { el, startLeft: parseInt(el.style.left) || 0, startTop: parseInt(el.style.top) || 0 } : null;
+      }).filter(Boolean);
+
       function onMove(e) {
+        const workspace = WORKSPACE();
+        const ww = workspace.clientWidth;
+        const wh = workspace.clientHeight;
+
+        // Snap parent position first, then derive a shared delta for the group
         const rawLeft = startLeft + e.clientX - startX;
         const rawTop  = startTop  + e.clientY - startY;
-        const pos     = _snapPosition(widget, rawLeft, rawTop);
-        widget.style.left = pos.left + 'px';
-        widget.style.top  = pos.top  + 'px';
+        const snapped = _snapPosition(widget, rawLeft, rawTop);
+        let dx = snapped.left - startLeft;
+        let dy = snapped.top  - startTop;
+
+        // Clamp delta further so every panel also stays within workspace bounds
+        panels.forEach(p => {
+          dx = Math.max(dx, -p.startLeft);
+          dx = Math.min(dx, ww - p.el.offsetWidth  - p.startLeft);
+          dy = Math.max(dy, -p.startTop);
+          dy = Math.min(dy, wh - p.el.offsetHeight - p.startTop);
+        });
+
+        // Apply the same delta to parent and all panels
+        widget.style.left = (startLeft + dx) + 'px';
+        widget.style.top  = (startTop  + dy) + 'px';
+        panels.forEach(p => {
+          p.el.style.left = (p.startLeft + dx) + 'px';
+          p.el.style.top  = (p.startTop  + dy) + 'px';
+        });
       }
 
+      document.body.classList.add('is-dragging');
+
       function onUp() {
+        document.body.classList.remove('is-dragging');
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('mouseup',   onUp);
       }
@@ -362,8 +497,28 @@ const WidgetManager = (function () {
     });
   }
 
+  /* ── Public: resize widget to fit current content ────────── */
+  function resizeToContent(id) {
+    if (!state[id]) return;
+    const widget    = state[id].el;
+    const workspace = WORKSPACE();
+    const header    = widget.querySelector('.widget-header');
+    const body      = widget.querySelector('.widget-body');
+    const form      = widget.querySelector('.widget-form');
+    const isPanel   = widget.classList.contains('is-panel');
+    const headerH   = header ? header.offsetHeight : 0;
+    const padTop    = parseInt(getComputedStyle(body).paddingTop)    || 0;
+    const padBot    = parseInt(getComputedStyle(body).paddingBottom) || 0;
+    const formH     = form ? form.offsetHeight : body.scrollHeight;
+    const afterH    = isPanel ? 0 : 16;
+    const natural   = headerH + padTop + formH + padBot + afterH + 6;
+    const top       = parseInt(widget.style.top) || 0;
+    const maxH      = workspace.clientHeight - top;
+    widget.style.height = Math.min(natural, maxH) + 'px';
+  }
+
   /* ── Private: resize ──────────────────────────────────────── */
-  function _initResize(widget) {
+  function _initResize(widget, id) {
     const handle = widget.querySelector('.widget-resize-handle');
 
     handle.addEventListener('mousedown', function (e) {
@@ -375,15 +530,30 @@ const WidgetManager = (function () {
       const startWidth  = widget.offsetWidth;
       const startHeight = widget.offsetHeight;
 
+      // Capture panel start positions so they track the right edge
+      const panels = (state[id]?.panelIds || []).map(pid => {
+        const el = state[pid]?.el;
+        return el ? { el, startLeft: parseInt(el.style.left) || 0 } : null;
+      }).filter(Boolean);
+
       function onMove(e) {
         const rawWidth  = startWidth  + e.clientX - startX;
         const rawHeight = startHeight + e.clientY - startY;
         const size      = _snapSize(widget, rawWidth, rawHeight);
         widget.style.width  = size.width  + 'px';
         widget.style.height = size.height + 'px';
+
+        // Shift panels by the same delta as the width change
+        const dw = size.width - startWidth;
+        panels.forEach(p => {
+          p.el.style.left = (p.startLeft + dw) + 'px';
+        });
       }
 
+      document.body.classList.add('is-dragging');
+
       function onUp() {
+        document.body.classList.remove('is-dragging');
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('mouseup',   onUp);
       }
@@ -393,6 +563,60 @@ const WidgetManager = (function () {
     });
   }
 
-  return { open, close, minimize, restore };
+  /* ── Tab trap: keep focus within active widget + its panels ─── */
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Tab') return;
+
+    // Find the active parent widget
+    const activeEntry = Object.entries(state).find(([, s]) =>
+      !s.el.classList.contains('is-panel') && s.el.classList.contains('is-active')
+    );
+    if (!activeEntry) return;
+
+    const activeState = activeEntry[1];
+
+    // Collect focusable elements from parent body + all panel bodies, in DOM order
+    const FOCUSABLE = 'input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled])';
+    const containers = [
+      activeState.el.querySelector('.widget-body'),
+      activeState.el.querySelector('.widget-footer'),
+      ...activeState.panelIds.map(pid => state[pid]?.el).filter(Boolean),
+    ].filter(Boolean);
+
+    const focusable = containers.flatMap(c => [...c.querySelectorAll(FOCUSABLE)]);
+    if (focusable.length === 0) return;
+
+    const first = focusable[0];
+    const last  = focusable[focusable.length - 1];
+
+    if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    } else if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    }
+  });
+
+  /* ── Ctrl+Q cycles through open non-panel widgets ────────────── */
+  document.addEventListener('keydown', function (e) {
+    if (!e.ctrlKey || e.code !== 'KeyQ') return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Collect all visible, non-panel, non-minimized widgets ordered by z-index
+    const candidates = Object.entries(state)
+      .filter(([, s]) => !s.isMinimized && !s.el.classList.contains('is-panel'))
+      .sort(([, a], [, b]) => (parseInt(a.el.style.zIndex) || 100) - (parseInt(b.el.style.zIndex) || 100));
+
+    if (candidates.length < 2) return;
+
+    // Find the current active one and activate the next (wraps around)
+    const activeIdx = candidates.findIndex(([, s]) => s.el.classList.contains('is-active'));
+    const nextIdx   = (activeIdx + 1) % candidates.length;
+    _bringToFront(candidates[nextIdx][1].el);
+  });
+
+  return { open, close, minimize, restore, resizeToContent };
 
 })();

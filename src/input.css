@@ -307,6 +307,13 @@ html, body {
   overflow: hidden;
   border-right: 1px solid var(--color-border-slate);
   background-color: var(--color-brand-tint);
+  user-select: none;
+}
+
+.workspace input,
+.workspace textarea,
+.workspace select {
+  user-select: text;
 }
 
 /* --- Widget Area (Dock) --- */
@@ -349,10 +356,7 @@ html, body {
 }
 
 .dock-icon.is-active {
-  border-top-color: var(--color-brand-accent);
-  border-right-color: var(--color-brand-primary);
-  border-bottom-color: var(--color-brand-primary);
-  border-left-color: var(--color-brand-primary);
+  border-color: var(--color-brand-accent);
 }
 
 .dock-icon.is-minimized {
@@ -477,6 +481,7 @@ html, body {
 
 .widget.is-panel .widget-body {
   padding-top: 12px;
+  padding-bottom: 10px;
 }
 
 .widget.is-panel .widget-footer {
@@ -487,6 +492,11 @@ html, body {
 .widget.is-active {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
   border-top: 3px solid var(--color-brand-accent);
+}
+
+/* Panels never show accent border — visual focus stays on parent */
+.widget.is-panel.is-active {
+  border-top: 3px solid var(--color-brand-primary);
 }
 
 .widget-header {
@@ -661,6 +671,7 @@ html, body {
   resize: vertical;
   min-height: 24px;
   height: 24px;
+  max-height: 94px; /* ~5 rows at 13px */
   overflow: hidden;
   font-family: inherit;
 }
@@ -746,7 +757,7 @@ html, body {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  padding: 8px 0 4px;
+  padding: 8px 0 10px;
   background-color: var(--color-brand-tint);
   border-top: 1px solid var(--color-border-slate);
   margin-top: 8px;
@@ -1007,6 +1018,40 @@ html, body {
   height: 7px;
   border-bottom: 2px solid rgba(255, 255, 255, 0.5);
   border-right: 2px solid rgba(255, 255, 255, 0.5);
+}
+
+/* --- Widget Toast --- */
+.widget-toast {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(8px);
+  background-color: var(--color-brand-primary);
+  color: white;
+  font-size: 13px;
+  padding: 8px 16px;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  white-space: normal;
+  max-width: calc(100% - 32px);
+  text-align: center;
+  z-index: 9999;
+}
+
+.widget-toast.widget-toast-visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Suppress all hover effects during drag/resize */
+body.is-dragging * {
+  pointer-events: none !important;
+}
+body.is-dragging .widget {
+  pointer-events: auto !important;
 }
 
 /* --- Status Bar --- */
