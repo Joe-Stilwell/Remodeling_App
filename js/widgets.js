@@ -314,7 +314,132 @@ const WidgetManager = (function () {
       titleEl.title       = text || title;
     };
     DOCK().appendChild(wrapper);
+    _initDockDrag(wrapper);
     return wrapper;
+  }
+
+  /* ── Private: dock drag-to-reorder ───────────────────────── */
+
+  // 2D insert-point: above a pill's row = before it; same row, left of center = before it.
+  function _findDockInsertPoint(pills, cursorX, cursorY) {
+    for (const pill of pills) {
+      const rect = pill.getBoundingClientRect();
+      if (cursorY < rect.top) return pill;
+      if (cursorY <= rect.bottom && cursorX < rect.left + rect.width / 2) return pill;
+    }
+    return null;
+  }
+
+  // Returns the {left, top, width} the ghost should snap to for a given slot.
+  function _getDockSlotPos(pills, insertBefore) {
+    const dock    = DOCK();
+    const dr      = dock.getBoundingClientRect();
+    const GAP     = 4;
+    const PAD     = 6;
+
+    if (insertBefore) {
+      const r = insertBefore.getBoundingClientRect();
+      return { left: r.left, top: r.top, width: r.width };
+    }
+    if (pills.length > 0) {
+      const last = pills[pills.length - 1];
+      const lr   = last.getBoundingClientRect();
+      // Room for another pill in the same row?
+      if (lr.right + GAP + last.offsetWidth <= dr.right - PAD + 2) {
+        return { left: lr.right + GAP, top: lr.top, width: last.offsetWidth };
+      }
+      return { left: dr.left + PAD, top: lr.bottom + GAP, width: lr.width };
+    }
+    return { left: dr.left + PAD, top: dr.top + PAD, width: dr.width - PAD * 2 };
+  }
+
+  function _initDockDrag(wrapper) {
+    wrapper.addEventListener('mousedown', function (e) {
+      if (e.target.closest('.dock-icon-btns')) return;
+
+      const startY  = e.clientY;
+      let dragging  = false;
+      let ghost     = null;
+      let indicator = null;
+
+      function onSelectStart(e) { e.preventDefault(); }
+      document.addEventListener('selectstart', onSelectStart);
+
+      function onMove(e) {
+        if (!dragging && Math.abs(e.clientY - startY) > 5) {
+          dragging = true;
+          document.body.classList.add('is-dragging');
+
+          const rect = wrapper.getBoundingClientRect();
+          ghost = wrapper.cloneNode(true);
+          ghost.style.cssText = [
+            'position:fixed',
+            'pointer-events:none',
+            'z-index:9999',
+            `width:${rect.width}px`,
+            `left:${rect.left}px`,
+            `top:${rect.top}px`,
+            'opacity:0.85',
+            'transition:left 80ms ease, top 80ms ease',
+          ].join(';');
+          document.body.appendChild(ghost);
+
+          indicator = document.createElement('div');
+          indicator.style.cssText = [
+            'position:fixed',
+            'pointer-events:none',
+            'z-index:10000',
+            'height:3px',
+            'background-color:var(--color-brand-accent)',
+            'border-radius:2px',
+            'transition:left 80ms ease, top 80ms ease',
+          ].join(';');
+          document.body.appendChild(indicator);
+
+          wrapper.style.opacity = '0.25';
+        }
+
+        if (!dragging) return;
+
+        const dock         = DOCK();
+        const pills        = [...dock.querySelectorAll('.dock-icon')].filter(p => p !== wrapper);
+        const insertBefore = _findDockInsertPoint(pills, e.clientX, e.clientY);
+        const pos          = _getDockSlotPos(pills, insertBefore);
+
+        ghost.style.left = pos.left + 'px';
+        ghost.style.top  = pos.top  + 'px';
+
+        indicator.style.left  = pos.left + 'px';
+        indicator.style.top   = (pos.top - 2) + 'px';
+        indicator.style.width = pos.width + 'px';
+      }
+
+      function onUp(e) {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup',   onUp);
+        document.removeEventListener('selectstart', onSelectStart);
+
+        if (!dragging) return;
+        document.body.classList.remove('is-dragging');
+        ghost.remove();
+        indicator.remove();
+        wrapper.style.opacity = '';
+
+        wrapper.addEventListener('click', ev => ev.stopPropagation(), { once: true, capture: true });
+
+        const dock         = DOCK();
+        const pills        = [...dock.querySelectorAll('.dock-icon')].filter(p => p !== wrapper);
+        const insertBefore = _findDockInsertPoint(pills, e.clientX, e.clientY);
+        if (insertBefore) {
+          dock.insertBefore(wrapper, insertBefore);
+        } else {
+          dock.appendChild(wrapper);
+        }
+      }
+
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup',   onUp);
+    });
   }
 
   /* ── Private: activate the next visible top widget ───────── */

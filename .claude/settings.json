@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npx @tailwindcss/cli -i ./src/input.css -o ./css/output.css --minify)"
+      "Bash(npx @tailwindcss/cli -i ./src/input.css -o ./css/output.css --minify)",
+      "Bash(npx @tailwindcss/cli -i ./src/input.css -o ./output.css --minify)",
+      "Bash(sed -n '364,370p' c:/Projects/Remodeling_App/src/input.css)",
+      "Bash(sed -n '520,526p' c:/Projects/Remodeling_App/src/input.css)"
     ]
   }
 }

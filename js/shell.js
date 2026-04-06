@@ -1,3 +1,54 @@
+/* --- Resizable Widget Dock --- */
+(function () {
+  const SNAP_POINTS  = [165, 330];
+  const DOCK_DEFAULT = 165;
+
+  const dockAside = document.getElementById('dock-sidebar');
+  const handle    = dockAside.querySelector('.dock-resize-handle');
+
+  function snapWidth(w) {
+    return SNAP_POINTS.reduce((best, pt) =>
+      Math.abs(pt - w) < Math.abs(best - w) ? pt : best
+    );
+  }
+
+  function setDockWidth(w) {
+    dockAside.style.width     = w + 'px';
+    dockAside.style.minWidth  = w + 'px';
+    dockAside.style.flexBasis = w + 'px';
+    dockAside.classList.toggle('dock-wide', w > 165);
+  }
+
+  // Restore persisted width (always a snap point)
+  setDockWidth(snapWidth(parseInt(localStorage.getItem('dockWidth')) || DOCK_DEFAULT));
+
+  handle.addEventListener('mousedown', function (e) {
+    e.preventDefault();
+    const startX     = e.clientX;
+    const startWidth = dockAside.offsetWidth;
+
+    handle.classList.add('is-resizing');
+    document.body.classList.add('is-dragging');
+
+    function onMove(e) {
+      const raw     = startWidth - (e.clientX - startX);
+      const snapped = snapWidth(raw);
+      setDockWidth(snapped);
+    }
+
+    function onUp() {
+      handle.classList.remove('is-resizing');
+      document.body.classList.remove('is-dragging');
+      localStorage.setItem('dockWidth', dockAside.offsetWidth);
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup',   onUp);
+    }
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup',   onUp);
+  });
+}());
+
 /* --- Universal Search --- */
 const searchInput = document.getElementById('universal-search');
 let _searchDebounce = null;
@@ -30,6 +81,15 @@ function _getPersonProperties(peopleId) {
     .sort((a, b) => (a.Property_Use === 'Primary Residence' ? -1 : 1));
 }
 
+function _getCompanyProperties(companyId) {
+  const links = AppData.tables['Link_Property_Company'] || [];
+  const props  = AppData.tables['DB_Property']          || [];
+  return links
+    .filter(l => l.Company_ID === companyId && !l.Date_To)
+    .map(l => props.find(p => p.Property_ID === l.Property_ID))
+    .filter(Boolean);
+}
+
 function _getPersonCompany(peopleId) {
   const links     = AppData.tables['Link_Company_People'] || [];
   const companies = AppData.tables['DB_Company']          || [];
@@ -39,18 +99,9 @@ function _getPersonCompany(peopleId) {
   return co ? (co.Company_DBA || co.Company_Name) : '';
 }
 
-function _getCompanyAddress(companyId) {
-  const links = AppData.tables['Link_Property_Company'] || [];
-  const props  = AppData.tables['DB_Property']          || [];
-  const link   = links.find(l => l.Company_ID === companyId && !l.Date_To);
-  if (!link) return '';
-  const prop = props.find(p => p.Property_ID === link.Property_ID);
-  return prop ? `${prop.Address_Street_1}, ${prop.Address_City} ${prop.Address_State}` : '';
-}
-
 function _getPropertyOwner(propertyId) {
   const links  = AppData.tables['Link_Property_People'] || [];
-  const people = AppData.tables['DB_People']             || [];
+  const people = AppData.tables['DB_People']            || [];
   const link   = links.find(l => l.Property_ID === propertyId && !l.Date_To && l.Link_Role === 'Owner');
   if (!link) return '';
   const person = people.find(p => p.People_ID === link.People_ID);
@@ -61,36 +112,84 @@ function _searchAll(query) {
   const q       = query.toLowerCase();
   const qDigits = query.replace(/\D/g, '');
   const results = [];
+  const seen    = new Set();
 
-  (AppData.tables['DB_People'] || []).forEach(p => {
-    const textMatch  = [p.People_First_Name, p.People_Last_Name, p.Email_1, p.Email_2, p.Email_3]
-      .some(f => f && f.toLowerCase().includes(q));
-    const phoneMatch = qDigits.length >= 3 && [p.Phone_1, p.Phone_2, p.Phone_3]
+  function addPerson(person, property) {
+    const key = `p-${person.People_ID}-${property ? property.Property_ID : ''}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    results.push({ type: 'person', data: person, property: property || null });
+  }
+
+  function addCompany(company, property) {
+    const key = `c-${company.Company_ID}-${property ? property.Property_ID : ''}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    results.push({ type: 'company', data: company, property: property || null });
+  }
+
+  // --- Person match (name / email / phone) ---
+  (AppData.tables['DB_People'] || []).forEach(person => {
+    const fullName   = `${person.People_First_Name || ''} ${person.People_Last_Name || ''}`.trim().toLowerCase();
+    const reverseName = `${person.People_Last_Name || ''}, ${person.People_First_Name || ''}`.trim().toLowerCase();
+    const textMatch  = fullName.includes(q) || reverseName.includes(q) ||
+      [person.People_First_Name, person.People_Last_Name, person.Email_1, person.Email_2, person.Email_3]
+        .some(f => f && f.toLowerCase().includes(q));
+    const phoneMatch = qDigits.length >= 3 && [person.Phone_1, person.Phone_2, person.Phone_3]
       .some(f => f && f.replace(/\D/g, '').includes(qDigits));
-    if (textMatch || phoneMatch) {
-      const properties = _getPersonProperties(p.People_ID);
-      if (properties.length === 0) {
-        results.push({ type: 'person', data: p, property: null });
-      } else {
-        properties.slice(0, 3).forEach(prop => {
-          results.push({ type: 'person', data: p, property: prop });
-        });
-      }
+    if (!textMatch && !phoneMatch) return;
+
+    const props = _getPersonProperties(person.People_ID);
+    if (props.length === 0) { addPerson(person, null); } else {
+      props.slice(0, 3).forEach(prop => addPerson(person, prop));
     }
+
+    // Also surface any company this person is linked to
+    const compLinks = AppData.tables['Link_Company_People'] || [];
+    const companies = AppData.tables['DB_Company']          || [];
+    compLinks.filter(l => l.People_ID === person.People_ID).forEach(l => {
+      const co = companies.find(c => c.Company_ID === l.Company_ID);
+      if (!co) return;
+      const coProps = _getCompanyProperties(co.Company_ID);
+      if (coProps.length === 0) { addCompany(co, null); } else {
+        coProps.slice(0, 3).forEach(prop => addCompany(co, prop));
+      }
+    });
   });
 
-  (AppData.tables['DB_Company'] || []).forEach(c => {
-    if ([c.Company_Name, c.Company_DBA].some(f => f && f.toLowerCase().includes(q)))
-      results.push({ type: 'company', data: c });
+  // --- Company match (name / DBA) ---
+  (AppData.tables['DB_Company'] || []).forEach(company => {
+    if (![company.Company_Name, company.Company_DBA]
+        .some(f => f && f.toLowerCase().includes(q))) return;
+
+    const props = _getCompanyProperties(company.Company_ID);
+    if (props.length === 0) { addCompany(company, null); return; }
+    props.slice(0, 3).forEach(prop => addCompany(company, prop));
   });
 
-  (AppData.tables['DB_Property'] || []).forEach(p => {
-    if ([p.Address_Street_1, p.Address_City, p.Address_Zip, p.Full_Address_Search]
-        .some(f => f && f.toLowerCase().includes(q)))
-      results.push({ type: 'property', data: p });
+  // --- Address match — return everyone linked to that property ---
+  const allProps   = AppData.tables['DB_Property']          || [];
+  const ppLinks    = AppData.tables['Link_Property_People']  || [];
+  const cpLinks    = AppData.tables['Link_Property_Company'] || [];
+  const allPeople  = AppData.tables['DB_People']             || [];
+  const allCompanies = AppData.tables['DB_Company']          || [];
+
+  allProps.forEach(prop => {
+    if (![prop.Address_Street_1, prop.Address_City, prop.Address_Zip, prop.Full_Address_Search]
+        .some(f => f && f.toLowerCase().includes(q))) return;
+
+    ppLinks.filter(l => l.Property_ID === prop.Property_ID && !l.Date_To).forEach(l => {
+      const person = allPeople.find(p => p.People_ID === l.People_ID);
+      if (person) addPerson(person, prop);
+    });
+
+    cpLinks.filter(l => l.Property_ID === prop.Property_ID && !l.Date_To).forEach(l => {
+      const company = allCompanies.find(c => c.Company_ID === l.Company_ID);
+      if (company) addCompany(company, prop);
+    });
   });
 
-  return results.slice(0, 8);
+  return results.slice(0, 12);
 }
 
 function _renderResults(results) {
@@ -106,22 +205,25 @@ function _renderResults(results) {
   overlay.innerHTML = results.map(r => {
     let primary = '', secondary = '';
     if (r.type === 'person') {
-      const name    = `${r.data.People_Last_Name}, ${r.data.People_First_Name}`;
       const company = _getPersonCompany(r.data.People_ID);
-      primary = company ? `${name} — ${company}` : name;
+      primary = `${r.data.People_Last_Name}, ${r.data.People_First_Name}`;
+      if (company) primary += ` — ${company}`;
       if (r.property) {
-        const addr  = `${r.property.Address_Street_1}, ${r.property.Address_City} ${r.property.Address_State}`;
-        const use   = r.property.Property_Use !== 'Primary Residence' ? ` · ${r.property.Property_Use}` : '';
-        secondary = addr + use;
+        const use = r.property.Property_Use && r.property.Property_Use !== 'Primary Residence'
+          ? ` · ${r.property.Property_Use}` : '';
+        secondary = `${r.property.Address_Street_1}, ${r.property.Address_City} ${r.property.Address_State}${use}`;
+      } else {
+        secondary = r.data.Phone_1 || r.data.Phone_2 || '';
       }
-    } else if (r.type === 'company') {
-      primary   = r.data.Company_DBA || r.data.Company_Name;
-      secondary = _getCompanyAddress(r.data.Company_ID);
     } else {
-      primary   = `${r.data.Address_Street_1}, ${r.data.Address_City} ${r.data.Address_State}`;
-      secondary = _getPropertyOwner(r.data.Property_ID);
+      primary = r.data.Company_DBA || r.data.Company_Name;
+      if (r.property) {
+        const owner = _getPropertyOwner(r.property.Property_ID);
+        if (owner) primary += ` — ${owner}`;
+        secondary = `${r.property.Address_Street_1}, ${r.property.Address_City} ${r.property.Address_State}`;
+      }
     }
-    const id = r.type === 'person' ? r.data.People_ID : r.type === 'company' ? r.data.Company_ID : r.data.Property_ID;
+    const id     = r.type === 'person' ? r.data.People_ID : r.data.Company_ID;
     const propId = r.property ? r.property.Property_ID : '';
     return `<div class="search-result-item" data-type="${r.type}" data-id="${id}" data-prop-id="${propId}">
       <span class="search-result-primary">${primary}</span>
