@@ -21,6 +21,11 @@
   --color-surface-charcoal: #1E2229;
   --color-border-slate: #CBD5E1;
 
+  /* Widget Dock Category Colors */
+  --color-category-contact:   #FFBB99;
+  --color-category-workorder: #003366;
+  --color-category-estimate:  #FF7936;
+
   /* Ghost Buttons (widget/dock controls on dark headers) */
   --color-btn-ghost: rgba(255, 255, 255, 0.18);
   --color-btn-ghost-hover: rgba(255, 255, 255, 0.38);
@@ -345,6 +350,7 @@ html, body {
 }
 
 .dock-icon {
+  position: relative;
   width: 100%;
   display: flex;
   align-items: stretch;
@@ -400,8 +406,8 @@ html, body {
 
 .dock-icon-title {
   flex: 1;
-  padding: 4px 6px 4px 12px;
-  text-align: center;
+  padding: 4px 6px 4px 16px;
+  text-align: left;
   color: white;
   font-size: 10px;
   font-weight: 700;
@@ -448,6 +454,24 @@ html, body {
   background-color: var(--color-brand-orange);
   color: var(--color-ink-dark);
 }
+
+/* --- Dock icon category arch caps --- */
+/* ::before fills the left rounded arch; overflow:hidden clips it to pill shape */
+.dock-icon--contact::before,
+.dock-icon--workorder::before,
+.dock-icon--estimate::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 10px;
+  pointer-events: none;
+  z-index: 0;
+}
+.dock-icon--contact::before   { background-color: var(--color-category-contact); }
+.dock-icon--workorder::before { background-color: var(--color-category-workorder); }
+.dock-icon--estimate::before  { background-color: var(--color-category-estimate); }
 
 /* --- Widgets --- */
 .widget {
@@ -605,6 +629,34 @@ html, body {
   padding-top: 10px;
   flex: 1;
   min-width: 0;
+}
+
+/* --- Standard field width classes ---
+   Use these on .form-group instead of inline style="flex:..."
+   .f-grow  → fills remaining row space (default)
+   .f-md    → 100px  short name fields, first name
+   .f-sm    → 82px   type selectors, zip code
+   .f-unit  → 80px   unit / suite / PO box
+   .f-title → 62px   title dropdowns (Mr./Mrs./Dr.)
+   .f-ext   → 40px   phone extension
+   .f-state → 30px   state abbreviation
+   .f-cc    → 36px   country code
+------------------------------------------------- */
+.f-grow  { flex: 1; }
+.f-md    { flex: 0 0 100px; }
+.f-sm    { flex: 0 0 82px; }
+.f-unit  { flex: 0 0 80px; }
+.f-title { flex: 0 0 62px; }
+.f-ext   { flex: 0 0 40px; }
+.f-state { flex: 0 0 30px; }
+.f-cc    { flex: 0 0 36px; }
+
+/* Centered label for narrow fields like State */
+.form-label-center {
+  left: 0;
+  right: 0;
+  text-align: center;
+  padding: 0;
 }
 
 .form-label {
@@ -1113,6 +1165,52 @@ html, body {
   font-size: 11px;
   color: var(--color-ink-mid);
   line-height: 1.3;
+}
+
+/* --- Company Name Search Dropdown --- */
+.company-search-results {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 9500;
+  background: white;
+  border: 1px solid var(--color-border-slate);
+  border-radius: 0 0 6px 6px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.company-search-results:empty {
+  display: none;
+}
+
+.company-search-item {
+  display: flex;
+  flex-direction: column;
+  padding: 7px 10px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--color-border-slate);
+}
+
+.company-search-item:last-child {
+  border-bottom: none;
+}
+
+.company-search-item:hover {
+  background-color: var(--color-brand-tint);
+}
+
+.company-search-primary {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-ink-dark);
+}
+
+.company-search-secondary {
+  font-size: 11px;
+  color: var(--color-ink-mid);
 }
 
 .search-no-results {

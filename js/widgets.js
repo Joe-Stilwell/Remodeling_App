@@ -74,12 +74,18 @@ const WidgetManager = (function () {
 
     let dockIcon = null;
     if (!isPanel) {
-      dockIcon = _createDockIcon(id, title);
+      dockIcon = _createDockIcon(id, title, options.category);
       widget.querySelector('.widget-btn-minimize').addEventListener('click', () => minimize(id));
       widget.querySelector('.widget-btn-maximize').addEventListener('click', () => toggleMaximize(id));
       widget.querySelector('.widget-btn-close').addEventListener('click', () => close(id));
       _initDrag(widget, id);
       _initResize(widget, id);
+      if (typeof options.getLabel === 'function') {
+        widget.addEventListener('input', () => {
+          const label = options.getLabel(widget);
+          dockIcon.updateLabel(label);
+        });
+      }
     }
     state[id] = { el: widget, dockIcon, isMinimized: false, preMaximize: null, panelIds: [], parentId: options.parentId || null };
 
@@ -131,6 +137,11 @@ const WidgetManager = (function () {
         const maxH    = workspace.clientHeight - top;
         widget.style.height      = Math.min(natural, maxH) + 'px';
         widget.style.visibility  = '';
+
+        // Auto-focus: honour data-autofocus if present, else first input
+        const firstInput = widget.querySelector('[data-autofocus]')
+          || widget.querySelector('input:not([type="radio"]):not([type="checkbox"]), select, textarea');
+        firstInput?.focus();
       });
     }
 
@@ -255,9 +266,10 @@ const WidgetManager = (function () {
   }
 
   /* ── Private: dock icon ───────────────────────────────────── */
-  function _createDockIcon(id, title) {
+  function _createDockIcon(id, title, category) {
     const wrapper = document.createElement('div');
     wrapper.className = 'dock-icon';
+    if (category) wrapper.classList.add('dock-icon--' + category);
 
     const titleEl = document.createElement('span');
     titleEl.className = 'dock-icon-title';
@@ -265,7 +277,13 @@ const WidgetManager = (function () {
     titleEl.title = title;
     titleEl.addEventListener('click', () => {
       if (!state[id]) return;
-      state[id].isMinimized ? restore(id) : minimize(id);
+      if (state[id].isMinimized) {
+        restore(id);
+      } else if (state[id].el.classList.contains('is-active')) {
+        minimize(id);
+      } else {
+        _bringToFront(state[id].el);
+      }
     });
 
     const btnGroup = document.createElement('div');
@@ -291,6 +309,10 @@ const WidgetManager = (function () {
     btnGroup.appendChild(closeBtn);
     wrapper.appendChild(titleEl);
     wrapper.appendChild(btnGroup);
+    wrapper.updateLabel = (text) => {
+      titleEl.textContent = text || title;
+      titleEl.title       = text || title;
+    };
     DOCK().appendChild(wrapper);
     return wrapper;
   }

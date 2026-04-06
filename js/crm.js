@@ -27,7 +27,7 @@ const CRM = (function () {
   }
 
   function _generateId(prefix) {
-    return prefix + '_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+    return prefix + '_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
   }
 
   function _getData(key) {
@@ -88,22 +88,22 @@ const CRM = (function () {
   function _phoneRowHTML(idx, includeAddBtn) {
     return `
       <div class="contact-row">
-        <div class="form-group" style="flex:0 0 36px">
+        <div class="form-group f-cc">
           <label class="form-label">CC</label>
           <input class="form-input" type="text" data-phone-cc data-index="${idx}"
                  value="+1" maxlength="5" autocomplete="off">
         </div>
-        <div class="form-group" style="flex:1">
+        <div class="form-group f-grow">
           <label class="form-label">Phone</label>
           <input class="form-input" type="tel" placeholder=""
                  data-phone data-index="${idx}" autocomplete="off">
         </div>
-        <div class="form-group" style="flex:0 0 40px">
+        <div class="form-group f-ext">
           <label class="form-label">Ext.</label>
           <input class="form-input" type="text" data-phone-ext data-index="${idx}"
                  maxlength="6" autocomplete="off">
         </div>
-        <div class="form-group" style="flex:0 0 82px">
+        <div class="form-group f-sm">
           <label class="form-label">Type</label>
           <select class="form-select" data-phone-type data-index="${idx}">
             ${_options('phoneTypes', true)}
@@ -120,12 +120,12 @@ const CRM = (function () {
   function _emailRowHTML(idx, includeAddBtn) {
     return `
       <div class="contact-row">
-        <div class="form-group" style="flex:1">
+        <div class="form-group f-grow">
           <label class="form-label">Email</label>
           <input class="form-input" type="email" placeholder=""
                  data-email data-index="${idx}" autocomplete="off">
         </div>
-        <div class="form-group" style="flex:0 0 82px">
+        <div class="form-group f-sm">
           <label class="form-label">Type</label>
           <select class="form-select" data-email-type data-index="${idx}">
             ${_options('emailTypes', true)}
@@ -230,6 +230,7 @@ const CRM = (function () {
       rowEl.querySelector('input[data-phone-ext]').addEventListener('input', _formatExt);
       containerEl.querySelector(phoneContainerSel).appendChild(rowEl);
       _updatePhoneBtn();
+      phoneInput.focus();
     });
 
     addEmailBtn?.addEventListener('click', function () {
@@ -248,6 +249,7 @@ const CRM = (function () {
       emailInput.addEventListener('input', _formatEmail);
       containerEl.querySelector(emailContainerSel).appendChild(rowEl);
       _updateEmailBtn();
+      emailInput.focus();
     });
   }
 
@@ -282,31 +284,31 @@ const CRM = (function () {
     return `
       <div data-address-block data-addr-index="${index}">
         <div class="form-row">
-          <div class="form-group" style="flex:1">
+          <div class="form-group f-grow">
             <label class="form-label">Street Address</label>
             <input class="form-input" data-addr="street1" type="text"
                    placeholder="" autocomplete="off">
           </div>
-          <div class="form-group" style="flex:0 0 80px">
+          <div class="form-group f-unit">
             <label class="form-label">Unit / PO Box</label>
             <input class="form-input" data-addr="street2" type="text"
                    placeholder="" autocomplete="off">
           </div>
           ${isFirst
-            ? `<button class="btn-action" data-action="add-property" tabindex="-1">+ Property</button>`
+            ? `<button class="btn-action" data-action="add-property" tabindex="-1" disabled>+ Property</button>`
             : `<div class="btn-spacer"></div>`}
         </div>
         <div class="form-row">
-          <div class="form-group" style="flex:1">
+          <div class="form-group f-grow">
             <label class="form-label">City</label>
             <input class="form-input" data-addr="city" type="text" autocomplete="off">
           </div>
-          <div class="form-group" style="flex:0 0 30px">
-            <label class="form-label" style="left:0;right:0;text-align:center;padding:0">State</label>
+          <div class="form-group f-state">
+            <label class="form-label form-label-center">State</label>
             <input class="form-input" data-addr="state" type="text"
                    maxlength="3" autocomplete="off">
           </div>
-          <div class="form-group" style="flex:0 0 81px">
+          <div class="form-group f-sm">
             <label class="form-label">Zip Code</label>
             <input class="form-input" data-addr="zip" type="text"
                    maxlength="10" autocomplete="off">
@@ -314,13 +316,13 @@ const CRM = (function () {
           <div class="btn-spacer"></div>
         </div>
         <div class="form-row">
-          <div class="form-group">
+          <div class="form-group f-grow">
             <label class="form-label">Property Type</label>
             <select class="form-select" data-addr="prop-type">
               ${_options('propertyTypes')}
             </select>
           </div>
-          <div class="form-group">
+          <div class="form-group f-grow">
             <label class="form-label">Property Use</label>
             <select class="form-select" data-addr="prop-use">
               ${_options('propertyUses')}
@@ -334,13 +336,13 @@ const CRM = (function () {
   }
 
   /* ── Person side widget HTML ──────────────────────────────── */
-  function _personSideWidgetHTML() {
+  function _personSideWidgetHTML(uid = Date.now()) {
     return `
       <div class="widget-form">
 
         <!-- Row 1: Title / First Name / Last Name -->
         <div class="form-row">
-          <div class="form-group" style="flex:0 0 62px">
+          <div class="form-group f-title">
             <label class="form-label">Title</label>
             <select class="form-select" data-ap="title">
               <option value=""></option>
@@ -351,12 +353,12 @@ const CRM = (function () {
               <option>Prof.</option>
             </select>
           </div>
-          <div class="form-group" style="flex:1">
+          <div class="form-group f-grow">
             <label class="form-label">First Name</label>
             <input class="form-input" data-ap="first-name" type="text"
                    placeholder="" autocomplete="off">
           </div>
-          <div class="form-group" style="flex:1">
+          <div class="form-group f-grow">
             <label class="form-label">Last Name</label>
             <input class="form-input" data-ap="last-name" type="text"
                    placeholder="" autocomplete="off">
@@ -374,11 +376,23 @@ const CRM = (function () {
           ${_emailRowHTML(0, true)}
         </div>
 
-        <!-- Row 4: Client Notes -->
-        <!-- Row 4: Client Notes -->
-        ${_notesRowHTML('data-ap="notes"', 'Client Notes')}
+        <!-- Row 4: Comm Preference -->
+        <div class="form-row">
+          <div class="form-group" style="flex:1">
+            <label class="form-label">Comm. Preference</label>
+            <div class="comm-pref-options">
+              <label class="comm-pref-option"><input type="radio" name="ap-comm-pref-${uid}" data-ap="comm-pref" value="Email"> Email</label>
+              <label class="comm-pref-option"><input type="radio" name="ap-comm-pref-${uid}" data-ap="comm-pref" value="Text"> Text</label>
+              <label class="comm-pref-option"><input type="radio" name="ap-comm-pref-${uid}" data-ap="comm-pref" value="Phone"> Phone</label>
+            </div>
+          </div>
+          <div class="btn-spacer"></div>
+        </div>
 
-        <!-- Row 5: Relationship / Cancel / Save -->
+        <!-- Row 5: Contact Notes -->
+        ${_notesRowHTML('data-ap="notes"', 'Contact Notes')}
+
+        <!-- Row 6: Relationship / Cancel / Save -->
         <div class="form-row" style="align-items:flex-start">
           <div class="form-group" style="flex:1">
             <label class="form-label">Relationship</label>
@@ -391,7 +405,7 @@ const CRM = (function () {
             </select>
           </div>
           <button class="btn-secondary" data-action="cancel" style="margin-left:6px;margin-top:10px">Cancel</button>
-          <button class="btn-primary" data-action="save" style="margin-left:6px;margin-top:10px">Save</button>
+          <button class="btn-primary" data-action="save" style="margin-left:6px;margin-top:10px" disabled>Save</button>
         </div>
 
       </div>
@@ -405,11 +419,11 @@ const CRM = (function () {
 
         <!-- Row 1: Street Address / Unit -->
         <div class="form-row">
-          <div class="form-group" style="flex:1">
+          <div class="form-group f-grow">
             <label class="form-label">Street Address</label>
             <input class="form-input" data-addr="street1" type="text" autocomplete="off">
           </div>
-          <div class="form-group" style="flex:0 0 80px">
+          <div class="form-group f-unit">
             <label class="form-label">Unit / PO Box</label>
             <input class="form-input" data-addr="street2" type="text" autocomplete="off">
           </div>
@@ -417,15 +431,15 @@ const CRM = (function () {
 
         <!-- Row 2: City / State / Zip -->
         <div class="form-row">
-          <div class="form-group" style="flex:1">
+          <div class="form-group f-grow">
             <label class="form-label">City</label>
             <input class="form-input" data-addr="city" type="text" autocomplete="off">
           </div>
-          <div class="form-group" style="flex:0 0 30px">
-            <label class="form-label" style="left:0;right:0;text-align:center;padding:0">State</label>
+          <div class="form-group f-state">
+            <label class="form-label form-label-center">State</label>
             <input class="form-input" data-addr="state" type="text" maxlength="3" autocomplete="off">
           </div>
-          <div class="form-group" style="flex:0 0 81px">
+          <div class="form-group f-sm">
             <label class="form-label">Zip Code</label>
             <input class="form-input" data-addr="zip" type="text" maxlength="10" autocomplete="off">
           </div>
@@ -433,13 +447,13 @@ const CRM = (function () {
 
         <!-- Row 3: Property Type / Property Use -->
         <div class="form-row">
-          <div class="form-group" style="flex:1">
+          <div class="form-group f-grow">
             <label class="form-label">Property Type</label>
             <select class="form-select" data-addr="prop-type">
               ${_options('propertyTypes')}
             </select>
           </div>
-          <div class="form-group" style="flex:1">
+          <div class="form-group f-grow">
             <label class="form-label">Property Use</label>
             <select class="form-select" data-addr="prop-use">
               ${_options('propertyUses')}
@@ -453,7 +467,98 @@ const CRM = (function () {
         <!-- Row 5: Cancel / Save -->
         <div class="widget-footer">
           <button class="btn-secondary" data-action="cancel">Cancel</button>
-          <button class="btn-primary" data-action="save">Save</button>
+          <button class="btn-primary" data-action="save" disabled>Save</button>
+        </div>
+
+      </div>
+    `;
+  }
+
+  /* ── Company side widget HTML ────────────────────────────── */
+  function _companySideWidgetHTML() {
+    return `
+      <div class="widget-form">
+
+        <!-- Row 1: Company Name (search + create) -->
+        <div class="form-row">
+          <div class="form-group" style="flex:1;position:relative">
+            <label class="form-label">Company Name</label>
+            <input class="form-input" data-co="name" type="text"
+                   placeholder="Type to search or enter new" autocomplete="off">
+            <div data-co="search-results" class="company-search-results"></div>
+          </div>
+          <div class="btn-spacer"></div>
+        </div>
+
+        <!-- Row 2: DBA -->
+        <div class="form-row">
+          <div class="form-group" style="flex:1">
+            <label class="form-label">DBA (Doing Business As)</label>
+            <input class="form-input" data-co="dba" type="text" autocomplete="off">
+          </div>
+          <div class="btn-spacer"></div>
+        </div>
+
+        <!-- Row 3: Street / Unit -->
+        <div class="form-row">
+          <div class="form-group f-grow">
+            <label class="form-label">Street Address</label>
+            <input class="form-input" data-co="street1" type="text" autocomplete="off">
+          </div>
+          <div class="form-group f-unit">
+            <label class="form-label">Unit / Suite</label>
+            <input class="form-input" data-co="street2" type="text" autocomplete="off">
+          </div>
+          <div class="btn-spacer"></div>
+        </div>
+
+        <!-- Row 4: City / State / Zip -->
+        <div class="form-row">
+          <div class="form-group f-grow">
+            <label class="form-label">City</label>
+            <input class="form-input" data-co="city" type="text" autocomplete="off">
+          </div>
+          <div class="form-group f-state">
+            <label class="form-label form-label-center">State</label>
+            <input class="form-input" data-co="state" type="text" maxlength="3" autocomplete="off">
+          </div>
+          <div class="form-group f-sm">
+            <label class="form-label">Zip Code</label>
+            <input class="form-input" data-co="zip" type="text" maxlength="10" autocomplete="off">
+          </div>
+          <div class="btn-spacer"></div>
+        </div>
+
+        <!-- Row 5: Phone -->
+        <div data-container="co-phones">
+          ${_phoneRowHTML(0, true)}
+        </div>
+
+        <!-- Row 6: Email -->
+        <div data-container="co-emails">
+          ${_emailRowHTML(0, true)}
+        </div>
+
+        <!-- Row 7: Job Title / Department -->
+        <div class="form-row">
+          <div class="form-group f-grow">
+            <label class="form-label">Job Title</label>
+            <input class="form-input" data-co="job-title" type="text" autocomplete="off">
+          </div>
+          <div class="form-group f-grow">
+            <label class="form-label">Department</label>
+            <input class="form-input" data-co="department" type="text" autocomplete="off">
+          </div>
+          <div class="btn-spacer"></div>
+        </div>
+
+        <!-- Row 8: Company Notes -->
+        ${_notesRowHTML('data-co="notes"', 'Company Notes')}
+
+        <!-- Row 9: Cancel / Save -->
+        <div class="widget-footer">
+          <button class="btn-secondary" data-action="cancel">Cancel</button>
+          <button class="btn-primary" data-action="save" disabled>Save</button>
         </div>
 
       </div>
@@ -514,16 +619,21 @@ const CRM = (function () {
   }
 
   /* ── New Residential Client ───────────────────────────────── */
-  function openNewClient() {
-    const id     = 'new-client-' + Date.now();
-    const opened = WidgetManager.open(id, 'New Client', _newClientHTML(id), { width: 425, autoHeight: true });
+  function openNewContact() {
+    const id     = 'new-contact-' + Date.now();
+    const opened = WidgetManager.open(id, 'New Contact', _newClientHTML(id), {
+      width:      425,
+      autoHeight: true,
+      category:   'contact',
+      getLabel:   (el) => {
+        const last  = el.querySelector('[data-field="last-name"]')?.value.trim()  || '';
+        const first = el.querySelector('[data-field="first-name"]')?.value.trim() || '';
+        if (last && first) return `${last}, ${first}`;
+        return last || first || '';
+      },
+    });
     if (opened === false) return;
     _bindNewClientForm(id);
-    requestAnimationFrame(() => {
-      document.getElementById('widget-' + id)
-        ?.querySelector('[data-field="first-name"]')
-        ?.focus();
-    });
   }
 
   function _newClientHTML(id) {
@@ -532,7 +642,7 @@ const CRM = (function () {
 
         <!-- Name -->
         <div class="form-row">
-          <div class="form-group" style="flex:0 0 62px">
+          <div class="form-group f-title">
             <label class="form-label">Title</label>
             <select class="form-select" data-field="title">
               <option value=""></option>
@@ -543,12 +653,12 @@ const CRM = (function () {
               <option>Prof.</option>
             </select>
           </div>
-          <div class="form-group" style="flex:0 0 100px">
+          <div class="form-group f-md">
             <label class="form-label">First Name</label>
-            <input class="form-input" data-field="first-name" type="text"
+            <input class="form-input" data-field="first-name" data-autofocus type="text"
                    placeholder="" autocomplete="off">
           </div>
-          <div class="form-group" style="flex:1">
+          <div class="form-group f-grow">
             <label class="form-label">Last Name</label>
             <input class="form-input" data-field="last-name" type="text"
                    placeholder="" autocomplete="off">
@@ -582,13 +692,13 @@ const CRM = (function () {
 
         <!-- Lead Source / Referred By -->
         <div class="form-row">
-          <div class="form-group">
+          <div class="form-group f-grow">
             <label class="form-label">Lead Source</label>
             <select class="form-select" data-field="lead-source">
               ${_options('leadSources')}
             </select>
           </div>
-          <div class="form-group">
+          <div class="form-group f-grow">
             <label class="form-label">Referred By</label>
             <input class="form-input" data-field="referred-by" type="text"
                    placeholder="" autocomplete="off">
@@ -610,21 +720,23 @@ const CRM = (function () {
         <!-- Additional Addresses (summary rows appear here) -->
         <div data-container="additional-addresses"></div>
 
-        <!-- Status + actions on same row -->
-        <div class="form-row" style="align-items:center">
+        <div class="form-divider"></div>
+
+        <!-- Company -->
+        <div class="form-row">
           <div class="form-group" style="flex:1">
-            <label class="form-label">Status</label>
-            <div class="status-row">
-              <label class="status-option">
-                <input type="radio" name="client-status" value="Active" checked> Active
-              </label>
-              <label class="status-option">
-                <input type="radio" name="client-status" value="Inactive"> Inactive
-              </label>
-            </div>
+            <label class="form-label">Company / Employer</label>
           </div>
+          <button class="btn-action" data-action="add-company" tabindex="-1" disabled>+ Company</button>
+        </div>
+
+        <!-- Additional Companies (summary rows appear here) -->
+        <div data-container="additional-companies"></div>
+
+        <!-- Actions -->
+        <div class="form-row" style="align-items:center;justify-content:flex-end">
           <button class="btn-secondary" data-action="cancel" style="margin-left:6px">Cancel</button>
-          <button class="btn-primary" data-action="save" style="margin-left:6px">Save Client</button>
+          <button class="btn-primary" data-action="save" style="margin-left:6px" disabled>Save</button>
         </div>
 
       </div>
@@ -656,10 +768,30 @@ const CRM = (function () {
 
     // Track any open panel so parent Cancel can close it
 
-    // + Person disabled until First Name has content
-    const addPersonBtn = el.querySelector('[data-action="add-person"]');
+    // Save disabled until First Name + Last Name + at least one Phone or Email
+    const saveBtn = el.querySelector('.widget-footer [data-action="save"]');
+    function _updateSaveBtn() {
+      const hasFirst = !!el.querySelector('[data-field="first-name"]').value.trim();
+      const hasLast  = !!el.querySelector('[data-field="last-name"]').value.trim();
+      const hasPhone = [...el.querySelectorAll('input[data-phone]')].some(i => i.value.trim());
+      const hasEmail = [...el.querySelectorAll('input[data-email]')].some(i => i.value.trim());
+      saveBtn.disabled = !(hasFirst && hasLast && (hasPhone || hasEmail));
+    }
+    el.querySelector('[data-field="first-name"]').addEventListener('input', _updateSaveBtn);
+    el.querySelector('[data-field="last-name"]').addEventListener('input', _updateSaveBtn);
+    el.addEventListener('input', function (e) {
+      if (e.target.dataset.phone !== undefined || e.target.dataset.email !== undefined) {
+        _updateSaveBtn();
+      }
+    });
+
+    // + Person / + Company disabled until First Name has content
+    const addPersonBtn  = el.querySelector('[data-action="add-person"]');
+    const addCompanyBtn = el.querySelector('[data-action="add-company"]');
     el.querySelector('[data-field="first-name"]').addEventListener('input', function () {
-      addPersonBtn.disabled = this.value.trim() === '';
+      const empty = this.value.trim() === '';
+      addPersonBtn.disabled  = empty;
+      addCompanyBtn.disabled = empty;
     });
 
     addPersonBtn.addEventListener('click', function () {
@@ -679,8 +811,12 @@ const CRM = (function () {
       _bindPersonSideWidget(sideId, el, addPersonBtn, () => {});
     });
 
-    // + Address → side widget
+    // + Property disabled until Street Address has content
     const addAddressBtn = el.querySelector('[data-action="add-property"]');
+    el.querySelector('[data-addr="street1"]').addEventListener('input', function () {
+      addAddressBtn.disabled = this.value.trim() === '';
+    });
+
     addAddressBtn.addEventListener('click', function () {
       addAddressBtn.disabled = true;
       const sideId   = 'side-address-' + Date.now();
@@ -700,6 +836,24 @@ const CRM = (function () {
       });
       if (opened === false) { addAddressBtn.disabled = false; return; }
       _bindAddressSideWidget(sideId, el, addAddressBtn, () => {});
+    });
+
+    // + Company → side widget
+    addCompanyBtn.addEventListener('click', function () {
+      addCompanyBtn.disabled = true;
+      const sideId   = 'side-company-' + Date.now();
+      const mainLeft = parseInt(el.style.left) || 0;
+      const mainTop  = parseInt(el.style.top)  || 0;
+      const opened   = WidgetManager.open(sideId, 'Add Company', _companySideWidgetHTML(), {
+        width:      425,
+        autoHeight: true,
+        top:        mainTop + 30,
+        left:       mainLeft + el.offsetWidth,
+        panel:      true,
+        parentId:   widgetId,
+      });
+      if (opened === false) { addCompanyBtn.disabled = false; return; }
+      _bindCompanySideWidget(sideId, el, addCompanyBtn, () => {});
     });
 
     // Cancel — also closes any open panel
@@ -733,6 +887,21 @@ const CRM = (function () {
     sideEl.querySelector('input[data-email]').addEventListener('input', _formatEmail);
 
     function _reEnable() { addPersonBtn.disabled = false; if (onClose) onClose(); }
+
+    // Save disabled until First Name + Last Name + (Phone OR Email)
+    const personSaveBtn = sideEl.querySelector('[data-action="save"]');
+    function _updatePersonSaveBtn() {
+      const hasFirst = !!sideEl.querySelector('[data-ap="first-name"]').value.trim();
+      const hasLast  = !!sideEl.querySelector('[data-ap="last-name"]').value.trim();
+      const hasPhone = [...sideEl.querySelectorAll('input[data-phone]')].some(i => i.value.trim());
+      const hasEmail = [...sideEl.querySelectorAll('input[data-email]')].some(i => i.value.trim());
+      personSaveBtn.disabled = !(hasFirst && hasLast && (hasPhone || hasEmail));
+    }
+    sideEl.querySelector('[data-ap="first-name"]').addEventListener('input', _updatePersonSaveBtn);
+    sideEl.querySelector('[data-ap="last-name"]').addEventListener('input', _updatePersonSaveBtn);
+    sideEl.addEventListener('input', e => {
+      if (e.target.dataset.phone !== undefined || e.target.dataset.email !== undefined) _updatePersonSaveBtn();
+    });
 
     sideEl.querySelector('[data-action="cancel"]').addEventListener('click', () => {
       WidgetManager.close(sideId);
@@ -778,12 +947,162 @@ const CRM = (function () {
     });
   }
 
+  /* ── Bind company side widget ────────────────────────────── */
+  function _bindCompanySideWidget(sideId, mainEl, addCompanyBtn, onClose) {
+    const sideEl = document.getElementById('widget-' + sideId);
+    if (!sideEl) return;
+
+    function _reEnable() { addCompanyBtn.disabled = false; if (onClose) onClose(); }
+
+    // Autofill phone + email from parent contact if fields are empty
+    const parentPhone = mainEl.querySelector('input[data-phone]')?.value.trim();
+    const parentEmail = mainEl.querySelector('input[data-email]')?.value.trim();
+    if (parentPhone) sideEl.querySelector('input[data-phone]').value = parentPhone;
+    if (parentEmail) sideEl.querySelector('input[data-email]').value = parentEmail;
+
+    // Save disabled until Company Name + (Phone OR Email)
+    const companySaveBtn = sideEl.querySelector('[data-action="save"]');
+    function _updateCompanySaveBtn() {
+      const hasName  = !!sideEl.querySelector('[data-co="name"]').value.trim();
+      const hasPhone = [...sideEl.querySelectorAll('input[data-phone]')].some(i => i.value.trim());
+      const hasEmail = [...sideEl.querySelectorAll('input[data-email]')].some(i => i.value.trim());
+      companySaveBtn.disabled = !(hasName && (hasPhone || hasEmail));
+    }
+    sideEl.querySelector('[data-co="name"]').addEventListener('input', _updateCompanySaveBtn);
+    sideEl.addEventListener('input', e => {
+      if (e.target.dataset.phone !== undefined || e.target.dataset.email !== undefined) _updateCompanySaveBtn();
+    });
+    _updateCompanySaveBtn(); // run once in case autofill already satisfies phone/email
+
+    // Company name live search against AppData
+    let _coSearchDebounce = null;
+    let _selectedCompanyId = null;
+
+    const nameInput     = sideEl.querySelector('[data-co="name"]');
+    const searchResults = sideEl.querySelector('[data-co="search-results"]');
+
+    function _showCoResults(results) {
+      if (!results.length) { searchResults.innerHTML = ''; return; }
+      searchResults.innerHTML = results.map(c =>
+        `<div class="company-search-item" data-co-id="${c.Company_ID}">
+          <span class="company-search-primary">${c.Company_DBA || c.Company_Name}</span>
+          ${c.Company_DBA ? `<span class="company-search-secondary">${c.Company_Name}</span>` : ''}
+        </div>`
+      ).join('');
+      searchResults.querySelectorAll('.company-search-item').forEach(item => {
+        item.addEventListener('mousedown', function (e) {
+          e.preventDefault();
+          const co = (AppData.tables['DB_Company'] || []).find(c => c.Company_ID === this.dataset.coId);
+          if (!co) return;
+          _selectedCompanyId = co.Company_ID;
+          nameInput.value = co.Company_DBA || co.Company_Name;
+          sideEl.querySelector('[data-co="dba"]').value       = co.Company_DBA    || '';
+          searchResults.innerHTML = '';
+        });
+      });
+    }
+
+    // Copy Company Name → DBA when DBA is still empty
+    nameInput.addEventListener('blur', function () {
+      const dbaInput = sideEl.querySelector('[data-co="dba"]');
+      if (this.value.trim() && !dbaInput.value.trim()) {
+        dbaInput.value = this.value.trim();
+      }
+    });
+
+    nameInput.addEventListener('input', function () {
+      _selectedCompanyId = null;
+      clearTimeout(_coSearchDebounce);
+      const q = this.value.trim().toLowerCase();
+      if (q.length < 2) { searchResults.innerHTML = ''; return; }
+      _coSearchDebounce = setTimeout(() => {
+        const matches = (AppData.tables['DB_Company'] || [])
+          .filter(c => [c.Company_Name, c.Company_DBA].some(f => f && f.toLowerCase().includes(q)))
+          .slice(0, 6);
+        _showCoResults(matches);
+      }, 150);
+    });
+
+    document.addEventListener('mousedown', function _coOutside(e) {
+      if (!sideEl.contains(e.target)) {
+        searchResults.innerHTML = '';
+        document.removeEventListener('mousedown', _coOutside);
+      }
+    });
+
+    // Formatters
+    sideEl.querySelector('[data-co="state"]').addEventListener('input', _formatState);
+    sideEl.querySelector('[data-co="zip"]').addEventListener('input', _formatZip);
+    sideEl.querySelector('[data-co="name"]').addEventListener('input', _formatNameField);
+    sideEl.querySelector('[data-co="dba"]').addEventListener('input', _formatNameField);
+
+    // Phone / Email
+    _bindPhoneEmailRows(sideEl, '[data-container="co-phones"]', '[data-container="co-emails"]', sideId);
+    sideEl.querySelector('input[data-phone]').addEventListener('input', _formatPhone);
+    sideEl.querySelector('input[data-phone-cc]').addEventListener('input', _formatCC);
+    sideEl.querySelector('input[data-phone-ext]')?.addEventListener('input', _formatExt);
+    sideEl.querySelector('input[data-email]').addEventListener('input', _formatEmail);
+
+    // Notes
+    _bindAutoExpand(sideEl.querySelector('[data-co="notes"]'), 5, sideId);
+
+    sideEl.querySelector('[data-action="cancel"]').addEventListener('click', () => {
+      WidgetManager.close(sideId);
+      _reEnable();
+    });
+
+    sideEl.querySelector('[data-action="save"]').addEventListener('click', () => {
+      const name = sideEl.querySelector('[data-co="name"]').value.trim();
+      if (!name) { sideEl.querySelector('[data-co="name"]').focus(); return; }
+
+      const coData = {
+        companyId:  _selectedCompanyId || null,
+        name,
+        dba:        sideEl.querySelector('[data-co="dba"]').value.trim(),
+        street1:    sideEl.querySelector('[data-co="street1"]').value.trim(),
+        street2:    sideEl.querySelector('[data-co="street2"]').value.trim(),
+        city:       sideEl.querySelector('[data-co="city"]').value.trim(),
+        state:      sideEl.querySelector('[data-co="state"]').value.trim(),
+        zip:        sideEl.querySelector('[data-co="zip"]').value.trim(),
+        jobTitle:   sideEl.querySelector('[data-co="job-title"]').value.trim(),
+        department: sideEl.querySelector('[data-co="department"]').value.trim(),
+        notes:      sideEl.querySelector('[data-co="notes"]').value.trim(),
+        phones:     _collectPhones(sideEl),
+        emails:     _collectEmails(sideEl),
+        isExisting: !!_selectedCompanyId,
+      };
+
+      const label = coData.dba ? `${coData.dba} (${coData.name})` : coData.name;
+
+      _addSummaryRow(
+        mainEl.querySelector('[data-container="additional-companies"]'),
+        label,
+        'companySummary',
+        coData,
+        () => {}
+      );
+
+      WidgetManager.close(sideId);
+      _reEnable();
+    });
+  }
+
   /* ── Bind address side widget ─────────────────────────────── */
   function _bindAddressSideWidget(sideId, mainEl, addAddressBtn, onClose) {
     const sideEl = document.getElementById('widget-' + sideId);
     if (!sideEl) return;
 
     function _reEnable() { addAddressBtn.disabled = false; if (onClose) onClose(); }
+
+    // Save disabled until Street Address + City
+    const addressSaveBtn = sideEl.querySelector('[data-action="save"]');
+    function _updateAddressSaveBtn() {
+      const hasStreet = !!sideEl.querySelector('[data-addr="street1"]').value.trim();
+      const hasCity   = !!sideEl.querySelector('[data-addr="city"]').value.trim();
+      addressSaveBtn.disabled = !(hasStreet && hasCity);
+    }
+    sideEl.querySelector('[data-addr="street1"]').addEventListener('input', _updateAddressSaveBtn);
+    sideEl.querySelector('[data-addr="city"]').addEventListener('input', _updateAddressSaveBtn);
 
     sideEl.querySelector('[data-addr="zip"]').addEventListener('input', _formatZip);
     sideEl.querySelector('[data-addr="state"]').addEventListener('input', _formatState);
@@ -870,9 +1189,7 @@ const CRM = (function () {
       id:           _generateId('PEO'),
       dateCreated:  now,
       dateModified: now,
-      status:       el.querySelector('input[name="client-status"]:checked')?.value || 'Active',
-      type:         'Client',
-      clientType:   'Residential',
+      status:       'Active',
       title:        el.querySelector('[data-field="title"]').value,
       firstName,
       lastName,
@@ -895,9 +1212,7 @@ const CRM = (function () {
         id:           _generateId('PEO'),
         dateCreated:  now,
         dateModified: now,
-        status:       person.status,
-        type:         'Client',
-        clientType:   'Residential',
+        status:       'Active',
         firstName:    d.firstName,
         lastName:     d.lastName,
         displayName:  d.lastName ? `${d.lastName}, ${d.firstName}` : d.firstName,
@@ -964,6 +1279,6 @@ const CRM = (function () {
     WidgetManager.close(widgetId);
   }
 
-  return { openNewClient };
+  return { openNewContact };
 
 })();

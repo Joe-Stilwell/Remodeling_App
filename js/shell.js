@@ -165,7 +165,18 @@ document.addEventListener('mousedown', function (e) {
 // Maps submenu widget keys to CRM actions.
 // If no match, falls back to a generic empty widget.
 const WIDGET_ROUTES = {
-  'new-client': () => CRM.openNewClient(),
+  'new-client': () => CRM.openNewContact(),
+};
+
+const WIDGET_CATEGORIES = {
+  'phonebook':     'contact',
+  'new-client':    'contact',
+  'new-vendor':    'contact',
+  'new-employee':  'contact',
+  'workorder':     'workorder',
+  'new-workorder': 'workorder',
+  'estimating':    'estimate',
+  'new-estimate':  'estimate',
 };
 
 function _routeWidget(key, title) {
@@ -173,7 +184,7 @@ function _routeWidget(key, title) {
   if (action) {
     action();
   } else {
-    WidgetManager.open(key, title);
+    WidgetManager.open(key, title, '', { category: WIDGET_CATEGORIES[key] });
   }
 }
 

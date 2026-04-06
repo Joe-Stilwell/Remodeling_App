@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx @tailwindcss/cli -i ./src/input.css -o ./css/output.css --minify)"
+    ]
+  }
+}
