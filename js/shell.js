@@ -53,6 +53,19 @@
 const searchInput = document.getElementById('universal-search');
 let _searchDebounce = null;
 let _searchOverlay  = null;
+let _searchNavIndex = -1;
+
+function _searchNavItems() {
+  if (!_searchOverlay) return [];
+  return [..._searchOverlay.querySelectorAll('.search-result-item, .search-create-btn')];
+}
+
+function _searchHighlight(index) {
+  const items = _searchNavItems();
+  items.forEach((item, i) => item.classList.toggle('is-active', i === index));
+  items[index]?.scrollIntoView({ block: 'nearest' });
+  _searchNavIndex = index;
+}
 
 function _getOrCreateOverlay() {
   if (!_searchOverlay) {
@@ -114,57 +127,48 @@ function _searchAll(query) {
   const results = [];
   const seen    = new Set();
 
+  // One pill per person, one per company — property is context only for address searches
   function addPerson(person, property) {
-    const key = `p-${person.People_ID}-${property ? property.Property_ID : ''}`;
+    const key = `p-${person.People_ID}`;
     if (seen.has(key)) return;
     seen.add(key);
     results.push({ type: 'person', data: person, property: property || null });
   }
 
   function addCompany(company, property) {
-    const key = `c-${company.Company_ID}-${property ? property.Property_ID : ''}`;
+    const key = `c-${company.Company_ID}`;
     if (seen.has(key)) return;
     seen.add(key);
     results.push({ type: 'company', data: company, property: property || null });
   }
 
-  // --- Person match (name / email / phone) ---
+  // --- Person match (name / email / phone) — no property context ---
   (AppData.tables['DB_People'] || []).forEach(person => {
-    const fullName   = `${person.People_First_Name || ''} ${person.People_Last_Name || ''}`.trim().toLowerCase();
+    const fullName    = `${person.People_First_Name || ''} ${person.People_Last_Name || ''}`.trim().toLowerCase();
     const reverseName = `${person.People_Last_Name || ''}, ${person.People_First_Name || ''}`.trim().toLowerCase();
-    const textMatch  = fullName.includes(q) || reverseName.includes(q) ||
+    const textMatch   = fullName.includes(q) || reverseName.includes(q) ||
       [person.People_First_Name, person.People_Last_Name, person.Email_1, person.Email_2, person.Email_3]
         .some(f => f && f.toLowerCase().includes(q));
-    const phoneMatch = qDigits.length >= 3 && [person.Phone_1, person.Phone_2, person.Phone_3]
+    const phoneMatch  = qDigits.length >= 3 && [person.Phone_1, person.Phone_2, person.Phone_3]
       .some(f => f && f.replace(/\D/g, '').includes(qDigits));
     if (!textMatch && !phoneMatch) return;
 
-    const props = _getPersonProperties(person.People_ID);
-    if (props.length === 0) { addPerson(person, null); } else {
-      props.slice(0, 3).forEach(prop => addPerson(person, prop));
-    }
+    addPerson(person, null);
 
     // Also surface any company this person is linked to
     const compLinks = AppData.tables['Link_Company_People'] || [];
     const companies = AppData.tables['DB_Company']          || [];
     compLinks.filter(l => l.People_ID === person.People_ID).forEach(l => {
       const co = companies.find(c => c.Company_ID === l.Company_ID);
-      if (!co) return;
-      const coProps = _getCompanyProperties(co.Company_ID);
-      if (coProps.length === 0) { addCompany(co, null); } else {
-        coProps.slice(0, 3).forEach(prop => addCompany(co, prop));
-      }
+      if (co) addCompany(co, null);
     });
   });
 
-  // --- Company match (name / DBA) ---
+  // --- Company match (name / DBA) — no property context ---
   (AppData.tables['DB_Company'] || []).forEach(company => {
     if (![company.Company_Name, company.Company_DBA]
         .some(f => f && f.toLowerCase().includes(q))) return;
-
-    const props = _getCompanyProperties(company.Company_ID);
-    if (props.length === 0) { addCompany(company, null); return; }
-    props.slice(0, 3).forEach(prop => addCompany(company, prop));
+    addCompany(company, null);
   });
 
   // --- Address match — return everyone linked to that property ---
@@ -192,52 +196,61 @@ function _searchAll(query) {
   return results.slice(0, 12);
 }
 
-function _renderResults(results) {
+function _renderResults(results, query) {
   const overlay = _getOrCreateOverlay();
   _positionOverlay();
+  _searchNavIndex = -1;
+  overlay.scrollTop = 0;
+
+  const createRow = `<div class="search-create-row">
+    <button class="search-create-btn">+ New Contact</button>
+  </div>`;
 
   if (!results.length) {
-    overlay.innerHTML = '<div class="search-no-results">No results found</div>';
-    overlay.classList.add('is-visible');
-    return;
+    overlay.innerHTML = '<div class="search-no-results">No results found</div>' + createRow;
+  } else {
+    overlay.innerHTML = results.map(r => {
+      let primary = '', secondary = '';
+      if (r.type === 'person') {
+        const company = _getPersonCompany(r.data.People_ID);
+        primary = `${r.data.People_Last_Name}, ${r.data.People_First_Name}`;
+        if (company) primary += ` — ${company}`;
+        if (r.property) {
+          const use = r.property.Property_Use && r.property.Property_Use !== 'Primary Residence'
+            ? ` · ${r.property.Property_Use}` : '';
+          secondary = `${r.property.Address_Street_1}, ${r.property.Address_City} ${r.property.Address_State}${use}`;
+        } else {
+          secondary = r.data.Phone_1 || r.data.Phone_2 || '';
+        }
+      } else {
+        primary = r.data.Company_DBA || r.data.Company_Name;
+        if (r.property) {
+          const owner = _getPropertyOwner(r.property.Property_ID);
+          if (owner) primary += ` — ${owner}`;
+          secondary = `${r.property.Address_Street_1}, ${r.property.Address_City} ${r.property.Address_State}`;
+        }
+      }
+      const id     = r.type === 'person' ? r.data.People_ID : r.data.Company_ID;
+      const propId = r.property ? r.property.Property_ID : '';
+      return `<div class="search-result-item" data-type="${r.type}" data-id="${id}" data-prop-id="${propId}">
+        <span class="search-result-primary">${primary}</span>
+        ${secondary ? `<span class="search-result-secondary">${secondary}</span>` : ''}
+      </div>`;
+    }).join('') + createRow;
+
+    overlay.querySelectorAll('.search-result-item').forEach(item => {
+      item.addEventListener('click', function () {
+        _closeOverlay();
+        searchInput.value = '';
+        CRM.openProfile(this.dataset.type, this.dataset.id);
+      });
+    });
   }
 
-  overlay.innerHTML = results.map(r => {
-    let primary = '', secondary = '';
-    if (r.type === 'person') {
-      const company = _getPersonCompany(r.data.People_ID);
-      primary = `${r.data.People_Last_Name}, ${r.data.People_First_Name}`;
-      if (company) primary += ` — ${company}`;
-      if (r.property) {
-        const use = r.property.Property_Use && r.property.Property_Use !== 'Primary Residence'
-          ? ` · ${r.property.Property_Use}` : '';
-        secondary = `${r.property.Address_Street_1}, ${r.property.Address_City} ${r.property.Address_State}${use}`;
-      } else {
-        secondary = r.data.Phone_1 || r.data.Phone_2 || '';
-      }
-    } else {
-      primary = r.data.Company_DBA || r.data.Company_Name;
-      if (r.property) {
-        const owner = _getPropertyOwner(r.property.Property_ID);
-        if (owner) primary += ` — ${owner}`;
-        secondary = `${r.property.Address_Street_1}, ${r.property.Address_City} ${r.property.Address_State}`;
-      }
-    }
-    const id     = r.type === 'person' ? r.data.People_ID : r.data.Company_ID;
-    const propId = r.property ? r.property.Property_ID : '';
-    return `<div class="search-result-item" data-type="${r.type}" data-id="${id}" data-prop-id="${propId}">
-      <span class="search-result-primary">${primary}</span>
-      ${secondary ? `<span class="search-result-secondary">${secondary}</span>` : ''}
-    </div>`;
-  }).join('');
-
-  overlay.querySelectorAll('.search-result-item').forEach(item => {
-    item.addEventListener('click', function () {
-      _closeOverlay();
-      searchInput.value = '';
-      // TODO: open profile widget
-      console.log('Open profile:', this.dataset.type, this.dataset.id, 'property:', this.dataset.propId);
-    });
+  overlay.querySelector('.search-create-btn').addEventListener('click', function () {
+    _closeOverlay();
+    searchInput.value = '';
+    CRM.openNewContactFromSearch(query);
   });
 
   overlay.classList.add('is-visible');
@@ -251,11 +264,29 @@ searchInput.addEventListener('input', function () {
   clearTimeout(_searchDebounce);
   const query = this.value.trim();
   if (query.length < 3) { _closeOverlay(); return; }
-  _searchDebounce = setTimeout(() => _renderResults(_searchAll(query)), 200);
+  _searchDebounce = setTimeout(() => _renderResults(_searchAll(query), query), 200);
 });
 
 searchInput.addEventListener('keydown', function (e) {
-  if (e.key === 'Escape') { _closeOverlay(); this.value = ''; this.blur(); }
+  if (e.key === 'Escape') { _closeOverlay(); this.value = ''; this.blur(); return; }
+
+  if (!_searchOverlay?.classList.contains('is-visible')) return;
+  const items = _searchNavItems();
+  if (!items.length) return;
+
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    _searchHighlight(Math.min(_searchNavIndex + 1, items.length - 1));
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    _searchHighlight(Math.max(_searchNavIndex - 1, 0));
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    if (_searchNavIndex >= 0 && items[_searchNavIndex]) {
+      this.blur();
+      items[_searchNavIndex].click();
+    }
+  }
 });
 
 document.addEventListener('mousedown', function (e) {
@@ -267,14 +298,15 @@ document.addEventListener('mousedown', function (e) {
 // Maps submenu widget keys to CRM actions.
 // If no match, falls back to a generic empty widget.
 const WIDGET_ROUTES = {
-  'new-client': () => CRM.openNewContact(),
+  'phonebook':      () => CRM.openPhonebook(),
+  'edit-contact':   () => CRM.openPhonebook({ editMode: true }),
+  'new-contact':    () => CRM.openNewContact(),
 };
 
 const WIDGET_CATEGORIES = {
   'phonebook':     'contact',
-  'new-client':    'contact',
-  'new-vendor':    'contact',
-  'new-employee':  'contact',
+  'edit-contact':  'contact',
+  'new-contact':   'contact',
   'workorder':     'workorder',
   'new-workorder': 'workorder',
   'estimating':    'estimate',
@@ -305,9 +337,8 @@ const SUBMENUS = {
     label: 'Phone Book',
     items: [
       { title: 'Phone Book',   widget: 'phonebook' },
-      { title: 'New Client',   widget: 'new-client' },
-      { title: 'New Vendor',   widget: 'new-vendor' },
-      { title: 'New Employee', widget: 'new-employee' },
+      { title: 'Edit Contact', widget: 'edit-contact' },
+      { title: 'New Contact',  widget: 'new-contact' },
     ],
   },
   workorder: {

@@ -26,6 +26,7 @@ const WidgetManager = (function () {
 
     const widget = document.createElement('div');
     widget.className = 'widget';
+    if (options.category) widget.classList.add('widget--' + options.category);
     widget.id = 'widget-' + id;
     const workspace = WORKSPACE();
     let top, left;
@@ -74,18 +75,23 @@ const WidgetManager = (function () {
 
     let dockIcon = null;
     if (!isPanel) {
-      dockIcon = _createDockIcon(id, title, options.category);
-      widget.querySelector('.widget-btn-minimize').addEventListener('click', () => minimize(id));
+      const noDock = !!options.noDock;
+      if (noDock) {
+        widget.querySelector('.widget-btn-minimize').style.display = 'none';
+      } else {
+        dockIcon = _createDockIcon(id, title, options.category);
+        widget.querySelector('.widget-btn-minimize').addEventListener('click', () => minimize(id));
+        if (typeof options.getLabel === 'function') {
+          widget.addEventListener('input', () => {
+            const label = options.getLabel(widget);
+            dockIcon.updateLabel(label);
+          });
+        }
+      }
       widget.querySelector('.widget-btn-maximize').addEventListener('click', () => toggleMaximize(id));
       widget.querySelector('.widget-btn-close').addEventListener('click', () => close(id));
       _initDrag(widget, id);
       _initResize(widget, id);
-      if (typeof options.getLabel === 'function') {
-        widget.addEventListener('input', () => {
-          const label = options.getLabel(widget);
-          dockIcon.updateLabel(label);
-        });
-      }
     }
     state[id] = { el: widget, dockIcon, isMinimized: false, preMaximize: null, panelIds: [], parentId: options.parentId || null };
 

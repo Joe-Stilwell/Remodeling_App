@@ -22,9 +22,12 @@
   --color-border-slate: #CBD5E1;
 
   /* Widget Dock Category Colors */
-  --color-category-contact:   #FFBB99;
-  --color-category-workorder: #003366;
-  --color-category-estimate:  #FF7936;
+  --color-category-pill-1: #947B00;
+  --color-category-pill-2: #639400;
+  --color-category-pill-3: #199400;
+  --color-category-pill-4: #B97959;
+  --color-category-pill-5: #A74412;
+  --color-category-pill-6: #8b4513;
 
   /* Ghost Buttons (widget/dock controls on dark headers) */
   --color-btn-ghost: rgba(255, 255, 255, 0.18);
@@ -326,6 +329,10 @@ html, body {
   color: var(--color-ink-dark);
 }
 
+.search-input::-webkit-search-cancel-button {
+  display: none;
+}
+
 /* --- Workspace --- */
 .workspace {
   position: relative;
@@ -489,23 +496,19 @@ body.is-dragging .dock-icon-title {
   color: var(--color-ink-dark);
 }
 
-/* --- Dock icon category arch caps --- */
-/* ::before fills the left rounded arch; overflow:hidden clips it to pill shape */
-.dock-icon--contact::before,
-.dock-icon--workorder::before,
-.dock-icon--estimate::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 10px;
-  pointer-events: none;
-  z-index: 0;
-}
-.dock-icon--contact::before   { background-color: var(--color-category-contact); }
-.dock-icon--workorder::before { background-color: var(--color-category-workorder); }
-.dock-icon--estimate::before  { background-color: var(--color-category-estimate); }
+/* --- Dock icon category colors --- */
+.dock-icon--contact   { background-color: var(--color-category-pill-1); }
+.dock-icon--workorder { background-color: var(--color-category-pill-2); }
+.dock-icon--estimate  { background-color: var(--color-category-pill-3); }
+
+.dock-icon--contact   .dock-icon-btn { background-color: var(--color-category-pill-1); }
+.dock-icon--workorder .dock-icon-btn { background-color: var(--color-category-pill-2); }
+.dock-icon--estimate  .dock-icon-btn { background-color: var(--color-category-pill-3); }
+
+/* --- Widget header category colors --- */
+.widget--contact   .widget-header { background-color: var(--color-category-pill-1); }
+.widget--workorder .widget-header { background-color: var(--color-category-pill-2); }
+.widget--estimate  .widget-header { background-color: var(--color-category-pill-3); }
 
 /* --- Widgets --- */
 .widget {
@@ -940,6 +943,15 @@ body.is-dragging .dock-icon-title {
   text-overflow: ellipsis;
 }
 
+.btn-remove-col {
+  width: var(--btn-col);
+  flex-shrink: 0;
+  margin-left: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .btn-remove {
   flex-shrink: 0;
   width: 18px;
@@ -1078,6 +1090,23 @@ body.is-dragging .dock-icon-title {
   transition: background-color 0.1s ease, border-color 0.1s ease, color 0.1s ease, box-shadow 0.1s ease;
 }
 
+.btn-danger {
+  padding: 5px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 4px;
+  border: 1px solid var(--color-danger);
+  background: transparent;
+  color: var(--color-danger);
+  cursor: pointer;
+  margin-right: auto;
+}
+
+.btn-danger:hover {
+  background: var(--color-danger);
+  color: #fff;
+}
+
 .btn-secondary:active {
   background-color: var(--color-brand-orange);
   border-color: var(--color-brand-orange);
@@ -1167,8 +1196,13 @@ body.is-dragging .dock-icon-title {
   border-bottom: none;
 }
 
-.search-result-item:hover {
+.search-result-item:hover,
+.search-result-item.is-active {
   background-color: var(--color-brand-tint);
+}
+
+.search-create-btn.is-active {
+  background: var(--color-brand-tint);
 }
 
 .search-result-type {
@@ -1251,6 +1285,274 @@ body.is-dragging .dock-icon-title {
   font-size: 12px;
   color: var(--color-ink-mid);
   text-align: center;
+}
+
+.search-create-row {
+  padding: 6px 10px;
+  border-top: 1px solid var(--color-border-slate);
+}
+
+.search-create-btn {
+  width: 100%;
+  padding: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-brand-primary);
+  background: none;
+  border: 1px dashed var(--color-brand-primary);
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: center;
+}
+
+.search-create-btn:hover {
+  background: var(--color-brand-tint);
+}
+
+/* --- Profile Widget --- */
+.profile-block {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--color-border-slate);
+}
+
+.profile-block:last-of-type {
+  border-bottom: none;
+}
+
+.profile-header-block {
+  padding-bottom: 8px;
+}
+
+.profile-name {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--color-ink-dark);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.profile-meta {
+  font-size: 11px;
+  color: var(--color-ink-mid);
+  margin-top: 2px;
+}
+
+.profile-meta-link {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-brand-primary);
+  margin-top: 3px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.profile-meta-link:hover {
+  text-decoration: underline;
+}
+
+.profile-info-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--color-ink-dark);
+  line-height: 1.8;
+}
+
+.profile-info-type {
+  font-size: 10px;
+  color: var(--color-ink-mid);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.profile-section-label {
+  font-size: 9px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--color-ink-mid);
+  margin-bottom: 6px;
+}
+
+.profile-entity-pill {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 6px 8px;
+  margin-bottom: 4px;
+  background: var(--color-brand-tint);
+  border: 1px solid var(--color-border-slate);
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.profile-entity-pill:hover {
+  background: var(--color-brand-accent);
+  border-color: var(--color-brand-accent);
+}
+
+.profile-pill-primary {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-ink-dark);
+}
+
+.profile-pill-secondary {
+  font-size: 11px;
+  color: var(--color-ink-mid);
+  line-height: 1.4;
+}
+
+/* --- Phone Book Widget --- */
+.phonebook-widget {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.pb-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--color-border-slate);
+  flex-shrink: 0;
+}
+
+.pb-radio-group {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pb-radio-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-ink-dark);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.pb-radio-disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.pb-search {
+  margin-left: auto;
+  width: 130px;
+  padding: 3px 8px;
+  font-size: 12px;
+  border: 1px solid var(--color-border-slate);
+  border-radius: 4px;
+  outline: none;
+  background: #fff;
+}
+
+.pb-search:focus {
+  border-color: var(--color-brand-primary);
+}
+
+.pb-dropdowns {
+  display: flex;
+  gap: 6px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--color-border-slate);
+  flex-shrink: 0;
+}
+
+.pb-dropdowns .form-select {
+  flex: 1;
+  font-size: 11px;
+  padding: 3px 6px;
+  height: 26px;
+}
+
+.pb-col-headers {
+  display: flex;
+  padding: 0 10px;
+  border-bottom: 2px solid var(--color-border-slate);
+  background: var(--color-brand-tint);
+  flex-shrink: 0;
+}
+
+.pb-col-header {
+  padding: 5px 6px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-brand-primary);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.pb-col-header:hover {
+  color: var(--color-brand-dark);
+}
+
+.pb-sort-icon {
+  font-size: 9px;
+}
+
+/* Column width definitions — shared by headers and rows */
+.pb-col-name   { flex: 3; }
+.pb-col-coname { flex: 3; }
+.pb-col-phone  { flex: 2; }
+.pb-col-status { flex: 1; }
+.pb-col-tag    { flex: 2; }
+.pb-col-type   { flex: 2; }
+.pb-col-cat    { flex: 2; }
+
+.pb-list-wrap {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.pb-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.pb-row {
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--color-border-slate);
+  cursor: pointer;
+  min-height: 30px;
+}
+
+.pb-row:hover {
+  background: var(--color-brand-accent);
+}
+
+.pb-cell {
+  padding: 5px 6px;
+  font-size: 12px;
+  color: var(--color-ink-dark);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pb-empty {
+  padding: 24px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--color-border-slate);
+  font-style: italic;
 }
 
 /* Suppress all hover effects during drag/resize */

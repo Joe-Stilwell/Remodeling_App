@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Remodeling App V2</title>
-    <link rel="stylesheet" href="css/output.css?v=7" />
+    <link rel="stylesheet" href="css/output.css?v=15" />
   </head>
   <body class="app-layout bg-brand-tint font-sans text-ink-dark antialiased">
 
@@ -26,9 +26,10 @@
             <span class="search-label text-[10px] font-black text-brand-primary uppercase">Search</span>
             <input
               id="universal-search"
-              type="text"
+              type="search"
               class="search-input w-full bg-transparent text-[14px] outline-none"
               placeholder="Search..."
+              autocomplete="off"
             />
           </div>
           <div class="flex-1 text-center text-[10px] font-bold tracking-[0.4em] text-white uppercase">
@@ -58,7 +59,7 @@
           </div>
           <ul>
             <li><a href="#" class="menu-item" data-nav="home">Home</a></li>
-            <li class="menu-sub-item"><a href="#" class="menu-item" data-submenu="phonebook">Phone Book</a></li>
+            <li class="menu-sub-item"><a href="#" class="menu-item" data-submenu="phonebook">Contacts</a></li>
             <li class="menu-sub-item"><a href="#" class="menu-item" data-submenu="workorder">Work Order</a></li>
             <li class="menu-sub-item"><a href="#" class="menu-item" data-submenu="estimating">Estimating</a></li>
           </ul>

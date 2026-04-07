@@ -78,73 +78,79 @@ const CRM = (function () {
   }
 
   /* ── Build select options HTML ────────────────────────────── */
-  function _options(listKey, defaultFirst = false) {
+  function _options(listKey, defaultFirst = false, selectedValue = '') {
     const items = _getList(listKey);
     const blank = defaultFirst ? '' : '<option value="">-- Select --</option>';
-    return blank + items.map(i => `<option>${i}</option>`).join('');
+    return blank + items.map(i => `<option${i === selectedValue ? ' selected' : ''}>${i}</option>`).join('');
   }
 
   /* ── Phone row HTML (shared by main form and person widget) ── */
-  function _phoneRowHTML(idx, includeAddBtn) {
+  function _phoneRowHTML(idx, includeAddBtn, data = {}) {
+    const cc  = data.cc     || '+1';
+    const num = data.number || '';
+    const ext = data.ext    || '';
+    const typ = data.type   || '';
     return `
       <div class="contact-row">
         <div class="form-group f-cc">
           <label class="form-label">CC</label>
           <input class="form-input" type="text" data-phone-cc data-index="${idx}"
-                 value="+1" maxlength="5" autocomplete="off">
+                 value="${cc}" maxlength="5" autocomplete="off">
         </div>
         <div class="form-group f-grow">
           <label class="form-label">Phone</label>
           <input class="form-input" type="tel" placeholder=""
-                 data-phone data-index="${idx}" autocomplete="off">
+                 data-phone data-index="${idx}" value="${num}" autocomplete="off">
         </div>
         <div class="form-group f-ext">
           <label class="form-label">Ext.</label>
           <input class="form-input" type="text" data-phone-ext data-index="${idx}"
-                 maxlength="6" autocomplete="off">
+                 value="${ext}" maxlength="6" autocomplete="off">
         </div>
         <div class="form-group f-sm">
           <label class="form-label">Type</label>
           <select class="form-select" data-phone-type data-index="${idx}">
-            ${_options('phoneTypes', true)}
+            ${_options('phoneTypes', true, typ)}
           </select>
         </div>
         ${includeAddBtn
           ? `<button class="btn-action" data-action="add-phone" tabindex="-1" disabled>+ Phone</button>`
-          : `<button class="btn-remove" type="button" title="Remove">&#10005;</button>`}
+          : `<div class="btn-remove-col"><button class="btn-remove" type="button" title="Remove">&#10005;</button></div>`}
       </div>
     `;
   }
 
   /* ── Email row HTML (shared by main form and person widget) ── */
-  function _emailRowHTML(idx, includeAddBtn) {
+  function _emailRowHTML(idx, includeAddBtn, data = {}) {
+    const addr = data.email || '';
+    const typ  = data.type  || '';
     return `
       <div class="contact-row">
         <div class="form-group f-grow">
           <label class="form-label">Email</label>
           <input class="form-input" type="email" placeholder=""
-                 data-email data-index="${idx}" autocomplete="off">
+                 data-email data-index="${idx}" value="${addr}" autocomplete="off">
         </div>
         <div class="form-group f-sm">
           <label class="form-label">Type</label>
           <select class="form-select" data-email-type data-index="${idx}">
-            ${_options('emailTypes', true)}
+            ${_options('emailTypes', true, typ)}
           </select>
         </div>
         ${includeAddBtn
           ? `<button class="btn-action" data-action="add-email" tabindex="-1" disabled>+ Email</button>`
-          : `<button class="btn-remove" type="button" title="Remove">&#10005;</button>`}
+          : `<div class="btn-remove-col"><button class="btn-remove" type="button" title="Remove">&#10005;</button></div>`}
       </div>
     `;
   }
 
   /* ── Reusable notes row HTML ─────────────────────────────── */
-  function _notesRowHTML(dataAttr, label, { spacer = true } = {}) {
+  function _notesRowHTML(dataAttr, label, { spacer = true, value = '' } = {}) {
     return `
       <div class="form-row">
         <div class="form-group" style="flex:1">
           <label class="form-label">${label}</label>
-          <textarea class="form-textarea" ${dataAttr} maxlength="2000" placeholder=""></textarea>
+          <textarea class="form-textarea" ${dataAttr} maxlength="2000" placeholder="">${value}</textarea>
         </div>
         ${spacer ? '<div class="btn-spacer"></div>' : ''}
       </div>
@@ -178,9 +184,9 @@ const CRM = (function () {
   }
 
   /* ── Reusable phone/email bind logic ──────────────────────── */
-  function _bindPhoneEmailRows(containerEl, phoneContainerSel, emailContainerSel, widgetId) {
-    let phoneCount = 1;
-    let emailCount = 1;
+  function _bindPhoneEmailRows(containerEl, phoneContainerSel, emailContainerSel, widgetId, initialPhoneCount = 1, initialEmailCount = 1) {
+    let phoneCount = initialPhoneCount;
+    let emailCount = initialEmailCount;
 
     const addPhoneBtn = containerEl.querySelector('[data-action="add-phone"]');
     const addEmailBtn = containerEl.querySelector('[data-action="add-email"]');
@@ -251,6 +257,10 @@ const CRM = (function () {
       _updateEmailBtn();
       emailInput.focus();
     });
+
+    // Initial state check — enables buttons if pre-filled rows are already valid
+    _updatePhoneBtn();
+    _updateEmailBtn();
   }
 
   /* ── Collect phones/emails from a container element ──────── */
@@ -279,39 +289,48 @@ const CRM = (function () {
   }
 
   /* ── Address block HTML ───────────────────────────────────── */
-  function _addressBlockHTML(index) {
+  function _addressBlockHTML(index, prop = null) {
     const isFirst = index === 0;
+    const street1  = prop?.Address_Street_1 || '';
+    const street2  = prop?.Address_Street_2 || '';
+    const city     = prop?.Address_City     || '';
+    const state    = prop?.Address_State    || '';
+    const zip      = prop?.Address_Zip      || '';
+    const notes    = prop?.Address_Notes    || '';
+    const propType = prop?.Property_Type    || '';
+    const propUse  = prop?.Property_Use     || '';
+    const propId   = prop?.Property_ID      || '';
     return `
-      <div data-address-block data-addr-index="${index}">
+      <div data-address-block data-addr-index="${index}" ${propId ? `data-existing-prop-id="${propId}"` : ''}>
         <div class="form-row">
           <div class="form-group f-grow">
             <label class="form-label">Street Address</label>
             <input class="form-input" data-addr="street1" type="text"
-                   placeholder="" autocomplete="off">
+                   value="${street1}" placeholder="" autocomplete="off">
           </div>
           <div class="form-group f-unit">
             <label class="form-label">Unit / PO Box</label>
             <input class="form-input" data-addr="street2" type="text"
-                   placeholder="" autocomplete="off">
+                   value="${street2}" placeholder="" autocomplete="off">
           </div>
           ${isFirst
-            ? `<button class="btn-action" data-action="add-property" tabindex="-1" disabled>+ Property</button>`
+            ? `<button class="btn-action" data-action="add-property" tabindex="-1" ${street1 ? '' : 'disabled'}>+ Property</button>`
             : `<div class="btn-spacer"></div>`}
         </div>
         <div class="form-row">
           <div class="form-group f-grow">
             <label class="form-label">City</label>
-            <input class="form-input" data-addr="city" type="text" autocomplete="off">
+            <input class="form-input" data-addr="city" type="text" value="${city}" autocomplete="off">
           </div>
           <div class="form-group f-state">
             <label class="form-label form-label-center">State</label>
             <input class="form-input" data-addr="state" type="text"
-                   maxlength="3" autocomplete="off">
+                   value="${state}" maxlength="3" autocomplete="off">
           </div>
           <div class="form-group f-sm">
             <label class="form-label">Zip Code</label>
             <input class="form-input" data-addr="zip" type="text"
-                   maxlength="10" autocomplete="off">
+                   value="${zip}" maxlength="10" autocomplete="off">
           </div>
           <div class="btn-spacer"></div>
         </div>
@@ -319,18 +338,18 @@ const CRM = (function () {
           <div class="form-group f-grow">
             <label class="form-label">Property Type</label>
             <select class="form-select" data-addr="prop-type">
-              ${_options('propertyTypes')}
+              ${_options('propertyTypes', false, propType)}
             </select>
           </div>
           <div class="form-group f-grow">
             <label class="form-label">Property Use</label>
             <select class="form-select" data-addr="prop-use">
-              ${_options('propertyUses')}
+              ${_options('propertyUses', false, propUse)}
             </select>
           </div>
           <div class="btn-spacer"></div>
         </div>
-        ${_notesRowHTML('data-addr="notes"', 'Property Notes')}
+        ${_notesRowHTML('data-addr="notes"', 'Property Notes', { value: notes })}
       </div>
     `;
   }
@@ -1279,6 +1298,954 @@ const CRM = (function () {
     WidgetManager.close(widgetId);
   }
 
-  return { openNewContact };
+  /* ── Profile widget helpers ──────────────────────────────── */
+  function _getPersonCompanyRecord(peopleId) {
+    const links     = AppData.tables['Link_Company_People'] || [];
+    const companies = AppData.tables['DB_Company']          || [];
+    const link      = links.find(l => l.People_ID === peopleId);
+    if (!link) return null;
+    return companies.find(c => c.Company_ID === link.Company_ID) || null;
+  }
+
+  function _profilePhones(record) {
+    return ['Phone_1','Phone_2','Phone_3']
+      .map((f, i) => record[f] ? { number: record[f], type: record[`Phone_${i+1}_Type`] || '' } : null)
+      .filter(Boolean);
+  }
+
+  function _profileEmails(record) {
+    return ['Email_1','Email_2','Email_3']
+      .map((f, i) => record[f] ? { addr: record[f], type: record[`Email_${i+1}_Type`] || '' } : null)
+      .filter(Boolean);
+  }
+
+  function _profileContactRows(phones, emails) {
+    if (!phones.length && !emails.length) return '';
+    return `<div class="profile-block">
+      ${phones.map(p => `<div class="profile-info-row">
+        <span>${p.number}</span>${p.type ? `<span class="profile-info-type">${p.type}</span>` : ''}
+      </div>`).join('')}
+      ${emails.map(e => `<div class="profile-info-row">
+        <span>${e.addr}</span>${e.type ? `<span class="profile-info-type">${e.type}</span>` : ''}
+      </div>`).join('')}
+    </div>`;
+  }
+
+  function _profilePropertyPills(properties) {
+    if (!properties.length) return '';
+    return `<div class="profile-block">
+      <div class="profile-section-label">Properties</div>
+      ${properties.map(prop => {
+        const use = prop.Property_Use && prop.Property_Use !== 'Primary Residence'
+          ? `<span class="profile-pill-meta">${prop.Property_Use}</span>` : '';
+        return `<button class="profile-entity-pill" data-action="open-profile"
+          data-type="property" data-id="${prop.Property_ID}">
+          <span class="profile-pill-primary">${prop.Address_Street_1}</span>
+          <span class="profile-pill-secondary">${prop.Address_City}, ${prop.Address_State}${use ? ' · ' : ''}${prop.Property_Use && prop.Property_Use !== 'Primary Residence' ? prop.Property_Use : ''}</span>
+        </button>`;
+      }).join('')}
+    </div>`;
+  }
+
+  function _personProfileHTML(person) {
+    const company    = _getPersonCompanyRecord(person.People_ID);
+    const properties = _getPersonProperties(person.People_ID);
+    const phones     = _profilePhones(person);
+    const emails     = _profileEmails(person);
+
+    return `<div class="widget-form">
+      <div class="profile-block profile-header-block">
+        <div class="profile-name">${person.People_Last_Name}, ${person.People_First_Name}</div>
+        ${company ? `<button class="profile-meta-link" data-action="open-profile"
+          data-type="company" data-id="${company.Company_ID}">
+          ${company.Company_DBA || company.Company_Name}
+        </button>` : ''}
+      </div>
+      ${_profileContactRows(phones, emails)}
+      ${_profilePropertyPills(properties)}
+      <div class="widget-footer">
+        <button class="btn-secondary" data-action="cancel">Close</button>
+        <button class="btn-primary" data-action="edit-record"
+          data-type="person" data-id="${person.People_ID}">Edit Record</button>
+      </div>
+    </div>`;
+  }
+
+  function _companyProfileHTML(company) {
+    const links      = AppData.tables['Link_Company_People'] || [];
+    const allPeople  = AppData.tables['DB_People']           || [];
+    const properties = _getCompanyProperties(company.Company_ID);
+    const phones     = _profilePhones(company);
+    const emails     = _profileEmails(company);
+
+    const people = links
+      .filter(l => l.Company_ID === company.Company_ID)
+      .map(l => allPeople.find(p => p.People_ID === l.People_ID))
+      .filter(Boolean);
+
+    const peoplePills = people.length ? `<div class="profile-block">
+      <div class="profile-section-label">Contacts</div>
+      ${people.map(p => `<button class="profile-entity-pill" data-action="open-profile"
+        data-type="person" data-id="${p.People_ID}">
+        <span class="profile-pill-primary">${p.People_Last_Name}, ${p.People_First_Name}</span>
+        <span class="profile-pill-secondary">${p.Phone_1 || p.Email_1 || ''}</span>
+      </button>`).join('')}
+    </div>` : '';
+
+    return `<div class="widget-form">
+      <div class="profile-block profile-header-block">
+        <div class="profile-name">${company.Company_DBA || company.Company_Name}</div>
+        ${company.Company_DBA ? `<div class="profile-meta">${company.Company_Name}</div>` : ''}
+      </div>
+      ${_profileContactRows(phones, emails)}
+      ${peoplePills}
+      ${_profilePropertyPills(properties)}
+      <div class="widget-footer">
+        <button class="btn-secondary" data-action="cancel">Close</button>
+        <button class="btn-primary" data-action="edit-record"
+          data-type="company" data-id="${company.Company_ID}">Edit Record</button>
+      </div>
+    </div>`;
+  }
+
+  function _bindProfileWidget(widgetId) {
+    const el = document.getElementById('widget-' + widgetId);
+    if (!el) return;
+
+    el.addEventListener('click', function (e) {
+      const btn = e.target.closest('[data-action]');
+      if (!btn) return;
+      const action = btn.dataset.action;
+
+      if (action === 'cancel') {
+        WidgetManager.close(widgetId);
+      } else if (action === 'edit-record') {
+        openEditContact(btn.dataset.type, btn.dataset.id);
+      } else if (action === 'open-profile') {
+        openProfile(btn.dataset.type, btn.dataset.id);
+      }
+    });
+
+    // Move focus into the widget so Tab stays within it
+    el.tabIndex = -1;
+    el.focus();
+  }
+
+  /* ── Edit Contact ────────────────────────────────────────── */
+  function _editPersonHTML(person) {
+    const phones = [
+      person.Phone_1 ? { number: person.Phone_1, type: person.Phone_1_Type || '' } : null,
+      person.Phone_2 ? { number: person.Phone_2, type: person.Phone_2_Type || '' } : null,
+      person.Phone_3 ? { number: person.Phone_3, type: person.Phone_3_Type || '' } : null,
+    ].filter(Boolean);
+
+    const emails = [
+      person.Email_1 ? { email: person.Email_1, type: person.Email_1_Type || '' } : null,
+      person.Email_2 ? { email: person.Email_2, type: person.Email_2_Type || '' } : null,
+      person.Email_3 ? { email: person.Email_3, type: person.Email_3_Type || '' } : null,
+    ].filter(Boolean);
+
+    const phoneRowsHTML = phones.length
+      ? phones.map((ph, i) => _phoneRowHTML(i, i === 0, ph)).join('')
+      : _phoneRowHTML(0, true);
+
+    const emailRowsHTML = emails.length
+      ? emails.map((em, i) => _emailRowHTML(i, i === 0, em)).join('')
+      : _emailRowHTML(0, true);
+
+    const ppLinks    = AppData.tables['Link_Property_People'] || [];
+    const allProps   = AppData.tables['DB_Property']          || [];
+    const properties = ppLinks
+      .filter(l => l.People_ID === person.People_ID && !l.Date_To)
+      .map(l => allProps.find(p => p.Property_ID === l.Property_ID))
+      .filter(Boolean)
+      .sort((a, b) => (a.Property_Use === 'Primary Residence' ? -1 : 1));
+
+    const cpLinks    = AppData.tables['Link_Company_People'] || [];
+    const allCos     = AppData.tables['DB_Company']          || [];
+    const compLink   = cpLinks.find(l => l.People_ID === person.People_ID);
+    const company    = compLink ? allCos.find(c => c.Company_ID === compLink.Company_ID) : null;
+
+    const primaryProp   = properties[0] || null;
+    const extraProps    = properties.slice(1);
+
+    const extraPropRowsHTML = extraProps.map(prop => {
+      const addrLine = [prop.Address_Street_1, [prop.Address_City, prop.Address_State].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+      const label    = prop.Property_Use ? `${addrLine} — ${prop.Property_Use}` : addrLine;
+      return `<div class="summary-row" data-existing-prop-id="${prop.Property_ID}">
+        <span class="summary-label">${label}</span>
+        <button class="btn-remove" type="button" title="Remove">&#10005;</button>
+      </div>`;
+    }).join('');
+
+    const companyRowHTML = company ? `<div class="summary-row" data-existing-company-id="${company.Company_ID}">
+      <span class="summary-label">${company.Company_DBA || company.Company_Name}</span>
+      <button class="btn-remove" type="button" title="Remove">&#10005;</button>
+    </div>` : '';
+
+    const commPref = person.Contact_Preference || '';
+    const uid      = person.People_ID;
+
+    return `<div class="widget-form">
+
+      <div class="form-row">
+        <div class="form-group f-title">
+          <label class="form-label">Title</label>
+          <select class="form-select" data-field="title">
+            ${['', 'Mr.', 'Mrs.', 'Ms.', 'Dr.', 'Prof.'].map(t =>
+              `<option${t === (person.People_Title || '') ? ' selected' : ''}>${t}</option>`
+            ).join('')}
+          </select>
+        </div>
+        <div class="form-group f-md">
+          <label class="form-label">First Name</label>
+          <input class="form-input" data-field="first-name" type="text"
+                 value="${person.People_First_Name || ''}" autocomplete="off">
+        </div>
+        <div class="form-group f-grow">
+          <label class="form-label">Last Name</label>
+          <input class="form-input" data-field="last-name" type="text"
+                 value="${person.People_Last_Name || ''}" autocomplete="off">
+        </div>
+        <button class="btn-action" data-action="add-person" tabindex="-1">+ Person</button>
+      </div>
+
+      <div data-container="phones">${phoneRowsHTML}</div>
+      <div data-container="emails">${emailRowsHTML}</div>
+
+      <div class="form-row">
+        <div class="form-group" style="flex:1">
+          <label class="form-label">Comm. Preference</label>
+          <div class="comm-pref-options">
+            ${['Email', 'Text', 'Phone'].map(opt =>
+              `<label class="comm-pref-option"><input type="radio" name="comm-pref-${uid}"
+               data-field="comm-pref" value="${opt}"${commPref === opt ? ' checked' : ''}> ${opt}</label>`
+            ).join('')}
+          </div>
+        </div>
+        <div class="btn-spacer"></div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group f-grow">
+          <label class="form-label">Lead Source</label>
+          <select class="form-select" data-field="lead-source">
+            ${_options('leadSources', false, person.Lead_Source || '')}
+          </select>
+        </div>
+        <div class="form-group f-grow">
+          <label class="form-label">Referred By</label>
+          <input class="form-input" data-field="referred-by" type="text"
+                 value="${person.Referred_By || ''}" autocomplete="off">
+        </div>
+        <div class="btn-spacer"></div>
+      </div>
+
+      ${_notesRowHTML('data-field="client-notes"', 'Client Notes', { value: person.People_Notes || '' })}
+
+      <div data-container="additional-people"></div>
+
+      <div class="form-divider"></div>
+
+      ${_addressBlockHTML(0, primaryProp)}
+
+      <div data-container="additional-addresses">${extraPropRowsHTML}</div>
+
+      <div class="form-divider"></div>
+
+      <div class="form-row">
+        <div class="form-group" style="flex:1">
+          <label class="form-label">Company / Employer</label>
+        </div>
+        <button class="btn-action" data-action="add-company" tabindex="-1"${company ? ' disabled' : ''}>+ Company</button>
+      </div>
+      <div data-container="additional-companies">${companyRowHTML}</div>
+
+      <div class="widget-footer">
+        <button class="btn-danger" data-action="delete-record">Delete</button>
+        <button class="btn-secondary" data-action="cancel">Cancel</button>
+        <button class="btn-primary" data-action="save">Save</button>
+      </div>
+    </div>`;
+  }
+
+  function _bindEditPersonForm(person, widgetId) {
+    const el = document.getElementById('widget-' + widgetId);
+    if (!el) return;
+
+    const initialPhoneCount = el.querySelectorAll('[data-container="phones"] input[data-phone]').length;
+    const initialEmailCount = el.querySelectorAll('[data-container="emails"] input[data-email]').length;
+
+    _bindPhoneEmailRows(el, '[data-container="phones"]', '[data-container="emails"]', widgetId,
+      initialPhoneCount, initialEmailCount);
+    _bindAutoExpand(el.querySelector('[data-field="client-notes"]'), 5, widgetId);
+    _bindAutoExpand(el.querySelector('[data-addr="notes"]'), 5, widgetId);
+
+    // Formatters — attach to all pre-filled rows
+    el.querySelectorAll('input[data-phone]').forEach(i => i.addEventListener('input', _formatPhone));
+    el.querySelectorAll('input[data-phone-cc]').forEach(i => i.addEventListener('input', _formatCC));
+    el.querySelectorAll('input[data-phone-ext]').forEach(i => i.addEventListener('input', _formatExt));
+    el.querySelectorAll('input[data-email]').forEach(i => i.addEventListener('input', _formatEmail));
+    el.querySelector('[data-field="first-name"]').addEventListener('input', _formatNameField);
+    el.querySelector('[data-field="last-name"]').addEventListener('input', _formatNameField);
+    el.querySelector('[data-field="referred-by"]')?.addEventListener('input', _formatNameField);
+    el.querySelector('[data-addr="state"]').addEventListener('input', _formatState);
+    el.querySelector('[data-addr="zip"]').addEventListener('input', _formatZip);
+
+    // + Property button — enabled if primary address block already has a street value
+    const addAddressBtn = el.querySelector('[data-action="add-property"]');
+    el.querySelector('[data-addr="street1"]').addEventListener('input', function () {
+      addAddressBtn.disabled = this.value.trim() === '';
+    });
+    addAddressBtn.addEventListener('click', function () {
+      addAddressBtn.disabled = true;
+      const sideId     = 'side-address-' + Date.now();
+      const mainLeft   = parseInt(el.style.left) || 0;
+      const workspace  = document.querySelector('.workspace');
+      const wRect      = workspace.getBoundingClientRect();
+      const divider    = el.querySelector('.form-divider');
+      const dividerTop = divider.getBoundingClientRect().top - wRect.top;
+      const opened = WidgetManager.open(sideId, 'Add Address', _addressSideWidgetHTML(), {
+        width: 360, autoHeight: true, top: dividerTop,
+        left: mainLeft + el.offsetWidth, panel: true, parentId: widgetId,
+      });
+      if (opened === false) { addAddressBtn.disabled = false; return; }
+      _bindAddressSideWidget(sideId, el, addAddressBtn, () => {});
+    });
+
+    // + Person button
+    const addPersonBtn = el.querySelector('[data-action="add-person"]');
+    addPersonBtn.addEventListener('click', function () {
+      addPersonBtn.disabled = true;
+      const sideId = 'side-person-' + Date.now();
+      const opened = WidgetManager.open(sideId, 'Add Person', _personSideWidgetHTML(), {
+        width: 425, autoHeight: true,
+        top: (parseInt(el.style.top) || 0) + 30,
+        left: (parseInt(el.style.left) || 0) + el.offsetWidth,
+        panel: true, parentId: widgetId,
+      });
+      if (opened === false) { addPersonBtn.disabled = false; return; }
+      _bindPersonSideWidget(sideId, el, addPersonBtn, () => {});
+    });
+
+    // + Company button — re-enable if existing company row is removed
+    const addCompanyBtn = el.querySelector('[data-action="add-company"]');
+    el.querySelector('[data-container="additional-companies"]').addEventListener('click', function (e) {
+      if (e.target.closest('.btn-remove')) addCompanyBtn.disabled = false;
+    });
+    addCompanyBtn.addEventListener('click', function () {
+      addCompanyBtn.disabled = true;
+      const sideId = 'side-company-' + Date.now();
+      const opened = WidgetManager.open(sideId, 'Add Company', _companySideWidgetHTML(), {
+        width: 425, autoHeight: true,
+        top: (parseInt(el.style.top) || 0) + 30,
+        left: (parseInt(el.style.left) || 0) + el.offsetWidth,
+        panel: true, parentId: widgetId,
+      });
+      if (opened === false) { addCompanyBtn.disabled = false; return; }
+      _bindCompanySideWidget(sideId, el, addCompanyBtn, () => {});
+    });
+
+    // Existing property summary row removes
+    el.querySelectorAll('[data-existing-prop-id] .btn-remove').forEach(btn => {
+      btn.addEventListener('click', () => btn.closest('[data-existing-prop-id]').remove());
+    });
+
+    // Cancel
+    el.querySelector('[data-action="cancel"]').addEventListener('click', () => {
+      WidgetManager.close(widgetId);
+    });
+
+    // Delete
+    el.querySelector('[data-action="delete-record"]').addEventListener('click', () => {
+      if (!confirm(`Delete ${person.People_Last_Name}, ${person.People_First_Name}? This cannot be undone.`)) return;
+      const people = AppData.tables['DB_People'] || [];
+      const idx    = people.findIndex(p => p.People_ID === person.People_ID);
+      if (idx !== -1) people.splice(idx, 1);
+      WidgetManager.close(widgetId);
+      const profileId = `profile-person-${person.People_ID}`;
+      if (document.getElementById('widget-' + profileId)) WidgetManager.close(profileId);
+    });
+
+    // Save
+    el.querySelector('[data-action="save"]').addEventListener('click', () => {
+      const firstName = el.querySelector('[data-field="first-name"]').value.trim();
+      const lastName  = el.querySelector('[data-field="last-name"]').value.trim();
+      if (!firstName && !lastName) {
+        el.querySelector('[data-field="first-name"]').style.borderColor = 'var(--color-danger)';
+        el.querySelector('[data-field="first-name"]').focus();
+        return;
+      }
+
+      const now    = new Date().toISOString();
+      const phones = _collectPhones(el);
+      const emails = _collectEmails(el);
+      const people = AppData.tables['DB_People'] || [];
+
+      // Update the existing person record
+      const rec = people.find(p => p.People_ID === person.People_ID);
+      if (rec) {
+        rec.People_Title        = el.querySelector('[data-field="title"]').value;
+        rec.People_First_Name   = firstName;
+        rec.People_Last_Name    = lastName;
+        rec.Display_Name        = lastName ? `${lastName}, ${firstName}` : firstName;
+        rec.Phone_1             = phones[0]?.number || '';
+        rec.Phone_1_Type        = phones[0]?.type   || '';
+        rec.Phone_2             = phones[1]?.number || '';
+        rec.Phone_2_Type        = phones[1]?.type   || '';
+        rec.Phone_3             = phones[2]?.number || '';
+        rec.Phone_3_Type        = phones[2]?.type   || '';
+        rec.Email_1             = emails[0]?.address || '';
+        rec.Email_1_Type        = emails[0]?.type    || '';
+        rec.Email_2             = emails[1]?.address || '';
+        rec.Email_2_Type        = emails[1]?.type    || '';
+        rec.Email_3             = emails[2]?.address || '';
+        rec.Email_3_Type        = emails[2]?.type    || '';
+        rec.Contact_Preference  = el.querySelector('input[data-field="comm-pref"]:checked')?.value || '';
+        rec.Lead_Source         = el.querySelector('[data-field="lead-source"]').value;
+        rec.Referred_By         = el.querySelector('[data-field="referred-by"]').value.trim();
+        rec.People_Notes        = el.querySelector('[data-field="client-notes"]').value.trim();
+      }
+
+      // Create new DB_People entries from any added persons
+      const relLinks = AppData.tables['Link_People_Relationship'] || [];
+      el.querySelectorAll('[data-person-summary]').forEach(row => {
+        const d = JSON.parse(row.dataset.personSummary);
+        if (!d.firstName && !d.lastName) return;
+        const newPerson = {
+          People_ID:          _generateId('PEO'),
+          Date_Created:       now,
+          Date_Modified:      now,
+          People_Status:      'Active',
+          People_Title:       d.title        || '',
+          People_First_Name:  d.firstName,
+          People_Last_Name:   d.lastName,
+          Display_Name:       d.lastName ? `${d.lastName}, ${d.firstName}` : d.firstName,
+          Phone_1:            d.phones?.[0]?.number || '',
+          Phone_1_Type:       d.phones?.[0]?.type   || '',
+          Phone_2:            d.phones?.[1]?.number || '',
+          Phone_2_Type:       d.phones?.[1]?.type   || '',
+          Email_1:            d.emails?.[0]?.address || '',
+          Email_1_Type:       d.emails?.[0]?.type    || '',
+          People_Notes:       d.notes || '',
+        };
+        people.push(newPerson);
+        relLinks.push({
+          Link_People_Relationship_ID: _generateId('LPR'),
+          Date_Created:                now,
+          People_ID_1:                 person.People_ID,
+          People_ID_2:                 newPerson.People_ID,
+          Link_Role:                   d.relationship || '',
+        });
+      });
+
+      WidgetManager.close(widgetId);
+    });
+  }
+
+  function _editCompanyHTML(company) {
+    return `<div class="widget-form">
+      <div class="form-row">
+        <div class="form-group f-grow">
+          <label class="form-label">Company Name</label>
+          <input class="form-input" data-field="company-name" type="text"
+                 value="${company.Company_Name || ''}" autocomplete="off">
+        </div>
+        <div class="btn-spacer"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group f-grow">
+          <label class="form-label">DBA</label>
+          <input class="form-input" data-field="company-dba" type="text"
+                 value="${company.Company_DBA || ''}" autocomplete="off">
+        </div>
+        <div class="btn-spacer"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group f-grow">
+          <label class="form-label">Vendor Type</label>
+          <select class="form-select" data-field="vendor-type">
+            <option value="">-- Select --</option>
+            ${['Subcontractor', 'Supplier', 'Professional Services'].map(t =>
+              `<option${t === (company.Vendor_Type || '') ? ' selected' : ''}>${t}</option>`
+            ).join('')}
+          </select>
+        </div>
+        <div class="form-group f-grow">
+          <label class="form-label">Vendor Category</label>
+          <input class="form-input" data-field="vendor-category" type="text"
+                 value="${company.Vendor_Category || ''}" autocomplete="off">
+        </div>
+        <div class="btn-spacer"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group f-grow">
+          <label class="form-label">Lead Source</label>
+          <select class="form-select" data-field="lead-source">
+            ${_options('leadSources', false, company.Lead_Source || '')}
+          </select>
+        </div>
+        <div class="form-group f-grow">
+          <label class="form-label">Referred By</label>
+          <input class="form-input" data-field="referred-by" type="text"
+                 value="${company.Referred_By || ''}" autocomplete="off">
+        </div>
+        <div class="btn-spacer"></div>
+      </div>
+      ${_notesRowHTML('data-field="company-notes"', 'Notes', { value: company.Notes || '' })}
+      <div class="widget-footer">
+        <button class="btn-danger" data-action="delete-record">Delete</button>
+        <button class="btn-secondary" data-action="cancel">Cancel</button>
+        <button class="btn-primary" data-action="save">Save</button>
+      </div>
+    </div>`;
+  }
+
+  function _bindEditCompanyForm(company, widgetId) {
+    const el = document.getElementById('widget-' + widgetId);
+    if (!el) return;
+
+    el.querySelector('[data-field="company-name"]').addEventListener('input', _formatNameField);
+    el.querySelector('[data-field="company-dba"]').addEventListener('input', _formatNameField);
+    el.querySelector('[data-field="referred-by"]').addEventListener('input', _formatNameField);
+    _bindAutoExpand(el.querySelector('[data-field="company-notes"]'), 5, widgetId);
+
+    el.querySelector('[data-action="cancel"]').addEventListener('click', () => {
+      WidgetManager.close(widgetId);
+    });
+
+    el.querySelector('[data-action="delete-record"]').addEventListener('click', () => {
+      if (!confirm(`Delete ${company.Company_DBA || company.Company_Name}? This cannot be undone.`)) return;
+      const companies = AppData.tables['DB_Company'] || [];
+      const idx = companies.findIndex(c => c.Company_ID === company.Company_ID);
+      if (idx !== -1) companies.splice(idx, 1);
+      WidgetManager.close(widgetId);
+      const profileId = `profile-company-${company.Company_ID}`;
+      if (document.getElementById('widget-' + profileId)) WidgetManager.close(profileId);
+    });
+
+    el.querySelector('[data-action="save"]').addEventListener('click', () => {
+      const name = el.querySelector('[data-field="company-name"]').value.trim();
+      if (!name) {
+        el.querySelector('[data-field="company-name"]').style.borderColor = 'var(--color-danger)';
+        el.querySelector('[data-field="company-name"]').focus();
+        return;
+      }
+      const rec = (AppData.tables['DB_Company'] || []).find(c => c.Company_ID === company.Company_ID);
+      if (rec) {
+        rec.Company_Name      = name;
+        rec.Company_DBA       = el.querySelector('[data-field="company-dba"]').value.trim();
+        rec.Vendor_Type       = el.querySelector('[data-field="vendor-type"]').value;
+        rec.Vendor_Category   = el.querySelector('[data-field="vendor-category"]').value.trim();
+        rec.Lead_Source       = el.querySelector('[data-field="lead-source"]').value;
+        rec.Referred_By       = el.querySelector('[data-field="referred-by"]').value.trim();
+        rec.Notes             = el.querySelector('[data-field="company-notes"]').value.trim();
+      }
+      WidgetManager.close(widgetId);
+    });
+  }
+
+  function openEditContact(type, id) {
+    if (type === 'person') {
+      const person = (AppData.tables['DB_People'] || []).find(p => p.People_ID === id);
+      if (!person) return;
+      const widgetId = `edit-person-${id}`;
+      const title    = `Edit — ${person.People_Last_Name}, ${person.People_First_Name}`;
+      if (WidgetManager.open(widgetId, title, _editPersonHTML(person), {
+        width: 425, autoHeight: true, category: 'contact',
+      }) !== false) _bindEditPersonForm(person, widgetId);
+
+    } else if (type === 'company') {
+      const company = (AppData.tables['DB_Company'] || []).find(c => c.Company_ID === id);
+      if (!company) return;
+      const widgetId = `edit-company-${id}`;
+      const title    = `Edit — ${company.Company_DBA || company.Company_Name}`;
+      if (WidgetManager.open(widgetId, title, _editCompanyHTML(company), {
+        width: 425, autoHeight: true, category: 'contact',
+      }) !== false) _bindEditCompanyForm(company, widgetId);
+    }
+  }
+
+  /* ── Phone Book helpers ──────────────────────────────────── */
+  function _pbGetVendorCategories() {
+    return [...new Set(
+      (AppData.tables['DB_Company'] || [])
+        .map(c => c.Vendor_Category).filter(Boolean)
+    )].sort();
+  }
+
+  function _phonebookHTML() {
+    const leadSources      = _getList('leadSources');
+    const vendorCategories = _pbGetVendorCategories();
+
+    return `<div class="phonebook-widget">
+      <div class="pb-filter-bar">
+        <div class="pb-radio-group">
+          <label class="pb-radio-label"><input type="radio" name="pb-tab" value="all" checked> All</label>
+          <label class="pb-radio-label"><input type="radio" name="pb-tab" value="clients"> Clients</label>
+          <label class="pb-radio-label"><input type="radio" name="pb-tab" value="companies"> Companies</label>
+          <label class="pb-radio-label pb-radio-disabled"><input type="radio" name="pb-tab" value="employees" disabled> Employees</label>
+          <label class="pb-radio-label pb-radio-disabled"><input type="radio" name="pb-tab" value="personal" disabled> Personal</label>
+        </div>
+        <input class="pb-search" type="text" placeholder="Search..." autocomplete="off">
+      </div>
+      <div class="pb-dropdowns" data-tab-dropdowns="all" style="display:none"></div>
+      <div class="pb-dropdowns" data-tab-dropdowns="clients" style="display:none">
+        <select class="form-select pb-filter-select" data-filter="pb-status">
+          <option value="">All Statuses</option>
+          <option>Active</option>
+          <option>Inactive</option>
+        </select>
+        <select class="form-select pb-filter-select" data-filter="pb-lead-source">
+          <option value="">All Lead Sources</option>
+          ${leadSources.map(s => `<option>${s}</option>`).join('')}
+        </select>
+      </div>
+      <div class="pb-dropdowns" data-tab-dropdowns="companies" style="display:none">
+        <select class="form-select pb-filter-select" data-filter="pb-co-role">
+          <option value="">All Roles</option>
+          <option>Client</option>
+          <option>Vendor</option>
+        </select>
+        <select class="form-select pb-filter-select" data-filter="pb-vendor-type">
+          <option value="">All Types</option>
+          <option>Subcontractor</option>
+          <option>Supplier</option>
+          <option>Professional Services</option>
+        </select>
+        <select class="form-select pb-filter-select" data-filter="pb-vendor-category">
+          <option value="">All Categories</option>
+          ${vendorCategories.map(c => `<option>${c}</option>`).join('')}
+        </select>
+      </div>
+      <div class="pb-col-headers" data-tab-headers="all">
+        <div class="pb-col-header pb-col-name" data-sort="name">Name <span class="pb-sort-icon"></span></div>
+        <div class="pb-col-header pb-col-phone" data-sort="phone">Phone</div>
+        <div class="pb-col-header pb-col-tag">Type</div>
+      </div>
+      <div class="pb-col-headers" data-tab-headers="clients" style="display:none">
+        <div class="pb-col-header pb-col-name" data-sort="name">Name <span class="pb-sort-icon"></span></div>
+        <div class="pb-col-header pb-col-phone" data-sort="phone">Phone</div>
+        <div class="pb-col-header pb-col-status" data-sort="status">Status <span class="pb-sort-icon"></span></div>
+      </div>
+      <div class="pb-col-headers" data-tab-headers="companies" style="display:none">
+        <div class="pb-col-header pb-col-coname" data-sort="name">Company <span class="pb-sort-icon"></span></div>
+        <div class="pb-col-header pb-col-phone" data-sort="phone">Phone</div>
+        <div class="pb-col-header pb-col-type" data-sort="type">Type <span class="pb-sort-icon"></span></div>
+        <div class="pb-col-header pb-col-cat" data-sort="category">Category <span class="pb-sort-icon"></span></div>
+      </div>
+      <div class="pb-list-wrap">
+        <div class="pb-list"></div>
+      </div>
+      <div class="widget-footer">
+        <button class="btn-secondary" data-action="cancel">Close</button>
+      </div>
+    </div>`;
+  }
+
+  function _pbRenderAll(listEl, sortCol, sortDir, searchText) {
+    const people    = AppData.tables['DB_People']  || [];
+    const companies = AppData.tables['DB_Company'] || [];
+    const q  = searchText.toLowerCase();
+    const qD = q.replace(/\D/g, '');
+
+    const rows = [];
+
+    people.forEach(p => {
+      if (q) {
+        const name = `${p.People_First_Name || ''} ${p.People_Last_Name || ''}`.toLowerCase();
+        const rev  = `${p.People_Last_Name  || ''}, ${p.People_First_Name || ''}`.toLowerCase();
+        const ph   = (p.Phone_1 || '').replace(/\D/g, '');
+        if (!name.includes(q) && !rev.includes(q) && !(qD.length >= 3 && ph.includes(qD))) return;
+      }
+      rows.push({
+        type:  'person',
+        id:    p.People_ID,
+        key:   `${p.People_Last_Name} ${p.People_First_Name}`.toLowerCase(),
+        label: `${p.People_Last_Name}, ${p.People_First_Name}`,
+        phone: p.Phone_1 || '',
+        tag:   p.People_Status || '',
+      });
+    });
+
+    companies.forEach(c => {
+      const name = (c.Company_DBA || c.Company_Name || '').toLowerCase();
+      if (q && !name.includes(q)) return;
+      rows.push({
+        type:  'company',
+        id:    c.Company_ID,
+        key:   name,
+        label: c.Company_DBA || c.Company_Name,
+        phone: c.Phone_1 || '',
+        tag:   c.Vendor_Type || '',
+      });
+    });
+
+    rows.sort((a, b) => sortDir === 'asc' ? a.key.localeCompare(b.key) : b.key.localeCompare(a.key));
+
+    if (!rows.length) { listEl.innerHTML = '<div class="pb-empty">No results</div>'; return; }
+
+    listEl.innerHTML = rows.map(r => `
+      <div class="pb-row" data-type="${r.type}" data-id="${r.id}">
+        <div class="pb-cell pb-col-name">${r.label}</div>
+        <div class="pb-cell pb-col-phone">${r.phone}</div>
+        <div class="pb-cell pb-col-tag">${r.tag}</div>
+      </div>`).join('');
+  }
+
+  function _pbRenderClients(listEl, filters, sortCol, sortDir, searchText) {
+    const people = (AppData.tables['DB_People'] || []).filter(p => p.Is_Client === 'Yes');
+    const q      = searchText.toLowerCase();
+    const qD     = q.replace(/\D/g, '');
+
+    let rows = people.filter(p => {
+      if (filters.status     && p.People_Status !== filters.status)       return false;
+      if (filters.leadSource && p.Lead_Source   !== filters.leadSource)   return false;
+      if (q) {
+        const name = `${p.People_First_Name || ''} ${p.People_Last_Name || ''}`.toLowerCase();
+        const rev  = `${p.People_Last_Name  || ''}, ${p.People_First_Name || ''}`.toLowerCase();
+        const ph   = (p.Phone_1 || '').replace(/\D/g, '');
+        if (!name.includes(q) && !rev.includes(q) && !(qD.length >= 3 && ph.includes(qD))) return false;
+      }
+      return true;
+    });
+
+    rows.sort((a, b) => {
+      let va = '', vb = '';
+      if (sortCol === 'name') {
+        va = `${a.People_Last_Name} ${a.People_First_Name}`.toLowerCase();
+        vb = `${b.People_Last_Name} ${b.People_First_Name}`.toLowerCase();
+      } else if (sortCol === 'phone') {
+        va = (a.Phone_1 || '').replace(/\D/g, '');
+        vb = (b.Phone_1 || '').replace(/\D/g, '');
+      } else if (sortCol === 'status') {
+        va = a.People_Status || '';
+        vb = b.People_Status || '';
+      }
+      return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+    });
+
+    if (!rows.length) { listEl.innerHTML = '<div class="pb-empty">No results</div>'; return; }
+
+    listEl.innerHTML = rows.map(p => `
+      <div class="pb-row" data-type="person" data-id="${p.People_ID}">
+        <div class="pb-cell pb-col-name">${p.People_Last_Name}, ${p.People_First_Name}</div>
+        <div class="pb-cell pb-col-phone">${p.Phone_1 || ''}</div>
+        <div class="pb-cell pb-col-status">${p.People_Status || ''}</div>
+      </div>`).join('');
+  }
+
+  function _pbRenderCompanies(listEl, filters, sortCol, sortDir, searchText) {
+    const companies = (AppData.tables['DB_Company'] || []);
+    const q         = searchText.toLowerCase();
+
+    let rows = companies.filter(c => {
+      if (filters.coRole === 'Client' && c.Is_Client !== 'Yes')       return false;
+      if (filters.coRole === 'Vendor' && c.Is_Vendor !== 'Yes')       return false;
+      if (filters.vendorType     && c.Vendor_Type     !== filters.vendorType)     return false;
+      if (filters.vendorCategory && c.Vendor_Category !== filters.vendorCategory) return false;
+      if (q) {
+        const name = (c.Company_Name || '').toLowerCase();
+        const dba  = (c.Company_DBA  || '').toLowerCase();
+        if (!name.includes(q) && !dba.includes(q)) return false;
+      }
+      return true;
+    });
+
+    rows.sort((a, b) => {
+      let va = '', vb = '';
+      if (sortCol === 'name') {
+        va = (a.Company_DBA || a.Company_Name || '').toLowerCase();
+        vb = (b.Company_DBA || b.Company_Name || '').toLowerCase();
+      } else if (sortCol === 'type') {
+        va = a.Vendor_Type     || '';
+        vb = b.Vendor_Type     || '';
+      } else if (sortCol === 'category') {
+        va = a.Vendor_Category || '';
+        vb = b.Vendor_Category || '';
+      }
+      return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+    });
+
+    if (!rows.length) { listEl.innerHTML = '<div class="pb-empty">No results</div>'; return; }
+
+    listEl.innerHTML = rows.map(c => `
+      <div class="pb-row" data-type="company" data-id="${c.Company_ID}">
+        <div class="pb-cell pb-col-coname">${c.Company_DBA || c.Company_Name}</div>
+        <div class="pb-cell pb-col-phone">${c.Phone_1 || ''}</div>
+        <div class="pb-cell pb-col-type">${c.Vendor_Type || ''}</div>
+        <div class="pb-cell pb-col-cat">${c.Vendor_Category || ''}</div>
+      </div>`).join('');
+  }
+
+  function _bindPhonebook(widgetId, editMode = false) {
+    const el = document.getElementById('widget-' + widgetId);
+    if (!el) return;
+
+    let activeTab   = 'all';
+    let sortCol     = 'name';
+    let sortDir     = 'asc';
+    let searchText  = '';
+    let searchTimer = null;
+    const filters   = { status: '', leadSource: '', coRole: '', vendorType: '', vendorCategory: '' };
+
+    function render() {
+      el.querySelectorAll('.pb-col-header[data-sort]').forEach(h => {
+        const icon = h.querySelector('.pb-sort-icon');
+        if (!icon) return;
+        icon.textContent = h.dataset.sort === sortCol ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '';
+      });
+      const listEl = el.querySelector('.pb-list');
+      if      (activeTab === 'all')       _pbRenderAll(listEl, sortCol, sortDir, searchText);
+      else if (activeTab === 'clients')   _pbRenderClients(listEl, filters, sortCol, sortDir, searchText);
+      else if (activeTab === 'companies') _pbRenderCompanies(listEl, filters, sortCol, sortDir, searchText);
+    }
+
+    el.querySelectorAll('input[name="pb-tab"]').forEach(radio => {
+      radio.addEventListener('change', function () {
+        activeTab  = this.value;
+        sortCol    = 'name';
+        sortDir    = 'asc';
+        searchText = '';
+        el.querySelector('.pb-search').value = '';
+        Object.keys(filters).forEach(k => { filters[k] = ''; });
+        el.querySelectorAll('.pb-filter-select').forEach(s => { s.value = ''; });
+        el.querySelectorAll('[data-tab-dropdowns]').forEach(d => {
+          d.style.display = d.dataset.tabDropdowns === activeTab ? '' : 'none';
+        });
+        el.querySelectorAll('[data-tab-headers]').forEach(h => {
+          h.style.display = h.dataset.tabHeaders === activeTab ? '' : 'none';
+        });
+        render();
+      });
+    });
+
+    el.querySelectorAll('.pb-filter-select').forEach(sel => {
+      sel.addEventListener('change', function () {
+        const map = {
+          'pb-status':          'status',
+          'pb-lead-source':     'leadSource',
+          'pb-co-role':         'coRole',
+          'pb-vendor-type':     'vendorType',
+          'pb-vendor-category': 'vendorCategory',
+        };
+        const key = map[this.dataset.filter];
+        if (key) filters[key] = this.value;
+        render();
+      });
+    });
+
+    el.querySelector('.pb-search').addEventListener('input', function () {
+      clearTimeout(searchTimer);
+      const val = this.value;
+      searchTimer = setTimeout(() => { searchText = val; render(); }, 200);
+    });
+
+    el.querySelectorAll('.pb-col-header[data-sort]').forEach(h => {
+      h.addEventListener('click', function () {
+        const col = this.dataset.sort;
+        if (col === sortCol) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+        else { sortCol = col; sortDir = 'asc'; }
+        render();
+      });
+    });
+
+    el.querySelector('.pb-list').addEventListener('click', function (e) {
+      const row = e.target.closest('.pb-row');
+      if (row) {
+        if (editMode) openEditContact(row.dataset.type, row.dataset.id);
+        else openProfile(row.dataset.type, row.dataset.id);
+      }
+    });
+
+    el.addEventListener('click', function (e) {
+      const btn = e.target.closest('[data-action]');
+      if (btn && btn.dataset.action === 'cancel') WidgetManager.close(widgetId);
+    });
+
+    render();
+  }
+
+  /* ── Public: open phone book widget ──────────────────────── */
+  function openNewContactFromSearch(query) {
+    const id     = 'new-contact-' + Date.now();
+    const opened = WidgetManager.open(id, 'New Contact', _newClientHTML(id), {
+      width: 425, autoHeight: true, category: 'contact',
+      getLabel: (el) => {
+        const last  = el.querySelector('[data-field="last-name"]')?.value.trim()  || '';
+        const first = el.querySelector('[data-field="first-name"]')?.value.trim() || '';
+        if (last && first) return `${last}, ${first}`;
+        return last || first || '';
+      },
+    });
+    if (opened === false) return;
+    _bindNewClientForm(id);
+
+    const el     = document.getElementById('widget-' + id);
+    if (!el) return;
+    const digits = query.replace(/\D/g, '');
+
+    if (digits.length >= 7) {
+      // Looks like a phone number — pre-fill Phone field
+      const phoneInput = el.querySelector('input[data-phone]');
+      phoneInput.value = query;
+      phoneInput.dispatchEvent(new Event('input'));
+
+    } else if (/^\d+\s+\S/.test(query)) {
+      // Starts with a number followed by text — likely a street address
+      el.querySelector('[data-addr="street1"]').value = query;
+      el.querySelector('[data-addr="street1"]').dispatchEvent(new Event('input'));
+
+    } else {
+      // Treat as a name — split on comma or whitespace
+      let first = '', last = '';
+      if (query.includes(',')) {
+        const parts = query.split(',').map(s => s.trim());
+        last  = parts[0] || '';
+        first = parts[1] || '';
+      } else {
+        const parts = query.trim().split(/\s+/);
+        first = parts[0]              || '';
+        last  = parts.slice(1).join(' ') || '';
+      }
+      el.querySelector('[data-field="first-name"]').value = first;
+      el.querySelector('[data-field="last-name"]').value  = last;
+      el.querySelector('[data-field="first-name"]').dispatchEvent(new Event('input'));
+      el.querySelector('[data-field="last-name"]').dispatchEvent(new Event('input'));
+    }
+  }
+
+  function openPhonebook(opts = {}) {
+    const editMode = !!opts.editMode;
+    const widgetId = editMode ? 'phonebook-edit' : 'phonebook';
+    const title    = editMode ? 'Edit Contact' : 'Phone Book';
+    if (WidgetManager.open(widgetId, title, _phonebookHTML(), {
+      width: 580, height: 460,
+    }) !== false) _bindPhonebook(widgetId, editMode);
+  }
+
+  /* ── Public: open profile widget ─────────────────────────── */
+  function openProfile(type, id) {
+    const widgetId = `profile-${type}-${id}`;
+
+    if (type === 'person') {
+      const person = (AppData.tables['DB_People'] || []).find(p => p.People_ID === id);
+      if (!person) return;
+      const title = `${person.People_Last_Name}, ${person.People_First_Name}`;
+      if (WidgetManager.open(widgetId, title, _personProfileHTML(person), {
+        width: 300, autoHeight: true, noDock: true,
+      }) !== false) _bindProfileWidget(widgetId);
+
+    } else if (type === 'company') {
+      const company = (AppData.tables['DB_Company'] || []).find(c => c.Company_ID === id);
+      if (!company) return;
+      const title = company.Company_DBA || company.Company_Name;
+      if (WidgetManager.open(widgetId, title, _companyProfileHTML(company), {
+        width: 300, autoHeight: true, noDock: true,
+      }) !== false) _bindProfileWidget(widgetId);
+    }
+  }
+
+  return { openNewContact, openNewContactFromSearch, openProfile, openPhonebook, openEditContact };
 
 })();
