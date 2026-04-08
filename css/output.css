@@ -1327,16 +1327,17 @@ body.is-dragging .dock-icon-title {
   width: var(--btn-col);
   flex-shrink: 0;
   margin-left: 6px;
+  margin-top: 10px;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
+  padding-left: 6px;
 }
 .btn-remove {
   flex-shrink: 0;
   width: 18px;
   height: 18px;
   padding: 0;
-  margin-left: 6px;
   background: none;
   border: none;
   border-radius: 2px;
@@ -1641,7 +1642,7 @@ body.using-mouse .profile-entity-pill:focus-visible:not(:hover), body.using-mous
   text-transform: uppercase;
   letter-spacing: 0.1em;
   color: var(--color-ink-mid);
-  margin-bottom: 3px;
+  margin-bottom: 1px;
 }
 .profile-entity-pill {
   display: block;
@@ -1679,61 +1680,109 @@ body.using-mouse .profile-entity-pill:focus-visible:not(:hover), body.using-mous
 }
 .phonebook-widget {
   display: flex;
-  flex-direction: column;
   height: 100%;
 }
-.pb-filter-bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--color-border-slate);
+.pb-sidebar {
+  width: 160px;
   flex-shrink: 0;
-}
-.pb-radio-group {
   display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  padding: 10px 8px;
+  gap: 2px;
+  border-right: 1px solid var(--color-border-slate);
 }
-.pb-radio-label {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 11px;
-  font-weight: 600;
+.pb-new-btn {
+  width: 100%;
+  margin-bottom: 6px;
+}
+.pb-nav-btn {
+  width: 100%;
+  text-align: left;
+  padding: 5px 8px;
+  border-radius: 4px;
+  border: none;
+  background: none;
+  font-size: 12px;
+  font-weight: 500;
   color: var(--color-ink-dark);
   cursor: pointer;
-  white-space: nowrap;
+  line-height: 1.4;
 }
-.pb-radio-disabled {
-  opacity: 0.4;
+.pb-nav-btn:hover:not(:disabled) {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+.pb-nav-btn.active {
+  background-color: var(--color-brand-primary);
+  color: white;
+  font-weight: 700;
+}
+.pb-nav-btn:disabled {
+  opacity: 0.35;
   cursor: not-allowed;
 }
+.pb-labels-section {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border-slate);
+}
+.pb-labels-header {
+  font-size: 9px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--color-ink-mid);
+  padding: 0 8px 4px;
+}
+.pb-label-btn {
+  width: 100%;
+  text-align: left;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: none;
+  background: none;
+  font-size: 11px;
+  color: var(--color-ink-mid);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.4;
+}
+.pb-label-btn:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+  color: var(--color-ink-dark);
+}
+.pb-label-btn.active {
+  color: var(--color-brand-primary);
+  font-weight: 700;
+}
+.pb-sidebar-footer {
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border-slate);
+}
+.pb-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.pb-toolbar {
+  padding: 8px 10px 6px;
+}
 .pb-search {
-  margin-left: auto;
-  width: 130px;
-  padding: 3px 8px;
+  width: 100%;
+  height: 24px;
+  padding: 0 8px;
   font-size: 12px;
   border: 1px solid var(--color-border-slate);
   border-radius: 4px;
   outline: none;
   background: #fff;
+  box-sizing: border-box;
 }
 .pb-search:focus {
   border-color: var(--color-brand-primary);
-}
-.pb-dropdowns {
-  display: flex;
-  gap: 6px;
-  padding: 6px 10px;
-  border-bottom: 1px solid var(--color-border-slate);
-  flex-shrink: 0;
-}
-.pb-dropdowns .form-select {
-  flex: 1;
-  font-size: 11px;
-  padding: 3px 6px;
-  height: 26px;
 }
 .pb-col-headers {
   display: flex;
@@ -1760,25 +1809,14 @@ body.using-mouse .profile-entity-pill:focus-visible:not(:hover), body.using-mous
   font-size: 9px;
 }
 .pb-col-name {
-  flex: 3;
-}
-.pb-col-coname {
-  flex: 3;
+  flex: 1;
+  min-width: 0;
 }
 .pb-col-phone {
-  flex: 2;
+  flex: 0 0 130px;
 }
-.pb-col-status {
-  flex: 1;
-}
-.pb-col-tag {
-  flex: 2;
-}
-.pb-col-type {
-  flex: 2;
-}
-.pb-col-cat {
-  flex: 2;
+.pb-col-email {
+  flex: 0 0 170px;
 }
 .pb-list-wrap {
   flex: 1;

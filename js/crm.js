@@ -1310,6 +1310,25 @@ const CRM = (function () {
     return companies.find(c => c.Company_ID === link.Company_ID) || null;
   }
 
+  function _getPersonProperties(peopleId) {
+    const ppLinks  = AppData.tables['Link_Property_People'] || [];
+    const allProps = AppData.tables['DB_Property']          || [];
+    return ppLinks
+      .filter(l => l.People_ID === peopleId && !l.Date_To)
+      .map(l => allProps.find(p => p.Property_ID === l.Property_ID))
+      .filter(Boolean)
+      .sort((a, b) => (b.Property_Use === 'Primary Residence') - (a.Property_Use === 'Primary Residence'));
+  }
+
+  function _getCompanyProperties(companyId) {
+    const cpLinks  = AppData.tables['Link_Property_Company'] || [];
+    const allProps = AppData.tables['DB_Property']           || [];
+    return cpLinks
+      .filter(l => l.Company_ID === companyId && !l.Date_To)
+      .map(l => allProps.find(p => p.Property_ID === l.Property_ID))
+      .filter(Boolean);
+  }
+
   function _profilePhones(record) {
     return ['Phone_1','Phone_2','Phone_3']
       .map((f, i) => record[f] ? { number: record[f], type: record[`Phone_${i+1}_Type`] || '' } : null)
@@ -1318,7 +1337,7 @@ const CRM = (function () {
 
   function _profileEmails(record) {
     return ['Email_1','Email_2','Email_3']
-      .map((f, i) => record[f] ? { addr: record[f], type: record[`Email_${i+1}_Type`] || '' } : null)
+      .map((f, i) => record[f]?.trim() ? { addr: record[f].trim(), type: record[`Email_${i+1}_Type`] || '' } : null)
       .filter(Boolean);
   }
 
@@ -1354,6 +1373,21 @@ const CRM = (function () {
     const phones     = _profilePhones(person);
     const emails     = _profileEmails(person);
 
+    const relLinks  = AppData.tables['Link_People_Relationship'] || [];
+    const allPeople = AppData.tables['DB_People']                || [];
+    const linkedPeople = relLinks
+      .filter(l => l.People_ID_1 === person.People_ID || l.People_ID_2 === person.People_ID)
+      .map(l => {
+        const otherId = l.People_ID_1 === person.People_ID ? l.People_ID_2 : l.People_ID_1;
+        const other   = allPeople.find(p => p.People_ID === otherId);
+        return other ? { ...other, link_role: l.Link_Role } : null;
+      })
+      .filter(Boolean);
+
+    const linkedPeopleHTML = linkedPeople
+      .map(p => _profilePersonBlock(p, p.link_role || 'Related'))
+      .join('');
+
     return `<div class="widget-form profile-form">
       <div class="profile-block profile-header-block">
         <div class="profile-name">${person.People_Last_Name}, ${person.People_First_Name}</div>
@@ -1363,6 +1397,7 @@ const CRM = (function () {
         </button>` : ''}
       </div>
       ${_profileContactRows(phones, emails)}
+      ${linkedPeopleHTML}
       ${_profilePropertyPills(properties)}
       <div class="widget-footer">
         <button class="btn-secondary" data-action="cancel">Close</button>
@@ -1410,6 +1445,72 @@ const CRM = (function () {
         <button class="btn-secondary" data-action="cancel">Close</button>
         <button class="btn-primary" data-action="edit-record"
           data-type="company" data-id="${company.Company_ID}">Edit Record</button>
+      </div>
+    </div>`;
+  }
+
+  // Renders a labeled section block: role label + clickable name + all phones + emails
+  function _profilePersonBlock(person, roleLabel) {
+    const phones = _profilePhones(person);
+    const emails = _profileEmails(person);
+    return `<div class="profile-block">
+      <div class="profile-section-label">${roleLabel}</div>
+      <button class="profile-meta-link" data-action="open-profile"
+        data-type="person" data-id="${person.People_ID}">
+        ${person.People_Last_Name}, ${person.People_First_Name}
+      </button>
+      ${phones.map(p => `<div class="profile-info-row">
+        <span>${p.number}</span>${p.type ? `<span class="profile-info-type">${p.type}</span>` : ''}
+      </div>`).join('')}
+      ${emails.map(e => `<div class="profile-info-row">
+        <span>${e.addr}</span>${e.type ? `<span class="profile-info-type">${e.type}</span>` : ''}
+      </div>`).join('')}
+    </div>`;
+  }
+
+  function _propertyProfileHTML(property) {
+    const ppLinks    = AppData.tables['Link_Property_People'] || [];
+    const allPeople  = AppData.tables['DB_People']           || [];
+    const allEstimates = AppData.tables['DB_Estimates']      || [];
+
+    // Section 2: current owners/occupants (no Date_To)
+    const owners = ppLinks
+      .filter(l => l.Property_ID === property.Property_ID && !l.Date_To)
+      .map(l => {
+        const person = allPeople.find(p => p.People_ID === l.People_ID);
+        return person ? { ...person, link_role: l.Link_Role } : null;
+      })
+      .filter(Boolean);
+
+    // Section 3: prior work
+    const estimates = allEstimates.filter(e => e.Linked_Location_ID === property.Property_ID);
+
+    const meta = [property.Property_Type, property.Property_Use].filter(Boolean).join(' · ');
+
+    const ownerBlocksHTML = owners.map(o => _profilePersonBlock(o, o.link_role || 'Owner')).join('');
+
+    const priorWorkHTML = estimates.length ? `<div class="profile-block">
+      <div class="profile-section-label">Prior Work</div>
+      ${estimates.map(e => {
+        const label = [e.Estimate_Name, e.Workflow_Status].filter(Boolean).join(' · ');
+        return `<button class="profile-entity-pill" data-action="open-work"
+          data-type="estimate" data-id="${e.Estimate_ID}" title="${label}">${label}</button>`;
+      }).join('')}
+    </div>` : '';
+
+    return `<div class="widget-form profile-form">
+      <div class="profile-block profile-header-block">
+        <div class="profile-name">${property.Address_Street_1}</div>
+        ${property.Address_Street_2 ? `<div class="profile-meta">${property.Address_Street_2}</div>` : ''}
+        <div class="profile-meta">${property.Address_City}, ${property.Address_State} ${property.Address_Zip}</div>
+        ${meta ? `<div class="profile-meta">${meta}</div>` : ''}
+      </div>
+      ${ownerBlocksHTML}
+      ${priorWorkHTML}
+      <div class="widget-footer">
+        <button class="btn-secondary" data-action="cancel">Close</button>
+        <button class="btn-primary" data-action="edit-record"
+          data-type="property" data-id="${property.Property_ID}">Edit Record</button>
       </div>
     </div>`;
   }
@@ -1467,7 +1568,7 @@ const CRM = (function () {
       .filter(l => l.People_ID === person.People_ID && !l.Date_To)
       .map(l => allProps.find(p => p.Property_ID === l.Property_ID))
       .filter(Boolean)
-      .sort((a, b) => (a.Property_Use === 'Primary Residence' ? -1 : 1));
+      .sort((a, b) => (b.Property_Use === 'Primary Residence') - (a.Property_Use === 'Primary Residence'));
 
     const cpLinks    = AppData.tables['Link_Company_People'] || [];
     const allCos     = AppData.tables['DB_Company']          || [];
@@ -1875,214 +1976,122 @@ const CRM = (function () {
   }
 
   /* ── Phone Book helpers ──────────────────────────────────── */
-  function _pbGetVendorCategories() {
-    return [...new Set(
-      (AppData.tables['DB_Company'] || [])
-        .map(c => c.Vendor_Category).filter(Boolean)
-    )].sort();
+  function _pbGetLabels(view) {
+    if (view === 'companies') {
+      return [...new Set(
+        (AppData.tables['DB_Company'] || []).map(c => c.Vendor_Category).filter(Boolean)
+      )].sort();
+    }
+    if (view === 'clients') {
+      return [...new Set(
+        (AppData.tables['DB_People'] || [])
+          .filter(p => p.Is_Client === 'Yes')
+          .map(p => p.Client_Type).filter(Boolean)
+      )].sort();
+    }
+    return [];
   }
 
   function _phonebookHTML() {
-    const leadSources      = _getList('leadSources');
-    const vendorCategories = _pbGetVendorCategories();
-
     return `<div class="phonebook-widget">
-      <div class="pb-filter-bar">
-        <div class="pb-radio-group">
-          <label class="pb-radio-label"><input type="radio" name="pb-tab" value="all" checked> All</label>
-          <label class="pb-radio-label"><input type="radio" name="pb-tab" value="clients"> Clients</label>
-          <label class="pb-radio-label"><input type="radio" name="pb-tab" value="companies"> Companies</label>
-          <label class="pb-radio-label pb-radio-disabled"><input type="radio" name="pb-tab" value="employees" disabled> Employees</label>
-          <label class="pb-radio-label pb-radio-disabled"><input type="radio" name="pb-tab" value="personal" disabled> Personal</label>
+      <div class="pb-sidebar">
+        <button class="btn-primary pb-new-btn" data-action="new-contact">+ New Contact</button>
+        <button class="pb-nav-btn active" data-view="all">All</button>
+        <button class="pb-nav-btn" data-view="clients">Clients</button>
+        <button class="pb-nav-btn" data-view="companies">Companies</button>
+        <button class="pb-nav-btn" data-view="employees" disabled>Employees</button>
+        <button class="pb-nav-btn" data-view="personal" disabled>Personal</button>
+        <div class="pb-labels-section" style="display:none">
+          <div class="pb-labels-header">Labels</div>
+          <div class="pb-labels-list"></div>
         </div>
-        <input class="pb-search" type="text" placeholder="Search..." autocomplete="off">
+        <div class="pb-sidebar-footer">
+          <button class="pb-nav-btn" disabled>Merge</button>
+        </div>
       </div>
-      <div class="pb-dropdowns" data-tab-dropdowns="all" style="display:none"></div>
-      <div class="pb-dropdowns" data-tab-dropdowns="clients" style="display:none">
-        <select class="form-select pb-filter-select" data-filter="pb-status">
-          <option value="">All Statuses</option>
-          <option>Active</option>
-          <option>Inactive</option>
-        </select>
-        <select class="form-select pb-filter-select" data-filter="pb-lead-source">
-          <option value="">All Lead Sources</option>
-          ${leadSources.map(s => `<option>${s}</option>`).join('')}
-        </select>
-      </div>
-      <div class="pb-dropdowns" data-tab-dropdowns="companies" style="display:none">
-        <select class="form-select pb-filter-select" data-filter="pb-co-role">
-          <option value="">All Roles</option>
-          <option>Client</option>
-          <option>Vendor</option>
-        </select>
-        <select class="form-select pb-filter-select" data-filter="pb-vendor-type">
-          <option value="">All Types</option>
-          <option>Subcontractor</option>
-          <option>Supplier</option>
-          <option>Professional Services</option>
-        </select>
-        <select class="form-select pb-filter-select" data-filter="pb-vendor-category">
-          <option value="">All Categories</option>
-          ${vendorCategories.map(c => `<option>${c}</option>`).join('')}
-        </select>
-      </div>
-      <div class="pb-col-headers" data-tab-headers="all">
-        <div class="pb-col-header pb-col-name" data-sort="name">Name <span class="pb-sort-icon"></span></div>
-        <div class="pb-col-header pb-col-phone" data-sort="phone">Phone</div>
-        <div class="pb-col-header pb-col-tag">Type</div>
-      </div>
-      <div class="pb-col-headers" data-tab-headers="clients" style="display:none">
-        <div class="pb-col-header pb-col-name" data-sort="name">Name <span class="pb-sort-icon"></span></div>
-        <div class="pb-col-header pb-col-phone" data-sort="phone">Phone</div>
-        <div class="pb-col-header pb-col-status" data-sort="status">Status <span class="pb-sort-icon"></span></div>
-      </div>
-      <div class="pb-col-headers" data-tab-headers="companies" style="display:none">
-        <div class="pb-col-header pb-col-coname" data-sort="name">Company <span class="pb-sort-icon"></span></div>
-        <div class="pb-col-header pb-col-phone" data-sort="phone">Phone</div>
-        <div class="pb-col-header pb-col-type" data-sort="type">Type <span class="pb-sort-icon"></span></div>
-        <div class="pb-col-header pb-col-cat" data-sort="category">Category <span class="pb-sort-icon"></span></div>
-      </div>
-      <div class="pb-list-wrap">
-        <div class="pb-list"></div>
-      </div>
-      <div class="widget-footer">
-        <button class="btn-secondary" data-action="cancel">Close</button>
+      <div class="pb-main">
+        <div class="pb-toolbar">
+          <input class="pb-search" type="text" placeholder="Search contacts..." autocomplete="off">
+        </div>
+        <div class="pb-col-headers">
+          <div class="pb-col-header pb-col-name" data-sort="name">Name <span class="pb-sort-icon"></span></div>
+          <div class="pb-col-header pb-col-phone" data-sort="phone">Phone</div>
+          <div class="pb-col-header pb-col-email">Email</div>
+        </div>
+        <div class="pb-list-wrap">
+          <div class="pb-list"></div>
+        </div>
+        <div class="widget-footer">
+          <button class="btn-secondary" data-action="cancel">Close</button>
+        </div>
       </div>
     </div>`;
   }
 
-  function _pbRenderAll(listEl, sortCol, sortDir, searchText) {
+  function _pbRender(listEl, view, labelFilter, sortCol, sortDir, searchText) {
     const people    = AppData.tables['DB_People']  || [];
     const companies = AppData.tables['DB_Company'] || [];
     const q  = searchText.toLowerCase();
     const qD = q.replace(/\D/g, '');
-
     const rows = [];
 
-    people.forEach(p => {
-      if (q) {
-        const name = `${p.People_First_Name || ''} ${p.People_Last_Name || ''}`.toLowerCase();
-        const rev  = `${p.People_Last_Name  || ''}, ${p.People_First_Name || ''}`.toLowerCase();
-        const ph   = (p.Phone_1 || '').replace(/\D/g, '');
-        if (!name.includes(q) && !rev.includes(q) && !(qD.length >= 3 && ph.includes(qD))) return;
-      }
-      rows.push({
-        type:  'person',
-        id:    p.People_ID,
-        key:   `${p.People_Last_Name} ${p.People_First_Name}`.toLowerCase(),
-        label: `${p.People_Last_Name}, ${p.People_First_Name}`,
-        phone: p.Phone_1 || '',
-        tag:   p.People_Status || '',
-      });
-    });
+    if (view !== 'companies') {
+      let pool = people;
+      if (view === 'clients')   pool = pool.filter(p => p.Is_Client   === 'Yes');
+      if (view === 'employees') pool = pool.filter(p => p.Is_Employee === 'Yes');
+      if (view === 'personal')  pool = pool.filter(p => p.Is_Personal === 'Yes');
+      if (labelFilter)          pool = pool.filter(p => p.Client_Type === labelFilter);
 
-    companies.forEach(c => {
-      const name = (c.Company_DBA || c.Company_Name || '').toLowerCase();
-      if (q && !name.includes(q)) return;
-      rows.push({
-        type:  'company',
-        id:    c.Company_ID,
-        key:   name,
-        label: c.Company_DBA || c.Company_Name,
-        phone: c.Phone_1 || '',
-        tag:   c.Vendor_Type || '',
+      pool.forEach(p => {
+        if (q) {
+          const name = `${p.People_First_Name || ''} ${p.People_Last_Name || ''}`.toLowerCase();
+          const rev  = `${p.People_Last_Name  || ''}, ${p.People_First_Name || ''}`.toLowerCase();
+          const ph   = (p.Phone_1 || '').replace(/\D/g, '');
+          const em   = (p.Email_1 || '').toLowerCase();
+          if (!name.includes(q) && !rev.includes(q) && !em.includes(q) && !(qD.length >= 3 && ph.includes(qD))) return;
+        }
+        rows.push({
+          type:  'person',
+          id:    p.People_ID,
+          key:   `${p.People_Last_Name} ${p.People_First_Name}`.toLowerCase(),
+          name:  `${p.People_Last_Name}, ${p.People_First_Name}`,
+          phone: p.Phone_1 || '',
+          email: p.Email_1 || '',
+        });
       });
-    });
+    }
 
-    rows.sort((a, b) => sortDir === 'asc' ? a.key.localeCompare(b.key) : b.key.localeCompare(a.key));
+    if (view === 'all' || view === 'companies') {
+      let pool = companies;
+      if (labelFilter) pool = pool.filter(c => c.Vendor_Category === labelFilter);
+
+      pool.forEach(c => {
+        const nameLower = (c.Company_DBA || c.Company_Name || '').toLowerCase();
+        if (q && !nameLower.includes(q)) return;
+        rows.push({
+          type:  'company',
+          id:    c.Company_ID,
+          key:   nameLower,
+          name:  c.Company_DBA || c.Company_Name,
+          phone: c.Phone_1 || '',
+          email: c.Email_1 || '',
+        });
+      });
+    }
+
+    rows.sort((a, b) => {
+      const va = sortCol === 'phone' ? a.phone.replace(/\D/g, '') : a.key;
+      const vb = sortCol === 'phone' ? b.phone.replace(/\D/g, '') : b.key;
+      return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+    });
 
     if (!rows.length) { listEl.innerHTML = '<div class="pb-empty">No results</div>'; return; }
 
     listEl.innerHTML = rows.map(r => `
       <div class="pb-row" data-type="${r.type}" data-id="${r.id}">
-        <div class="pb-cell pb-col-name">${r.label}</div>
+        <div class="pb-cell pb-col-name">${r.name}</div>
         <div class="pb-cell pb-col-phone">${r.phone}</div>
-        <div class="pb-cell pb-col-tag">${r.tag}</div>
-      </div>`).join('');
-  }
-
-  function _pbRenderClients(listEl, filters, sortCol, sortDir, searchText) {
-    const people = (AppData.tables['DB_People'] || []).filter(p => p.Is_Client === 'Yes');
-    const q      = searchText.toLowerCase();
-    const qD     = q.replace(/\D/g, '');
-
-    let rows = people.filter(p => {
-      if (filters.status     && p.People_Status !== filters.status)       return false;
-      if (filters.leadSource && p.Lead_Source   !== filters.leadSource)   return false;
-      if (q) {
-        const name = `${p.People_First_Name || ''} ${p.People_Last_Name || ''}`.toLowerCase();
-        const rev  = `${p.People_Last_Name  || ''}, ${p.People_First_Name || ''}`.toLowerCase();
-        const ph   = (p.Phone_1 || '').replace(/\D/g, '');
-        if (!name.includes(q) && !rev.includes(q) && !(qD.length >= 3 && ph.includes(qD))) return false;
-      }
-      return true;
-    });
-
-    rows.sort((a, b) => {
-      let va = '', vb = '';
-      if (sortCol === 'name') {
-        va = `${a.People_Last_Name} ${a.People_First_Name}`.toLowerCase();
-        vb = `${b.People_Last_Name} ${b.People_First_Name}`.toLowerCase();
-      } else if (sortCol === 'phone') {
-        va = (a.Phone_1 || '').replace(/\D/g, '');
-        vb = (b.Phone_1 || '').replace(/\D/g, '');
-      } else if (sortCol === 'status') {
-        va = a.People_Status || '';
-        vb = b.People_Status || '';
-      }
-      return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
-    });
-
-    if (!rows.length) { listEl.innerHTML = '<div class="pb-empty">No results</div>'; return; }
-
-    listEl.innerHTML = rows.map(p => `
-      <div class="pb-row" data-type="person" data-id="${p.People_ID}">
-        <div class="pb-cell pb-col-name">${p.People_Last_Name}, ${p.People_First_Name}</div>
-        <div class="pb-cell pb-col-phone">${p.Phone_1 || ''}</div>
-        <div class="pb-cell pb-col-status">${p.People_Status || ''}</div>
-      </div>`).join('');
-  }
-
-  function _pbRenderCompanies(listEl, filters, sortCol, sortDir, searchText) {
-    const companies = (AppData.tables['DB_Company'] || []);
-    const q         = searchText.toLowerCase();
-
-    let rows = companies.filter(c => {
-      if (filters.coRole === 'Client' && c.Is_Client !== 'Yes')       return false;
-      if (filters.coRole === 'Vendor' && c.Is_Vendor !== 'Yes')       return false;
-      if (filters.vendorType     && c.Vendor_Type     !== filters.vendorType)     return false;
-      if (filters.vendorCategory && c.Vendor_Category !== filters.vendorCategory) return false;
-      if (q) {
-        const name = (c.Company_Name || '').toLowerCase();
-        const dba  = (c.Company_DBA  || '').toLowerCase();
-        if (!name.includes(q) && !dba.includes(q)) return false;
-      }
-      return true;
-    });
-
-    rows.sort((a, b) => {
-      let va = '', vb = '';
-      if (sortCol === 'name') {
-        va = (a.Company_DBA || a.Company_Name || '').toLowerCase();
-        vb = (b.Company_DBA || b.Company_Name || '').toLowerCase();
-      } else if (sortCol === 'type') {
-        va = a.Vendor_Type     || '';
-        vb = b.Vendor_Type     || '';
-      } else if (sortCol === 'category') {
-        va = a.Vendor_Category || '';
-        vb = b.Vendor_Category || '';
-      }
-      return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
-    });
-
-    if (!rows.length) { listEl.innerHTML = '<div class="pb-empty">No results</div>'; return; }
-
-    listEl.innerHTML = rows.map(c => `
-      <div class="pb-row" data-type="company" data-id="${c.Company_ID}">
-        <div class="pb-cell pb-col-coname">${c.Company_DBA || c.Company_Name}</div>
-        <div class="pb-cell pb-col-phone">${c.Phone_1 || ''}</div>
-        <div class="pb-cell pb-col-type">${c.Vendor_Type || ''}</div>
-        <div class="pb-cell pb-col-cat">${c.Vendor_Category || ''}</div>
+        <div class="pb-cell pb-col-email">${r.email}</div>
       </div>`).join('');
   }
 
@@ -2090,87 +2099,92 @@ const CRM = (function () {
     const el = document.getElementById('widget-' + widgetId);
     if (!el) return;
 
-    let activeTab   = 'all';
+    let activeView  = 'all';
+    let labelFilter = '';
     let sortCol     = 'name';
     let sortDir     = 'asc';
     let searchText  = '';
     let searchTimer = null;
-    const filters   = { status: '', leadSource: '', coRole: '', vendorType: '', vendorCategory: '' };
 
-    function render() {
-      el.querySelectorAll('.pb-col-header[data-sort]').forEach(h => {
-        const icon = h.querySelector('.pb-sort-icon');
-        if (!icon) return;
-        icon.textContent = h.dataset.sort === sortCol ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '';
-      });
-      const listEl = el.querySelector('.pb-list');
-      if      (activeTab === 'all')       _pbRenderAll(listEl, sortCol, sortDir, searchText);
-      else if (activeTab === 'clients')   _pbRenderClients(listEl, filters, sortCol, sortDir, searchText);
-      else if (activeTab === 'companies') _pbRenderCompanies(listEl, filters, sortCol, sortDir, searchText);
+    function _updateLabels() {
+      const section  = el.querySelector('.pb-labels-section');
+      const labelsEl = el.querySelector('.pb-labels-list');
+      const labels   = _pbGetLabels(activeView);
+      if (!labels.length) { section.style.display = 'none'; return; }
+      section.style.display = '';
+      labelsEl.innerHTML = labels.map(l =>
+        `<button class="pb-label-btn${labelFilter === l ? ' active' : ''}" data-label="${l}">${l}</button>`
+      ).join('');
     }
 
-    el.querySelectorAll('input[name="pb-tab"]').forEach(radio => {
-      radio.addEventListener('change', function () {
-        activeTab  = this.value;
-        sortCol    = 'name';
-        sortDir    = 'asc';
-        searchText = '';
-        el.querySelector('.pb-search').value = '';
-        Object.keys(filters).forEach(k => { filters[k] = ''; });
-        el.querySelectorAll('.pb-filter-select').forEach(s => { s.value = ''; });
-        el.querySelectorAll('[data-tab-dropdowns]').forEach(d => {
-          d.style.display = d.dataset.tabDropdowns === activeTab ? '' : 'none';
-        });
-        el.querySelectorAll('[data-tab-headers]').forEach(h => {
-          h.style.display = h.dataset.tabHeaders === activeTab ? '' : 'none';
-        });
-        render();
-      });
+    function render() {
+      el.querySelectorAll('.pb-col-header[data-sort] .pb-sort-icon').forEach(icon => { icon.textContent = ''; });
+      const activeIcon = el.querySelector(`.pb-col-header[data-sort="${sortCol}"] .pb-sort-icon`);
+      if (activeIcon) activeIcon.textContent = sortDir === 'asc' ? ' ▲' : ' ▼';
+      _pbRender(el.querySelector('.pb-list'), activeView, labelFilter, sortCol, sortDir, searchText);
+    }
+
+    // Nav buttons
+    el.querySelector('.pb-sidebar').addEventListener('click', function (e) {
+      const btn = e.target.closest('[data-view]');
+      if (!btn || btn.disabled) return;
+      activeView  = btn.dataset.view;
+      labelFilter = '';
+      sortCol     = 'name';
+      sortDir     = 'asc';
+      searchText  = '';
+      el.querySelector('.pb-search').value = '';
+      el.querySelectorAll('.pb-nav-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      _updateLabels();
+      render();
     });
 
-    el.querySelectorAll('.pb-filter-select').forEach(sel => {
-      sel.addEventListener('change', function () {
-        const map = {
-          'pb-status':          'status',
-          'pb-lead-source':     'leadSource',
-          'pb-co-role':         'coRole',
-          'pb-vendor-type':     'vendorType',
-          'pb-vendor-category': 'vendorCategory',
-        };
-        const key = map[this.dataset.filter];
-        if (key) filters[key] = this.value;
-        render();
-      });
+    // Label buttons
+    el.querySelector('.pb-labels-list').addEventListener('click', function (e) {
+      const btn = e.target.closest('.pb-label-btn');
+      if (!btn) return;
+      labelFilter = labelFilter === btn.dataset.label ? '' : btn.dataset.label;
+      el.querySelectorAll('.pb-label-btn').forEach(b =>
+        b.classList.toggle('active', b.dataset.label === labelFilter)
+      );
+      render();
     });
 
+    // Search
     el.querySelector('.pb-search').addEventListener('input', function () {
       clearTimeout(searchTimer);
       const val = this.value;
       searchTimer = setTimeout(() => { searchText = val; render(); }, 200);
     });
 
-    el.querySelectorAll('.pb-col-header[data-sort]').forEach(h => {
-      h.addEventListener('click', function () {
-        const col = this.dataset.sort;
-        if (col === sortCol) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
-        else { sortCol = col; sortDir = 'asc'; }
-        render();
-      });
+    // Sort
+    el.querySelector('.pb-col-headers').addEventListener('click', function (e) {
+      const header = e.target.closest('[data-sort]');
+      if (!header) return;
+      const col = header.dataset.sort;
+      if (col === sortCol) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+      else { sortCol = col; sortDir = 'asc'; }
+      render();
     });
 
+    // Row click
     el.querySelector('.pb-list').addEventListener('click', function (e) {
       const row = e.target.closest('.pb-row');
-      if (row) {
-        if (editMode) openEditContact(row.dataset.type, row.dataset.id);
-        else openProfile(row.dataset.type, row.dataset.id);
-      }
+      if (!row) return;
+      if (editMode) openEditContact(row.dataset.type, row.dataset.id);
+      else openProfile(row.dataset.type, row.dataset.id);
     });
 
+    // Footer actions
     el.addEventListener('click', function (e) {
       const btn = e.target.closest('[data-action]');
-      if (btn && btn.dataset.action === 'cancel') WidgetManager.close(widgetId);
+      if (!btn) return;
+      if (btn.dataset.action === 'cancel')      WidgetManager.close(widgetId);
+      if (btn.dataset.action === 'new-contact') openNewContact();
     });
 
+    _updateLabels();
     render();
   }
 
@@ -2228,7 +2242,7 @@ const CRM = (function () {
     const widgetId = editMode ? 'phonebook-edit' : 'phonebook';
     const title    = editMode ? 'Edit Contact' : 'Phone Book';
     if (WidgetManager.open(widgetId, title, _phonebookHTML(), {
-      width: 580, height: 460,
+      width: 720, height: 480,
     }) !== false) _bindPhonebook(widgetId, editMode);
   }
 
@@ -2249,6 +2263,14 @@ const CRM = (function () {
       if (!company) return;
       const title = company.Company_DBA || company.Company_Name;
       if (WidgetManager.open(widgetId, title, _companyProfileHTML(company), {
+        width: 300, autoHeight: true, noDock: true,
+      }) !== false) _bindProfileWidget(widgetId);
+
+    } else if (type === 'property') {
+      const property = (AppData.tables['DB_Property'] || []).find(p => p.Property_ID === id);
+      if (!property) return;
+      const title = property.Address_Street_1;
+      if (WidgetManager.open(widgetId, title, _propertyProfileHTML(property), {
         width: 300, autoHeight: true, noDock: true,
       }) !== false) _bindProfileWidget(widgetId);
     }
