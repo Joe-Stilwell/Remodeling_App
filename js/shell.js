@@ -49,6 +49,10 @@
   });
 }());
 
+/* --- Input mode tracking (suppresses focus rings when mouse is in use) --- */
+document.addEventListener('pointermove', () => document.body.classList.add('using-mouse'), { passive: true });
+document.addEventListener('keydown', (e) => { if (e.key === 'Tab') document.body.classList.remove('using-mouse'); });
+
 /* --- Universal Search --- */
 const searchInput = document.getElementById('universal-search');
 let _searchDebounce = null;
@@ -336,9 +340,9 @@ const SUBMENUS = {
   phonebook: {
     label: 'Phone Book',
     items: [
+      { title: 'New Contact',  widget: 'new-contact' },
       { title: 'Phone Book',   widget: 'phonebook' },
       { title: 'Edit Contact', widget: 'edit-contact' },
-      { title: 'New Contact',  widget: 'new-contact' },
     ],
   },
   workorder: {

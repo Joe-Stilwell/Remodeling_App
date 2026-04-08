@@ -75,7 +75,7 @@ html, body {
 .top-accent-bar {
   height: 2px;
   flex-shrink: 0;
-  background-color: var(--color-brand-primary);
+  background-color: var(--color-brand-dark);
 }
 
 .app-body {
@@ -640,6 +640,35 @@ body.is-dragging .dock-icon-title {
   gap: 8px;
 }
 
+/* Profile cards use block padding + borders for spacing — no gap needed */
+.profile-form {
+  gap: 0;
+}
+
+.profile-form .widget-footer {
+  border-top: none;
+  margin-top: 0;
+  padding-right: 12px;
+}
+
+.widget-body:has(.profile-form) {
+  padding: 0;
+}
+
+.profile-form .profile-block {
+  border-bottom-color: #A0AEC0;
+}
+
+.profile-form .profile-entity-pill {
+  border-color: #A0AEC0;
+  background-color: white;
+}
+
+.profile-form .btn-primary,
+.profile-form .btn-secondary {
+  background-color: white;
+}
+
 .form-row {
   display: flex;
   gap: 6px;
@@ -986,81 +1015,9 @@ body.is-dragging .dock-icon-title {
   pointer-events: none;
 }
 
-/* Action buttons — tint at rest, accent on hover, orange on click */
-.btn-action {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: var(--btn-col);
-  flex-shrink: 0;
-  height: 22px;
-  padding: 0 5px;
-  line-height: 1;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--color-ink-dark);
-  background-color: var(--color-brand-tint);
-  border: 2px solid var(--color-ink-dark);
-  border-radius: 6px;
-  box-sizing: border-box;
-  cursor: pointer;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  transition: background-color 0.3s ease 0.2s, border-color 0.3s ease 0.2s, color 0.3s ease 0.2s, box-shadow 0.3s ease 0.2s;
-  white-space: nowrap;
-}
-
-.btn-action:hover {
-  background-color: var(--color-brand-accent);
-  border-color: var(--color-brand-accent);
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.25);
-  transition: background-color 0.1s ease, border-color 0.1s ease, color 0.1s ease, box-shadow 0.1s ease;
-}
-
-.btn-action:active {
-  background-color: var(--color-brand-orange);
-  border-color: var(--color-brand-orange);
-  color: white;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
-  transition: background-color 0.05s ease, border-color 0.05s ease, color 0.05s ease, box-shadow 0.05s ease;
-}
-
-.btn-primary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: var(--btn-col);
-  flex-shrink: 0;
-  height: 22px;
-  padding: 0 5px;
-  line-height: 1;
-  font-size: 11px;
-  font-weight: 700;
-  background-color: var(--color-brand-tint);
-  color: var(--color-ink-dark);
-  border: 2px solid var(--color-ink-dark);
-  border-radius: 6px;
-  box-sizing: border-box;
-  cursor: pointer;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  transition: background-color 0.3s ease 0.2s, border-color 0.3s ease 0.2s, color 0.3s ease 0.2s, box-shadow 0.3s ease 0.2s;
-}
-
-.btn-primary:hover {
-  background-color: var(--color-brand-accent);
-  border-color: var(--color-brand-accent);
-  color: var(--color-ink-dark);
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.25);
-  transition: background-color 0.1s ease, border-color 0.1s ease, color 0.1s ease, box-shadow 0.1s ease;
-}
-
-.btn-primary:active {
-  background-color: var(--color-brand-orange);
-  border-color: var(--color-brand-orange);
-  color: white;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
-  transition: background-color 0.05s ease, border-color 0.05s ease, color 0.05s ease, box-shadow 0.05s ease;
-}
-
+/* Action buttons — accent border on hover/focus, orange fill on click */
+.btn-action,
+.btn-primary,
 .btn-secondary {
   display: inline-flex;
   align-items: center;
@@ -1072,22 +1029,29 @@ body.is-dragging .dock-icon-title {
   line-height: 1;
   font-size: 11px;
   font-weight: 700;
-  background-color: var(--color-brand-tint);
   color: var(--color-ink-dark);
+  background-color: var(--color-brand-tint);
   border: 2px solid var(--color-ink-dark);
   border-radius: 6px;
   box-sizing: border-box;
   cursor: pointer;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  transition: background-color 0.3s ease 0.2s, border-color 0.3s ease 0.2s, color 0.3s ease 0.2s, box-shadow 0.3s ease 0.2s;
+  transition: border-color 0.1s ease;
+  white-space: nowrap;
 }
 
+.btn-action:hover,
+.btn-primary:hover,
 .btn-secondary:hover {
-  background-color: var(--color-brand-accent);
   border-color: var(--color-brand-accent);
-  color: var(--color-ink-dark);
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.25);
-  transition: background-color 0.1s ease, border-color 0.1s ease, color 0.1s ease, box-shadow 0.1s ease;
+}
+
+.btn-action:active,
+.btn-primary:active,
+.btn-secondary:active {
+  background-color: var(--color-brand-orange);
+  border-color: var(--color-brand-orange);
+  color: white;
+  transition: border-color 0.05s ease;
 }
 
 .btn-danger {
@@ -1107,12 +1071,22 @@ body.is-dragging .dock-icon-title {
   color: #fff;
 }
 
-.btn-secondary:active {
-  background-color: var(--color-brand-orange);
-  border-color: var(--color-brand-orange);
-  color: white;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
-  transition: background-color 0.05s ease, border-color 0.05s ease, color 0.05s ease, box-shadow 0.05s ease;
+
+.btn-action:focus-visible,
+.btn-primary:focus-visible,
+.btn-secondary:focus-visible {
+  border-color: var(--color-brand-accent);
+  outline: none;
+}
+
+/* Suppress focus rings when mouse is in use, but not on the element being hovered */
+body.using-mouse .profile-entity-pill:focus-visible:not(:hover),
+body.using-mouse .profile-meta-link:focus-visible:not(:hover),
+body.using-mouse .btn-action:focus-visible:not(:hover),
+body.using-mouse .btn-primary:focus-visible:not(:hover),
+body.using-mouse .btn-secondary:focus-visible:not(:hover) {
+  border-color: transparent;
+  outline: none;
 }
 
 .widget-resize-handle {
@@ -1311,7 +1285,7 @@ body.is-dragging .dock-icon-title {
 
 /* --- Profile Widget --- */
 .profile-block {
-  padding: 10px 12px;
+  padding: 5px 12px;
   border-bottom: 1px solid var(--color-border-slate);
 }
 
@@ -1320,7 +1294,7 @@ body.is-dragging .dock-icon-title {
 }
 
 .profile-header-block {
-  padding-bottom: 8px;
+  padding-top: 2px;
 }
 
 .profile-name {
@@ -1334,33 +1308,36 @@ body.is-dragging .dock-icon-title {
 .profile-meta {
   font-size: 11px;
   color: var(--color-ink-mid);
-  margin-top: 2px;
+  margin-top: 1px;
 }
 
 .profile-meta-link {
-  display: block;
+  display: inline-block;
   font-size: 12px;
   font-weight: 600;
   color: var(--color-brand-primary);
-  margin-top: 3px;
+  margin-top: 1px;
   background: none;
-  border: none;
-  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  padding: 1px 4px;
   cursor: pointer;
   text-align: left;
 }
 
-.profile-meta-link:hover {
-  text-decoration: underline;
+.profile-meta-link:hover,
+.profile-meta-link:focus-visible {
+  border-color: var(--color-brand-accent);
+  outline: none;
 }
 
 .profile-info-row {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 6px;
   font-size: 12px;
   color: var(--color-ink-dark);
-  line-height: 1.8;
+  line-height: 1.4;
 }
 
 .profile-info-type {
@@ -1376,25 +1353,34 @@ body.is-dragging .dock-icon-title {
   text-transform: uppercase;
   letter-spacing: 0.1em;
   color: var(--color-ink-mid);
-  margin-bottom: 6px;
+  margin-bottom: 3px;
 }
 
 .profile-entity-pill {
-  display: flex;
-  flex-direction: column;
+  display: block;
   width: 100%;
-  padding: 6px 8px;
-  margin-bottom: 4px;
+  padding: 3px 10px;
+  margin-bottom: 2px;
   background: var(--color-brand-tint);
-  border: 1px solid var(--color-border-slate);
-  border-radius: 6px;
+  border: 2px solid var(--color-border-slate);
+  border-radius: 999px;
   cursor: pointer;
   text-align: left;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 12px;
+  color: var(--color-ink-dark);
+  box-sizing: border-box;
 }
 
 .profile-entity-pill:hover {
-  background: var(--color-brand-accent);
   border-color: var(--color-brand-accent);
+}
+
+.profile-entity-pill:focus-visible {
+  border-color: var(--color-brand-accent);
+  outline: none;
 }
 
 .profile-pill-primary {
@@ -1566,7 +1552,7 @@ body.is-dragging .widget {
 /* --- Status Bar --- */
 .status-bar {
   height: var(--spacing-status-bar);
-  background-color: var(--color-surface-charcoal);
+  background-color: #4A5058;
   color: rgba(255, 255, 255, 0.5);
   font-size: 10px;
   font-weight: 600;

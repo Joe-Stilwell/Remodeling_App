@@ -787,16 +787,14 @@ const CRM = (function () {
 
     // Track any open panel so parent Cancel can close it
 
-    // Save disabled until First Name + Last Name + at least one Phone or Email
-    const saveBtn = el.querySelector('.widget-footer [data-action="save"]');
+    // Save disabled until Last Name + at least one Phone or Email
+    const saveBtn = el.querySelector('[data-action="save"]');
     function _updateSaveBtn() {
-      const hasFirst = !!el.querySelector('[data-field="first-name"]').value.trim();
       const hasLast  = !!el.querySelector('[data-field="last-name"]').value.trim();
       const hasPhone = [...el.querySelectorAll('input[data-phone]')].some(i => i.value.trim());
       const hasEmail = [...el.querySelectorAll('input[data-email]')].some(i => i.value.trim());
-      saveBtn.disabled = !(hasFirst && hasLast && (hasPhone || hasEmail));
+      saveBtn.disabled = !(hasLast && (hasPhone || hasEmail));
     }
-    el.querySelector('[data-field="first-name"]').addEventListener('input', _updateSaveBtn);
     el.querySelector('[data-field="last-name"]').addEventListener('input', _updateSaveBtn);
     el.addEventListener('input', function (e) {
       if (e.target.dataset.phone !== undefined || e.target.dataset.email !== undefined) {
@@ -973,11 +971,16 @@ const CRM = (function () {
 
     function _reEnable() { addCompanyBtn.disabled = false; if (onClose) onClose(); }
 
-    // Autofill phone + email from parent contact if fields are empty
+    // Autofill phone, email, and address from parent contact form
     const parentPhone = mainEl.querySelector('input[data-phone]')?.value.trim();
     const parentEmail = mainEl.querySelector('input[data-email]')?.value.trim();
     if (parentPhone) sideEl.querySelector('input[data-phone]').value = parentPhone;
     if (parentEmail) sideEl.querySelector('input[data-email]').value = parentEmail;
+
+    ['street1', 'street2', 'city', 'state', 'zip'].forEach(field => {
+      const val = mainEl.querySelector(`[data-addr="${field}"]`)?.value.trim();
+      if (val) sideEl.querySelector(`[data-co="${field}"]`).value = val;
+    });
 
     // Save disabled until Company Name + (Phone OR Email)
     const companySaveBtn = sideEl.querySelector('[data-action="save"]');
@@ -1336,13 +1339,11 @@ const CRM = (function () {
     return `<div class="profile-block">
       <div class="profile-section-label">Properties</div>
       ${properties.map(prop => {
-        const use = prop.Property_Use && prop.Property_Use !== 'Primary Residence'
-          ? `<span class="profile-pill-meta">${prop.Property_Use}</span>` : '';
+        const parts = [prop.Address_Street_1, `${prop.Address_City}, ${prop.Address_State}`];
+        if (prop.Property_Use && prop.Property_Use !== 'Primary Residence') parts.push(prop.Property_Use);
+        const label = parts.filter(Boolean).join(' · ');
         return `<button class="profile-entity-pill" data-action="open-profile"
-          data-type="property" data-id="${prop.Property_ID}">
-          <span class="profile-pill-primary">${prop.Address_Street_1}</span>
-          <span class="profile-pill-secondary">${prop.Address_City}, ${prop.Address_State}${use ? ' · ' : ''}${prop.Property_Use && prop.Property_Use !== 'Primary Residence' ? prop.Property_Use : ''}</span>
-        </button>`;
+          data-type="property" data-id="${prop.Property_ID}" title="${label}">${label}</button>`;
       }).join('')}
     </div>`;
   }
@@ -1353,7 +1354,7 @@ const CRM = (function () {
     const phones     = _profilePhones(person);
     const emails     = _profileEmails(person);
 
-    return `<div class="widget-form">
+    return `<div class="widget-form profile-form">
       <div class="profile-block profile-header-block">
         <div class="profile-name">${person.People_Last_Name}, ${person.People_First_Name}</div>
         ${company ? `<button class="profile-meta-link" data-action="open-profile"
@@ -1385,17 +1386,22 @@ const CRM = (function () {
 
     const peoplePills = people.length ? `<div class="profile-block">
       <div class="profile-section-label">Contacts</div>
-      ${people.map(p => `<button class="profile-entity-pill" data-action="open-profile"
-        data-type="person" data-id="${p.People_ID}">
-        <span class="profile-pill-primary">${p.People_Last_Name}, ${p.People_First_Name}</span>
-        <span class="profile-pill-secondary">${p.Phone_1 || p.Email_1 || ''}</span>
-      </button>`).join('')}
+      ${people.map(p => {
+        const parts = [`${p.People_Last_Name}, ${p.People_First_Name}`, p.Phone_1 || p.Email_1 || ''].filter(Boolean);
+        const label = parts.join(' · ');
+        return `<button class="profile-entity-pill" data-action="open-profile"
+          data-type="person" data-id="${p.People_ID}" title="${label}">${label}</button>`;
+      }).join('')}
     </div>` : '';
 
-    return `<div class="widget-form">
+    const vendorParts = [company.Vendor_Type, company.Vendor_Category].filter(Boolean);
+    const vendorMeta  = vendorParts.join(' · ');
+
+    return `<div class="widget-form profile-form">
       <div class="profile-block profile-header-block">
         <div class="profile-name">${company.Company_DBA || company.Company_Name}</div>
         ${company.Company_DBA ? `<div class="profile-meta">${company.Company_Name}</div>` : ''}
+        ${vendorMeta ? `<div class="profile-meta">${vendorMeta}</div>` : ''}
       </div>
       ${_profileContactRows(phones, emails)}
       ${peoplePills}
@@ -1426,9 +1432,11 @@ const CRM = (function () {
       }
     });
 
-    // Move focus into the widget so Tab stays within it
-    el.tabIndex = -1;
-    el.focus();
+    // Deferred so the autoHeight rAF has already made the widget visible
+    requestAnimationFrame(() => {
+      el.tabIndex = -1;
+      el.focus();
+    });
   }
 
   /* ── Edit Contact ────────────────────────────────────────── */

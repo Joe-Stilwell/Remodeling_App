@@ -78,6 +78,8 @@ const WidgetManager = (function () {
       const noDock = !!options.noDock;
       if (noDock) {
         widget.querySelector('.widget-btn-minimize').style.display = 'none';
+        widget.querySelector('.widget-btn-maximize').tabIndex = -1;
+        widget.querySelector('.widget-btn-close').tabIndex = -1;
       } else {
         dockIcon = _createDockIcon(id, title, options.category);
         widget.querySelector('.widget-btn-minimize').addEventListener('click', () => minimize(id));
