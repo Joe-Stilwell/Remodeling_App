@@ -15,15 +15,92 @@ const CRM = (function () {
                     'Social Media', 'Home Show', 'Nextdoor', 'Angi / HomeAdvisor', 'Other'],
     phoneTypes:    ['Mobile', 'Home', 'Work', 'Other'],
     emailTypes:    ['Personal', 'Work', 'Other'],
-    propertyTypes: ['Single Family', 'Condominium', 'Townhouse', 'Multi-Family'],
+    propertyTypes: ['Single Family', 'Condominium', 'Townhouse', 'Multi-Family',
+                    'Office Building', 'Industrial', 'Retail'],
     propertyUses:  ['Primary Residence', 'Vacation Home', 'Rental Property',
-                    'Main Office', 'Warehouse'],
+                    'Main Office', 'Warehouse', 'Retail Location'],
+  };
+
+  const PROP_USE_BY_TYPE = {
+    'Single Family':    ['Primary Residence', 'Vacation Home', 'Rental Property'],
+    'Condominium':      ['Primary Residence', 'Vacation Home', 'Rental Property'],
+    'Townhouse':        ['Primary Residence', 'Vacation Home', 'Rental Property'],
+    'Multi-Family':     ['Rental Property', 'Primary Residence'],
+    'Office Building':  ['Main Office'],
+    'Industrial':       ['Warehouse'],
+    'Retail':           ['Retail Location'],
+  };
+
+  const VENDOR_CAT_BY_TYPE = {
+    'Subcontractor':         ['Concrete', 'Drywall', 'Electrical', 'Flooring', 'Framing',
+                              'HVAC', 'Insulation', 'Landscaping', 'Masonry', 'Painting',
+                              'Plumbing', 'Roofing', 'Tile', 'Other'],
+    'Supplier':              ['Appliances', 'Electrical Supply', 'Flooring Supply', 'Hardware',
+                              'Lumber', 'Paint & Coatings', 'Plumbing Supply',
+                              'Windows & Doors', 'Other'],
+    'Professional Services': ['Accountant', 'Architect', 'Attorney', 'Engineer',
+                              'Insurance', 'Real Estate', 'Other'],
+  };
+
+  const VENDOR_SPEC_BY_CAT = {
+    'Plumbing':   ['Gas Lines', 'New Construction', 'Radiant Heat', 'Remodel', 'Service & Repair'],
+    'Roofing':    ['Flat / TPO', 'Metal', 'Shingle', 'Slate', 'Tile'],
+    'Electrical': ['Low Voltage', 'New Construction', 'Remodel', 'Service & Repair', 'Solar'],
+    'HVAC':       ['Duct Work', 'Installation', 'Mini-Split', 'Service & Repair'],
+    'Framing':    ['Post & Beam', 'Rough Framing', 'Steel Framing'],
+    'Drywall':    ['Finish Only', 'Hang & Finish', 'Repair'],
+    'Painting':   ['Cabinet Refinishing', 'Exterior', 'Faux / Decorative', 'Interior'],
+    'Flooring':   ['Carpet', 'Epoxy', 'Hardwood', 'LVP / Laminate', 'Tile'],
+    'Lumber':     ['Dimensional', 'Engineered', 'Sheet Goods', 'Trim & Moulding'],
+    'Attorney':   ['Business', 'Construction Law', 'Employment', 'Real Estate'],
+    'Accountant': ['Bookkeeping', 'CFO Services', 'Payroll', 'Tax'],
+    'Architect':  ['Commercial', 'Interior Design', 'Residential'],
+    'Engineer':   ['Civil', 'Electrical', 'Mechanical', 'Structural'],
   };
 
   /* ── Data helpers ─────────────────────────────────────────── */
   function _getList(key) {
     const saved = JSON.parse(localStorage.getItem(KEYS.lists) || '{}');
     return saved[key] || DEFAULT_LISTS[key] || [];
+  }
+
+  // Cascades Property Use options based on selected Property Type
+  function _syncPropUse(containerEl, widgetId) {
+    const typeSelect = containerEl.querySelector('[data-addr="prop-type"]');
+    const useSelect  = containerEl.querySelector('[data-addr="prop-use"]');
+    if (!typeSelect || !useSelect) return;
+    const current = useSelect.value;
+    const uses    = PROP_USE_BY_TYPE[typeSelect.value] || _getList('propertyUses');
+    useSelect.innerHTML = '<option value="">-- Select --</option>' +
+      uses.map(u => `<option${u === current ? ' selected' : ''}>${u}</option>`).join('');
+    if (widgetId) WidgetManager.resizeToContent(widgetId);
+  }
+
+  // Cascades Vendor Category options based on selected Company Type
+  function _syncVendorCategory(sideEl, widgetId) {
+    const typeSelect = sideEl.querySelector('[data-co="company-type"]');
+    const catSelect  = sideEl.querySelector('[data-co="vendor-category"]');
+    const specSelect = sideEl.querySelector('[data-co="vendor-specialty"]');
+    const cats = VENDOR_CAT_BY_TYPE[typeSelect.value] || [];
+    catSelect.innerHTML  = cats.length
+      ? '<option value="">-- Select --</option>' + cats.map(c => `<option>${c}</option>`).join('')
+      : '<option value="">-- Select Type first --</option>';
+    catSelect.disabled   = !cats.length;
+    specSelect.innerHTML = '<option value="">-- Select Category first --</option>';
+    specSelect.disabled  = true;
+    if (widgetId) WidgetManager.resizeToContent(widgetId);
+  }
+
+  // Cascades Vendor Specialty options based on selected Vendor Category
+  function _syncVendorSpecialty(sideEl, widgetId) {
+    const catSelect  = sideEl.querySelector('[data-co="vendor-category"]');
+    const specSelect = sideEl.querySelector('[data-co="vendor-specialty"]');
+    const specs = VENDOR_SPEC_BY_CAT[catSelect.value] || [];
+    specSelect.innerHTML = specs.length
+      ? '<option value="">-- Select --</option>' + specs.map(s => `<option>${s}</option>`).join('')
+      : '<option value="">-- None defined --</option>';
+    specSelect.disabled  = !specs.length;
+    if (widgetId) WidgetManager.resizeToContent(widgetId);
   }
 
   function _generateId(prefix) {
@@ -548,6 +625,37 @@ const CRM = (function () {
           <div class="btn-spacer"></div>
         </div>
 
+        <!-- Row 3: Company Type / Vendor Category -->
+        <div class="form-row">
+          <div class="form-group f-grow">
+            <label class="form-label">Company Type</label>
+            <select class="form-select" data-co="company-type">
+              <option value="">-- Select --</option>
+              <option>Subcontractor</option>
+              <option>Supplier</option>
+              <option>Professional Services</option>
+            </select>
+          </div>
+          <div class="form-group f-grow">
+            <label class="form-label">Category</label>
+            <select class="form-select" data-co="vendor-category" disabled>
+              <option value="">-- Select Type first --</option>
+            </select>
+          </div>
+          <div class="btn-spacer"></div>
+        </div>
+
+        <!-- Row 4: Vendor Specialty -->
+        <div class="form-row">
+          <div class="form-group" style="flex:1">
+            <label class="form-label">Specialty</label>
+            <select class="form-select" data-co="vendor-specialty" disabled>
+              <option value="">-- Select Category first --</option>
+            </select>
+          </div>
+          <div class="btn-spacer"></div>
+        </div>
+
         <!-- Row 5: Phone -->
         <div data-container="co-phones">
           ${_phoneRowHTML(0, true)}
@@ -659,6 +767,34 @@ const CRM = (function () {
     return `
       <div class="widget-form">
 
+        <!-- Contact Type -->
+        <div class="form-row">
+          <div class="form-group" style="flex:0 0 auto">
+            <label class="form-label">Contact Type</label>
+            <div class="contact-type-options">
+              <label class="contact-type-option">
+                <input type="radio" name="contact-type-${id}" data-field="contact-type" value="business" checked> Business
+              </label>
+              <label class="contact-type-option">
+                <input type="radio" name="contact-type-${id}" data-field="contact-type" value="personal"> Personal
+              </label>
+            </div>
+          </div>
+          <div class="form-group f-grow" data-personal-type-group style="display:none">
+            <label class="form-label">Personal Type</label>
+            <select class="form-select" data-field="personal-type">
+              <option value="">-- Select --</option>
+              <option>Family</option>
+              <option>Friend</option>
+              <option>Referral Source</option>
+              <option>Neighbor</option>
+              <option>Professional</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div class="btn-spacer"></div>
+        </div>
+
         <!-- Name -->
         <div class="form-row">
           <div class="form-group f-title">
@@ -710,7 +846,7 @@ const CRM = (function () {
         </div>
 
         <!-- Lead Source / Referred By -->
-        <div class="form-row">
+        <div class="form-row" data-business-only>
           <div class="form-group f-grow">
             <label class="form-label">Lead Source</label>
             <select class="form-select" data-field="lead-source">
@@ -725,8 +861,8 @@ const CRM = (function () {
           <div class="btn-spacer"></div>
         </div>
 
-        <!-- Client Notes -->
-        ${_notesRowHTML('data-field="client-notes"', 'Client Notes')}
+        <!-- Contact Notes -->
+        ${_notesRowHTML('data-field="client-notes"', 'Contact Notes')}
 
         <!-- Additional People (summary rows appear here) -->
         <div data-container="additional-people"></div>
@@ -742,7 +878,7 @@ const CRM = (function () {
         <div class="form-divider"></div>
 
         <!-- Company -->
-        <div class="form-row">
+        <div class="form-row" data-business-only>
           <div class="form-group" style="flex:1">
             <label class="form-label">Company / Employer</label>
           </div>
@@ -750,7 +886,7 @@ const CRM = (function () {
         </div>
 
         <!-- Additional Companies (summary rows appear here) -->
-        <div data-container="additional-companies"></div>
+        <div data-container="additional-companies" data-business-only></div>
 
         <!-- Actions -->
         <div class="form-row" style="align-items:center;justify-content:flex-end">
@@ -766,6 +902,17 @@ const CRM = (function () {
   function _bindNewClientForm(widgetId) {
     const el = document.getElementById('widget-' + widgetId);
     if (!el) return;
+
+    // Contact type toggle (Business / Personal)
+    function _syncContactType() {
+      const isPersonal = el.querySelector('[data-field="contact-type"][value="personal"]').checked;
+      el.querySelector('[data-personal-type-group]').style.display = isPersonal ? '' : 'none';
+      el.querySelectorAll('[data-business-only]').forEach(s => { s.style.display = isPersonal ? 'none' : ''; });
+      WidgetManager.resizeToContent(widgetId);
+    }
+    el.querySelectorAll('[data-field="contact-type"]').forEach(r =>
+      r.addEventListener('change', _syncContactType)
+    );
 
     // Phone / Email add buttons
     _bindPhoneEmailRows(el, '[data-container="phones"]', '[data-container="emails"]', widgetId);
@@ -784,17 +931,21 @@ const CRM = (function () {
     el.querySelector('[data-field="referred-by"]').addEventListener('input', _formatNameField);
     el.querySelector('[data-addr="state"]').addEventListener('input', _formatState);
     el.querySelector('[data-addr="zip"]').addEventListener('input', _formatZip);
+    el.querySelector('[data-addr="prop-type"]').addEventListener('change', () => _syncPropUse(el, widgetId));
+    _syncPropUse(el, widgetId);
 
     // Track any open panel so parent Cancel can close it
 
-    // Save disabled until Last Name + at least one Phone or Email
+    // Save disabled until First Name + Last Name + at least one Phone or Email
     const saveBtn = el.querySelector('[data-action="save"]');
     function _updateSaveBtn() {
+      const hasFirst = !!el.querySelector('[data-field="first-name"]').value.trim();
       const hasLast  = !!el.querySelector('[data-field="last-name"]').value.trim();
       const hasPhone = [...el.querySelectorAll('input[data-phone]')].some(i => i.value.trim());
       const hasEmail = [...el.querySelectorAll('input[data-email]')].some(i => i.value.trim());
-      saveBtn.disabled = !(hasLast && (hasPhone || hasEmail));
+      saveBtn.disabled = !(hasFirst && hasLast && (hasPhone || hasEmail));
     }
+    el.querySelector('[data-field="first-name"]').addEventListener('input', _updateSaveBtn);
     el.querySelector('[data-field="last-name"]').addEventListener('input', _updateSaveBtn);
     el.addEventListener('input', function (e) {
       if (e.target.dataset.phone !== undefined || e.target.dataset.email !== undefined) {
@@ -1052,6 +1203,10 @@ const CRM = (function () {
       }
     });
 
+    // Company type cascade
+    sideEl.querySelector('[data-co="company-type"]').addEventListener('change', () => _syncVendorCategory(sideEl, sideId));
+    sideEl.querySelector('[data-co="vendor-category"]').addEventListener('change', () => _syncVendorSpecialty(sideEl, sideId));
+
     // Formatters
     sideEl.querySelector('[data-co="state"]').addEventListener('input', _formatState);
     sideEl.querySelector('[data-co="zip"]').addEventListener('input', _formatZip);
@@ -1078,9 +1233,12 @@ const CRM = (function () {
       if (!name) { sideEl.querySelector('[data-co="name"]').focus(); return; }
 
       const coData = {
-        companyId:  _selectedCompanyId || null,
+        companyId:       _selectedCompanyId || null,
         name,
-        dba:        sideEl.querySelector('[data-co="dba"]').value.trim(),
+        dba:             sideEl.querySelector('[data-co="dba"]').value.trim(),
+        companyType:     sideEl.querySelector('[data-co="company-type"]').value,
+        vendorCategory:  sideEl.querySelector('[data-co="vendor-category"]').value,
+        vendorSpecialty: sideEl.querySelector('[data-co="vendor-specialty"]').value,
         street1:    sideEl.querySelector('[data-co="street1"]').value.trim(),
         street2:    sideEl.querySelector('[data-co="street2"]').value.trim(),
         city:       sideEl.querySelector('[data-co="city"]').value.trim(),
@@ -1128,6 +1286,8 @@ const CRM = (function () {
 
     sideEl.querySelector('[data-addr="zip"]').addEventListener('input', _formatZip);
     sideEl.querySelector('[data-addr="state"]').addEventListener('input', _formatState);
+    sideEl.querySelector('[data-addr="prop-type"]').addEventListener('change', () => _syncPropUse(sideEl, sideId));
+    _syncPropUse(sideEl, sideId);
 
     // Notes auto-expand
     _bindAutoExpand(sideEl.querySelector('[data-addr="notes"]'), 5, sideId);
@@ -1196,17 +1356,12 @@ const CRM = (function () {
     const firstName = el.querySelector('[data-field="first-name"]').value.trim();
     const lastName  = el.querySelector('[data-field="last-name"]').value.trim();
 
-    if (!firstName) {
-      const input = el.querySelector('[data-field="first-name"]');
-      input.style.borderColor = 'var(--color-danger)';
-      input.focus();
-      return;
-    }
-
     const now    = new Date().toISOString();
     const people = _getData(KEYS.people);
 
     // Primary person record
+    const isPersonal = el.querySelector('[data-field="contact-type"][value="personal"]').checked;
+
     const person = {
       id:           _generateId('PEO'),
       dateCreated:  now,
@@ -1218,8 +1373,10 @@ const CRM = (function () {
       displayName:  lastName ? `${lastName}, ${firstName}` : firstName,
       phones:       _collectPhones(el),
       emails:       _collectEmails(el),
-      leadSource:   el.querySelector('[data-field="lead-source"]').value,
-      referredBy:   el.querySelector('[data-field="referred-by"]').value.trim(),
+      isPersonal:   isPersonal ? 'Yes' : 'No',
+      personalType: isPersonal ? el.querySelector('[data-field="personal-type"]').value : '',
+      leadSource:   isPersonal ? '' : el.querySelector('[data-field="lead-source"]').value,
+      referredBy:   isPersonal ? '' : el.querySelector('[data-field="referred-by"]').value.trim(),
       commPref:     el.querySelector('input[data-field="comm-pref"]:checked')?.value || '',
       notes:        el.querySelector('[data-field="client-notes"]').value.trim(),
     };
@@ -1650,7 +1807,7 @@ const CRM = (function () {
         <div class="btn-spacer"></div>
       </div>
 
-      ${_notesRowHTML('data-field="client-notes"', 'Client Notes', { value: person.People_Notes || '' })}
+      ${_notesRowHTML('data-field="client-notes"', 'Contact Notes', { value: person.People_Notes || '' })}
 
       <div data-container="additional-people"></div>
 
@@ -1996,6 +2153,8 @@ const CRM = (function () {
     return `<div class="phonebook-widget">
       <div class="pb-sidebar">
         <button class="btn-primary pb-new-btn" data-action="new-contact">+ New Contact</button>
+        <button class="pb-filter-btn" data-action="toggle-filters">⚙ Filter</button>
+        <div class="pb-sidebar-divider"></div>
         <button class="pb-nav-btn active" data-view="all">All</button>
         <button class="pb-nav-btn" data-view="clients">Clients</button>
         <button class="pb-nav-btn" data-view="companies">Companies</button>
@@ -2006,12 +2165,27 @@ const CRM = (function () {
           <div class="pb-labels-list"></div>
         </div>
         <div class="pb-sidebar-footer">
+          <button class="pb-nav-btn pb-advanced-search" disabled title="Coming soon: cross-table queries in the Reports module">Advanced Search</button>
           <button class="pb-nav-btn" disabled>Merge</button>
         </div>
       </div>
       <div class="pb-main">
         <div class="pb-toolbar">
           <input class="pb-search" type="text" placeholder="Search contacts..." autocomplete="off">
+        </div>
+        <div class="pb-filter-bar" style="display:none">
+          <div class="pb-filter-chips"></div>
+          <div class="pb-filter-add">
+            <select class="pb-filter-field-select">
+              <option value="">+ Add filter...</option>
+              <option value="city">City</option>
+              <option value="lead_source">Lead Source</option>
+              <option value="company_type">Company Type</option>
+              <option value="vendor_category">Vendor Category</option>
+              <option value="vendor_specialty">Vendor Specialty</option>
+            </select>
+          </div>
+          <button class="pb-filter-clear" style="display:none" data-action="clear-filters">Clear all</button>
         </div>
         <div class="pb-col-headers">
           <div class="pb-col-header pb-col-name" data-sort="name">Name <span class="pb-sort-icon"></span></div>
@@ -2028,12 +2202,22 @@ const CRM = (function () {
     </div>`;
   }
 
-  function _pbRender(listEl, view, labelFilter, sortCol, sortDir, searchText) {
+  function _pbRender(listEl, view, labelFilter, sortCol, sortDir, searchText, activeFilters) {
     const people    = AppData.tables['DB_People']  || [];
     const companies = AppData.tables['DB_Company'] || [];
+    const links     = AppData.tables['Link_Property_People'] || [];
+    const props     = AppData.tables['DB_Property'] || [];
     const q  = searchText.toLowerCase();
     const qD = q.replace(/\D/g, '');
     const rows = [];
+
+    // helper: get city for a person via their primary property
+    function _personCity(peopleId) {
+      const link = links.find(l => l.People_ID === peopleId && !l.Date_To);
+      if (!link) return '';
+      const prop = props.find(p => p.Property_ID === link.Property_ID);
+      return (prop?.Address_City || '').toLowerCase();
+    }
 
     if (view !== 'companies') {
       let pool = people;
@@ -2041,6 +2225,10 @@ const CRM = (function () {
       if (view === 'employees') pool = pool.filter(p => p.Is_Employee === 'Yes');
       if (view === 'personal')  pool = pool.filter(p => p.Is_Personal === 'Yes');
       if (labelFilter)          pool = pool.filter(p => p.Client_Type === labelFilter);
+
+      // attribute filters
+      if (activeFilters.city)        pool = pool.filter(p => _personCity(p.People_ID).includes(activeFilters.city.toLowerCase()));
+      if (activeFilters.lead_source) pool = pool.filter(p => p.Lead_Source === activeFilters.lead_source);
 
       pool.forEach(p => {
         if (q) {
@@ -2063,7 +2251,10 @@ const CRM = (function () {
 
     if (view === 'all' || view === 'companies') {
       let pool = companies;
-      if (labelFilter) pool = pool.filter(c => c.Vendor_Category === labelFilter);
+      if (labelFilter)                  pool = pool.filter(c => c.Vendor_Category === labelFilter);
+      if (activeFilters.company_type)   pool = pool.filter(c => c.Company_Type    === activeFilters.company_type);
+      if (activeFilters.vendor_category)pool = pool.filter(c => c.Vendor_Category === activeFilters.vendor_category);
+      if (activeFilters.vendor_specialty)pool = pool.filter(c => c.Vendor_Specialty === activeFilters.vendor_specialty);
 
       pool.forEach(c => {
         const nameLower = (c.Company_DBA || c.Company_Name || '').toLowerCase();
@@ -2099,12 +2290,72 @@ const CRM = (function () {
     const el = document.getElementById('widget-' + widgetId);
     if (!el) return;
 
-    let activeView  = 'all';
-    let labelFilter = '';
-    let sortCol     = 'name';
-    let sortDir     = 'asc';
-    let searchText  = '';
-    let searchTimer = null;
+    let activeView    = 'all';
+    let labelFilter   = '';
+    let sortCol       = 'name';
+    let sortDir       = 'asc';
+    let searchText    = '';
+    let searchTimer   = null;
+    let activeFilters = {};   // { city: 'Denver', vendor_category: 'Plumbing', ... }
+
+    // Filter field → human label map
+    const FILTER_LABELS = {
+      city:             'City',
+      lead_source:      'Lead Source',
+      company_type:     'Company Type',
+      vendor_category:  'Vendor Category',
+      vendor_specialty: 'Vendor Specialty',
+    };
+
+    // Value options for each filter field
+    function _filterOptions(field) {
+      if (field === 'company_type')    return Object.keys(VENDOR_CAT_BY_TYPE);
+      if (field === 'vendor_category') return Object.values(VENDOR_CAT_BY_TYPE).flat().filter((v,i,a) => a.indexOf(v) === i).sort();
+      if (field === 'vendor_specialty')return Object.values(VENDOR_SPEC_BY_CAT).flat().filter((v,i,a) => a.indexOf(v) === i).sort();
+      if (field === 'lead_source')     return _getList('leadSources');
+      if (field === 'city') {
+        const props = AppData.tables['DB_Property'] || [];
+        return [...new Set(props.map(p => p.Address_City).filter(Boolean))].sort();
+      }
+      return [];
+    }
+
+    function _renderChips() {
+      const chipsEl  = el.querySelector('.pb-filter-chips');
+      const clearBtn = el.querySelector('.pb-filter-clear');
+      const keys     = Object.keys(activeFilters);
+      chipsEl.innerHTML = keys.map(k => `
+        <span class="pb-chip">
+          <span class="pb-chip-label">${FILTER_LABELS[k]}:</span>
+          <span class="pb-chip-value">${activeFilters[k]}</span>
+          <button class="pb-chip-remove" data-filter-key="${k}">×</button>
+        </span>`).join('');
+      clearBtn.style.display = keys.length ? '' : 'none';
+    }
+
+    function _showValuePicker(field) {
+      // Remove any existing picker
+      el.querySelector('.pb-filter-value-wrap')?.remove();
+
+      const options = _filterOptions(field);
+      const wrap = document.createElement('div');
+      wrap.className = 'pb-filter-value-wrap';
+
+      if (field === 'city') {
+        // free-text for city
+        wrap.innerHTML = `<input class="pb-filter-value-input" placeholder="City name..." autofocus>
+          <button class="pb-chip-confirm btn-action" data-action="confirm-filter" data-field="${field}">Add</button>
+          <button class="pb-chip-cancel" data-action="cancel-filter">✕</button>`;
+      } else {
+        wrap.innerHTML = `<select class="pb-filter-value-select">
+            <option value="">-- Select --</option>
+            ${options.map(o => `<option>${o}</option>`).join('')}
+          </select>
+          <button class="pb-chip-confirm btn-action" data-action="confirm-filter" data-field="${field}">Add</button>
+          <button class="pb-chip-cancel" data-action="cancel-filter">✕</button>`;
+      }
+      el.querySelector('.pb-filter-add').after(wrap);
+    }
 
     function _updateLabels() {
       const section  = el.querySelector('.pb-labels-section');
@@ -2121,7 +2372,7 @@ const CRM = (function () {
       el.querySelectorAll('.pb-col-header[data-sort] .pb-sort-icon').forEach(icon => { icon.textContent = ''; });
       const activeIcon = el.querySelector(`.pb-col-header[data-sort="${sortCol}"] .pb-sort-icon`);
       if (activeIcon) activeIcon.textContent = sortDir === 'asc' ? ' ▲' : ' ▼';
-      _pbRender(el.querySelector('.pb-list'), activeView, labelFilter, sortCol, sortDir, searchText);
+      _pbRender(el.querySelector('.pb-list'), activeView, labelFilter, sortCol, sortDir, searchText, activeFilters);
     }
 
     // Nav buttons
@@ -2156,6 +2407,61 @@ const CRM = (function () {
       clearTimeout(searchTimer);
       const val = this.value;
       searchTimer = setTimeout(() => { searchText = val; render(); }, 200);
+    });
+
+    // Filter bar toggle
+    el.querySelector('[data-action="toggle-filters"]').addEventListener('click', function () {
+      const bar = el.querySelector('.pb-filter-bar');
+      const open = bar.style.display === 'none';
+      bar.style.display = open ? '' : 'none';
+      this.classList.toggle('active', open);
+      WidgetManager.resizeToContent(widgetId);
+    });
+
+    // Field select → show value picker
+    el.querySelector('.pb-filter-field-select').addEventListener('change', function () {
+      if (!this.value) return;
+      _showValuePicker(this.value);
+      this.value = '';
+    });
+
+    // Filter bar delegated clicks
+    el.querySelector('.pb-filter-bar').addEventListener('click', function (e) {
+      const btn = e.target.closest('[data-action]');
+      if (!btn) return;
+
+      if (btn.dataset.action === 'confirm-filter') {
+        const field = btn.dataset.field;
+        const wrap  = el.querySelector('.pb-filter-value-wrap');
+        const val   = field === 'city'
+          ? wrap.querySelector('.pb-filter-value-input').value.trim()
+          : wrap.querySelector('.pb-filter-value-select').value;
+        if (val) {
+          activeFilters[field] = val;
+          _renderChips();
+          render();
+        }
+        wrap.remove();
+      }
+
+      if (btn.dataset.action === 'cancel-filter') {
+        el.querySelector('.pb-filter-value-wrap')?.remove();
+      }
+
+      if (btn.dataset.action === 'clear-filters') {
+        activeFilters = {};
+        _renderChips();
+        render();
+      }
+    });
+
+    // Chip remove
+    el.querySelector('.pb-filter-chips').addEventListener('click', function (e) {
+      const btn = e.target.closest('.pb-chip-remove');
+      if (!btn) return;
+      delete activeFilters[btn.dataset.filterKey];
+      _renderChips();
+      render();
     });
 
     // Sort
