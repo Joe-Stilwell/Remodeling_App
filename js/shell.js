@@ -305,12 +305,14 @@ const WIDGET_ROUTES = {
   'phonebook':      () => CRM.openPhonebook(),
   'edit-contact':   () => CRM.openPhonebook({ editMode: true }),
   'new-contact':    () => CRM.openNewContact(),
+  'vendor-mgmt':    () => CRM.openVendorMgmt(),
 };
 
 const WIDGET_CATEGORIES = {
   'phonebook':     'contact',
   'edit-contact':  'contact',
   'new-contact':   'contact',
+  'vendor-mgmt':   'contact',
   'workorder':     'workorder',
   'new-workorder': 'workorder',
   'estimating':    'estimate',
@@ -340,9 +342,10 @@ const SUBMENUS = {
   phonebook: {
     label: 'Phone Book',
     items: [
-      { title: 'New Contact',  widget: 'new-contact' },
-      { title: 'Phone Book',   widget: 'phonebook' },
-      { title: 'Edit Contact', widget: 'edit-contact' },
+      { title: 'New Contact',       widget: 'new-contact' },
+      { title: 'Phone Book',        widget: 'phonebook' },
+      { title: 'Edit Contact',      widget: 'edit-contact' },
+      { title: 'Vendor Management', widget: 'vendor-mgmt' },
     ],
   },
   workorder: {

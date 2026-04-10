@@ -14,6 +14,7 @@ const AppData = (function () {
     'DB_People',
     'DB_Property',
     'DB_Estimates',
+    'DB_Vendor',
     'DB_Workflow_Templates',
     'Link_Company_People',
     'Link_Property_People',

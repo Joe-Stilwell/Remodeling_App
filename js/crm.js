@@ -2582,6 +2582,685 @@ const CRM = (function () {
     }
   }
 
-  return { openNewContact, openNewContactFromSearch, openProfile, openPhonebook, openEditContact };
+  /* ══════════════════════════════════════════════════════════════
+     VENDOR MANAGEMENT
+  ══════════════════════════════════════════════════════════════ */
+
+  const VENDOR_TYPES = ['Subcontractor', 'Supplier', 'Professional Services'];
+
+  function _vmFmtDate(dateStr) {
+    if (!dateStr) return '—';
+    const d = new Date(dateStr);
+    if (isNaN(d)) return dateStr;
+    return `${d.getMonth() + 1}/${d.getDate()}/${String(d.getFullYear()).slice(2)}`;
+  }
+
+  function _vmDateStatus(dateStr, exempt) {
+    if (exempt === 'Yes') return { status: 'exempt',   display: 'Exempt' };
+    if (!dateStr)         return { status: 'none',     display: '—' };
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const exp   = new Date(dateStr);
+    if (isNaN(exp))       return { status: 'none',     display: dateStr };
+    const days  = Math.round((exp - today) / 86400000);
+    if (days < 0)  return { status: 'expired',  display: `Exp ${_vmFmtDate(dateStr)}` };
+    if (days < 30) return { status: 'critical', display: _vmFmtDate(dateStr) };
+    if (days < 60) return { status: 'warning',  display: _vmFmtDate(dateStr) };
+    return               { status: 'ok',        display: _vmFmtDate(dateStr) };
+  }
+
+  function _vmWorstStatus(vendor) {
+    if (!vendor) return 'none';
+    const order = ['expired', 'critical', 'warning', 'ok', 'exempt', 'none'];
+    const s = [
+      _vmDateStatus(vendor.COI_Expiration).status,
+      _vmDateStatus(vendor.WC_Expiration, vendor.WC_Exempt).status,
+      _vmDateStatus(vendor.License_Expiration).status,
+    ];
+    return s.sort((a, b) => order.indexOf(a) - order.indexOf(b))[0];
+  }
+
+  function _vmW9Cell(vendor) {
+    if (!vendor || !vendor.W9_On_File || vendor.W9_On_File === 'No')
+      return `<span class="vm-badge vm-badge-none">No</span>`;
+    return `<span class="vm-badge vm-badge-ok">Yes</span>`;
+  }
+
+  function _vendorMgmtHTML() {
+    return `<div class="vm-widget">
+      <div class="vm-sidebar">
+        <div class="vm-view-toggle">
+          <button class="vm-view-btn active" data-vm-view="credentials">Credentials</button>
+          <button class="vm-view-btn" data-vm-view="setup">Setup</button>
+        </div>
+        <div class="vm-sidebar-divider"></div>
+        <div class="vm-section-label">Type</div>
+        <button class="vm-nav-btn active" data-type-filter="">All Vendors</button>
+        <button class="vm-nav-btn" data-type-filter="Subcontractor">Subcontractors</button>
+        <button class="vm-nav-btn" data-type-filter="Supplier">Suppliers</button>
+        <button class="vm-nav-btn" data-type-filter="Professional Services">Professional</button>
+        <div class="vm-sidebar-divider vm-cred-only"></div>
+        <div class="vm-section-label vm-cred-only">Status</div>
+        <button class="vm-nav-btn vm-cred-only active" data-alert-filter="">All</button>
+        <button class="vm-nav-btn vm-cred-only" data-alert-filter="issues">Issues Only</button>
+        <div class="vm-sidebar-footer">
+          <div class="vm-issue-badge" style="display:none"></div>
+        </div>
+      </div>
+      <div class="vm-main">
+        <div class="vm-toolbar">
+          <input class="vm-search" type="text" placeholder="Search vendors..." autocomplete="off">
+        </div>
+        <div class="vm-col-headers"></div>
+        <div class="vm-list-wrap">
+          <div class="vm-list"></div>
+        </div>
+        <div class="widget-footer">
+          <button class="btn-secondary" data-action="cancel">Close</button>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  function _vmRenderHeaders(headersEl, view) {
+    if (view === 'credentials') {
+      headersEl.innerHTML = `
+        <div class="vm-col vm-col-name vm-col-sortable" data-sort="name">Name <span class="vm-sort-icon"></span></div>
+        <div class="vm-col vm-col-date vm-col-sortable" data-sort="coi">GL Ins. Exp. <span class="vm-sort-icon"></span></div>
+        <div class="vm-col vm-col-date vm-col-sortable" data-sort="wc">Workers Comp <span class="vm-sort-icon"></span></div>
+        <div class="vm-col vm-col-date vm-col-sortable" data-sort="lic">License Exp. <span class="vm-sort-icon"></span></div>
+        <div class="vm-col vm-col-w9">W-9</div>`;
+    } else {
+      headersEl.innerHTML = `
+        <div class="vm-col vm-col-name vm-col-sortable" data-sort="name">Name <span class="vm-sort-icon"></span></div>
+        <div class="vm-col vm-col-cat">Category</div>
+        <div class="vm-col vm-col-entity vm-col-sortable" data-sort="entity">Entity Type <span class="vm-sort-icon"></span></div>
+        <div class="vm-col vm-col-pay">Pay Terms</div>
+        <div class="vm-col vm-col-w9">W-9</div>`;
+    }
+  }
+
+  function _vmRender(listEl, headersEl, view, typeFilter, alertFilter, sortCol, sortDir, searchText) {
+    const companies = AppData.tables['DB_Company'] || [];
+    const vendors   = AppData.tables['DB_Vendor']  || [];
+    const q = searchText.toLowerCase();
+
+    // Pool: companies that are vendor types
+    let pool = companies.filter(c => VENDOR_TYPES.includes(c.Company_Type));
+    if (typeFilter) pool = pool.filter(c => c.Company_Type === typeFilter);
+
+    const rows = [];
+    pool.forEach(c => {
+      const name = (c.Company_DBA || c.Company_Name || '').toLowerCase();
+      if (q && !name.includes(q)) return;
+
+      const vendor = vendors.find(v => v.Company_ID === c.Company_ID) || null;
+      const worst  = _vmWorstStatus(vendor);
+
+      if (alertFilter === 'issues' && !['expired', 'critical', 'warning'].includes(worst)) return;
+
+      rows.push({ company: c, vendor, worst, key: name });
+    });
+
+    // Sort: dates push missing/exempt to end regardless of direction
+    function _dateSort(dateStr, exempt) {
+      if (exempt === 'Yes') return 99999998;  // exempt always near end
+      if (!dateStr)         return 99999999;  // missing always last
+      const d = new Date(dateStr);
+      return isNaN(d) ? 99999999 : d.getTime();
+    }
+
+    rows.sort((a, b) => {
+      let va, vb;
+      if (sortCol === 'entity') {
+        va = (a.vendor?.Entity_Type || '').toLowerCase();
+        vb = (b.vendor?.Entity_Type || '').toLowerCase();
+        return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+      }
+      if (sortCol === 'coi') {
+        va = _dateSort(a.vendor?.COI_Expiration);
+        vb = _dateSort(b.vendor?.COI_Expiration);
+      } else if (sortCol === 'wc') {
+        va = _dateSort(a.vendor?.WC_Expiration, a.vendor?.WC_Exempt);
+        vb = _dateSort(b.vendor?.WC_Expiration, b.vendor?.WC_Exempt);
+      } else if (sortCol === 'lic') {
+        va = _dateSort(a.vendor?.License_Expiration);
+        vb = _dateSort(b.vendor?.License_Expiration);
+      } else {
+        // default: name
+        return sortDir === 'asc' ? a.key.localeCompare(b.key) : b.key.localeCompare(a.key);
+      }
+      // Date sort: asc = soonest first (most urgent); missing/exempt always last
+      return sortDir === 'asc' ? va - vb : vb - va;
+    });
+
+    if (!rows.length) {
+      listEl.innerHTML = '<div class="vm-empty">No vendors found</div>';
+      return;
+    }
+
+    if (view === 'credentials') {
+      listEl.innerHTML = rows.map(r => {
+        const coi = _vmDateStatus(r.vendor?.COI_Expiration);
+        const wc  = _vmDateStatus(r.vendor?.WC_Expiration, r.vendor?.WC_Exempt);
+        const lic = _vmDateStatus(r.vendor?.License_Expiration);
+        return `<div class="vm-row" data-company-id="${r.company.Company_ID}">
+          <div class="vm-cell vm-col-name">${r.company.Company_DBA || r.company.Company_Name}</div>
+          <div class="vm-cell vm-col-date vm-status-${coi.status}">${coi.display}</div>
+          <div class="vm-cell vm-col-date vm-status-${wc.status}">${wc.display}</div>
+          <div class="vm-cell vm-col-date vm-status-${lic.status}">${lic.display}</div>
+          <div class="vm-cell vm-col-w9">${_vmW9Cell(r.vendor)}</div>
+        </div>`;
+      }).join('');
+    } else {
+      listEl.innerHTML = rows.map(r => `
+        <div class="vm-row" data-company-id="${r.company.Company_ID}">
+          <div class="vm-cell vm-col-name">${r.company.Company_DBA || r.company.Company_Name}</div>
+          <div class="vm-cell vm-col-cat">${r.company.Vendor_Category || '—'}</div>
+          <div class="vm-cell vm-col-entity">${r.vendor?.Entity_Type || '—'}</div>
+          <div class="vm-cell vm-col-pay">${r.vendor?.Payment_Terms || '—'}</div>
+          <div class="vm-cell vm-col-w9">${_vmW9Cell(r.vendor)}</div>
+        </div>`).join('');
+    }
+  }
+
+  function _vmUpdateIssueBadge(el) {
+    const companies = AppData.tables['DB_Company'] || [];
+    const vendors   = AppData.tables['DB_Vendor']  || [];
+    const pool      = companies.filter(c => VENDOR_TYPES.includes(c.Company_Type));
+    const issueCount = pool.filter(c => {
+      const v = vendors.find(v => v.Company_ID === c.Company_ID) || null;
+      return ['expired', 'critical'].includes(_vmWorstStatus(v));
+    }).length;
+    const badge = el.querySelector('.vm-issue-badge');
+    if (issueCount > 0) {
+      badge.textContent = `⚠ ${issueCount} need${issueCount === 1 ? 's' : ''} attention`;
+      badge.style.display = '';
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+
+  function _bindVendorMgmt(widgetId) {
+    const el = document.getElementById('widget-' + widgetId);
+    if (!el) return;
+
+    let activeView   = 'credentials';
+    let typeFilter   = '';
+    let alertFilter  = '';
+    let sortCol      = 'name';
+    let sortDir      = 'asc';
+    let searchText   = '';
+    let searchTimer  = null;
+
+    const listEl    = el.querySelector('.vm-list');
+    const headersEl = el.querySelector('.vm-col-headers');
+
+    function _updateCredOnly() {
+      el.querySelectorAll('.vm-cred-only').forEach(n =>
+        n.style.display = activeView === 'credentials' ? '' : 'none'
+      );
+    }
+
+    function render() {
+      el.querySelectorAll('.vm-col-sortable .vm-sort-icon').forEach(i => i.textContent = '');
+      const icon = headersEl.querySelector(`.vm-col-sortable[data-sort="${sortCol}"] .vm-sort-icon`);
+      if (icon) icon.textContent = sortDir === 'asc' ? ' ▲' : ' ▼';
+      _vmRender(listEl, headersEl, activeView, typeFilter, alertFilter, sortCol, sortDir, searchText);
+      _vmUpdateIssueBadge(el);
+    }
+
+    // View toggle
+    el.querySelector('.vm-view-toggle').addEventListener('click', function (e) {
+      const btn = e.target.closest('.vm-view-btn');
+      if (!btn) return;
+      activeView = btn.dataset.vmView;
+      sortCol    = 'name';
+      sortDir    = 'asc';
+      el.querySelectorAll('.vm-view-btn').forEach(b => b.classList.toggle('active', b === btn));
+      _vmRenderHeaders(headersEl, activeView);
+      _updateCredOnly();
+      render();
+      WidgetManager.resizeToContent(widgetId);
+    });
+
+    // Type filter nav
+    el.querySelector('.vm-sidebar').addEventListener('click', function (e) {
+      const btn = e.target.closest('[data-type-filter]');
+      if (btn) {
+        typeFilter = btn.dataset.typeFilter;
+        el.querySelectorAll('[data-type-filter]').forEach(b => b.classList.toggle('active', b === btn));
+        render();
+        return;
+      }
+      const alertBtn = e.target.closest('[data-alert-filter]');
+      if (alertBtn) {
+        alertFilter = alertBtn.dataset.alertFilter;
+        el.querySelectorAll('[data-alert-filter]').forEach(b => b.classList.toggle('active', b === alertBtn));
+        render();
+      }
+    });
+
+    // Sort (delegated from headers)
+    headersEl.addEventListener('click', function (e) {
+      const col = e.target.closest('[data-sort]');
+      if (!col) return;
+      const key = col.dataset.sort;
+      if (key === sortCol) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+      else { sortCol = key; sortDir = 'asc'; }
+      render();
+    });
+
+    // Search
+    el.querySelector('.vm-search').addEventListener('input', function () {
+      clearTimeout(searchTimer);
+      const val = this.value;
+      searchTimer = setTimeout(() => { searchText = val; render(); }, 200);
+    });
+
+    // Row click → open vendor detail with nav list
+    listEl.addEventListener('click', function (e) {
+      const row = e.target.closest('.vm-row');
+      if (!row) return;
+      const allIds = [...listEl.querySelectorAll('.vm-row')].map(r => r.dataset.companyId);
+      const index  = allIds.indexOf(row.dataset.companyId);
+      _openVendorDetail(row.dataset.companyId, widgetId, { ids: allIds, index });
+    });
+
+    // Close
+    el.querySelector('[data-action="cancel"]').addEventListener('click', () => {
+      WidgetManager.close(widgetId);
+    });
+
+    _vmRenderHeaders(headersEl, activeView);
+    _updateCredOnly();
+    render();
+  }
+
+  /* ── Vendor Detail side widget ───────────────────────────── */
+
+  function _vendorDetailHTML(company, vendor) {
+    const v = vendor || {};
+    const entityTypes  = ['Sole Proprietor', 'LLC', 'S-Corp', 'C-Corp', 'Partnership'];
+    const payMethods   = ['Check', 'ACH / Direct Deposit', 'Credit Card', 'Cash'];
+    const payTermsList = ['Due on Receipt', 'Net 15', 'Net 30', 'Net 45', 'Net 60'];
+
+    function opt(list, selected) {
+      return list.map(o => `<option${o === selected ? ' selected' : ''}>${o}</option>`).join('');
+    }
+
+    // Primary contact from Link_Company_People
+    const links   = AppData.tables['Link_Company_People'] || [];
+    const people  = AppData.tables['DB_People'] || [];
+    const contact = links
+      .filter(l => l.Company_ID === company.Company_ID)
+      .map(l => people.find(p => p.People_ID === l.People_ID))
+      .filter(Boolean)[0] || null;
+
+    // Pre-fill contact fields from linked person or stored vendor override
+    const contactName  = v.contactName  || (contact ? `${contact.People_First_Name} ${contact.People_Last_Name}` : '');
+    const contactPhone = v.contactPhone || contact?.Phone_1 || '';
+    const contactEmail = v.contactEmail || contact?.Email_1 || '';
+    const contactId    = contact?.People_ID || '';
+
+    const contactDisplay = contactName || contactPhone || contactEmail
+      ? [contactName ? `<strong>${contactName}</strong>` : null, contactPhone, contactEmail].filter(Boolean).join(' · ')
+      : 'No contact linked';
+
+    return `<div class="vd-form">
+      <div class="vd-type-tag">
+        ${contactId
+          ? `<button class="btn-xs" data-action="open-profile" data-type="person" data-id="${contactId}">Edit Contact</button>`
+          : `<button class="btn-xs" data-action="add-contact">+ Add Contact</button>`}
+        <span class="vd-type-label">${company.Company_Type}${company.Vendor_Category ? ' · ' + company.Vendor_Category : ''}</span>
+      </div>
+      <div class="vd-contact-display">${contactDisplay}</div>
+
+      <div class="vd-columns">
+
+        <!-- LEFT: Business Info + Payment + Notes -->
+        <div class="vd-col">
+
+          <div class="form-section">Business Info</div>
+          <div class="form-row">
+            <div class="form-group f-grow">
+              <label class="form-label">Entity Type</label>
+              <select class="form-select" data-vd="entity-type">
+                <option value="">-- Select --</option>${opt(entityTypes, v.Entity_Type)}
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group f-grow">
+              <label class="form-label">EIN</label>
+              <input class="form-input" data-vd="ein" value="${v.EIN || ''}" placeholder="XX-XXXXXXX">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group f-grow">
+              <label class="form-label">SSN</label>
+              <input class="form-input" data-vd="ssn" value="${v.SSN || ''}" placeholder="XXX-XX-XXXX">
+            </div>
+          </div>
+
+          <div class="form-section">Payment</div>
+          <div class="form-row">
+            <div class="form-group f-grow">
+              <label class="form-label">Method</label>
+              <select class="form-select" data-vd="payment-method">
+                <option value="">-- Select --</option>${opt(payMethods, v.Payment_Method)}
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group f-grow">
+              <label class="form-label">Terms</label>
+              <select class="form-select" data-vd="payment-terms">
+                <option value="">-- Select --</option>${opt(payTermsList, v.Payment_Terms)}
+              </select>
+            </div>
+          </div>
+
+          <div class="form-section">Notes</div>
+          <div class="form-row">
+            <div class="form-group f-grow">
+              <label class="form-label">Notes</label>
+              <textarea class="form-textarea" data-vd="notes" rows="4" style="resize:vertical">${v.Notes || ''}</textarea>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- RIGHT: Credentials -->
+        <div class="vd-col">
+
+          <div class="form-section">W-9</div>
+          <div class="form-row">
+            <label class="vd-check">
+              <input type="checkbox" data-vd="w9-on-file"${v.W9_On_File === 'Yes' ? ' checked' : ''}> On File
+            </label>
+          </div>
+          <div class="form-row">
+            <div class="form-group f-grow">
+              <label class="form-label">Date Received</label>
+              <input class="form-input" data-vd="w9-date" type="date" value="${v.W9_Date || ''}">
+            </div>
+          </div>
+
+          <div class="form-section">General Liability</div>
+          <div class="form-row">
+            <label class="vd-check">
+              <input type="checkbox" data-vd="coi-on-file"${v.COI_On_File === 'Yes' ? ' checked' : ''}> COI on File
+            </label>
+          </div>
+          <div class="form-row">
+            <div class="form-group f-grow">
+              <label class="form-label">Expiration Date</label>
+              <input class="form-input" data-vd="coi-expiration" type="date" value="${v.COI_Expiration || ''}">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group f-grow">
+              <label class="form-label">Coverage Limit</label>
+              <input class="form-input" data-vd="gl-coverage" value="${v.GL_Coverage_Limit || ''}" placeholder="e.g. $1,000,000">
+            </div>
+          </div>
+
+          <div class="form-section">Workers Comp</div>
+          <div class="form-row">
+            <label class="vd-check">
+              <input type="checkbox" data-vd="wc-exempt"${v.WC_Exempt === 'Yes' ? ' checked' : ''}> Exempt
+            </label>
+          </div>
+          <div class="form-row vd-wc-fields">
+            <label class="vd-check">
+              <input type="checkbox" data-vd="wc-on-file"${v.WC_On_File === 'Yes' ? ' checked' : ''}> On File
+            </label>
+          </div>
+          <div class="form-row vd-wc-fields">
+            <div class="form-group f-grow">
+              <label class="form-label">Expiration Date</label>
+              <input class="form-input" data-vd="wc-expiration" type="date" value="${v.WC_Expiration || ''}">
+            </div>
+          </div>
+
+          <div class="form-section">License</div>
+          <div class="form-row">
+            <div class="form-group f-grow">
+              <label class="form-label">License Number</label>
+              <input class="form-input" data-vd="license-number" value="${v.License_Number || ''}">
+            </div>
+            <div class="form-group" style="flex:0 0 44px">
+              <label class="form-label form-label-center">State</label>
+              <input class="form-input" data-vd="license-state" value="${v.License_State || ''}" style="text-transform:uppercase;text-align:center">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group f-grow">
+              <label class="form-label">License Type</label>
+              <input class="form-input" data-vd="license-type" value="${v.License_Type || ''}">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group f-grow">
+              <label class="form-label">Expiration Date</label>
+              <input class="form-input" data-vd="license-expiration" type="date" value="${v.License_Expiration || ''}">
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="vd-footer">
+        <div class="vd-footer-left">
+          <div class="vd-nav">
+            <button class="vd-nav-btn" data-action="nav-prev">&#8592; Back</button>
+            <span class="vd-nav-count"></span>
+            <button class="vd-nav-btn" data-action="nav-next">Next &#8594;</button>
+          </div>
+          <div class="vd-search-bar">
+            <input class="vd-search-input" type="text" placeholder="Jump to vendor..." autocomplete="off">
+            <div class="vd-search-results" style="display:none"></div>
+          </div>
+        </div>
+        <div class="vd-footer-actions">
+          <button class="btn-secondary" data-action="cancel">Cancel</button>
+          <button class="btn-primary" data-action="save">Save</button>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  function _openVendorDetail(companyId, parentWidgetId, navInfo) {
+    const companies = AppData.tables['DB_Company'] || [];
+    const vendors   = AppData.tables['DB_Vendor']  || [];
+    const company   = companies.find(c => c.Company_ID === companyId);
+    if (!company) return;
+    const vendor = vendors.find(v => v.Company_ID === companyId) || null;
+
+    // Reuse the same widget ID so nav replaces in place
+    const sideId  = 'vendor-detail';
+    const title   = company.Company_DBA || company.Company_Name;
+    const existing = document.getElementById('widget-' + sideId);
+    const pos      = existing
+      ? { top: parseInt(existing.style.top), left: parseInt(existing.style.left) }
+      : {};
+    WidgetManager.close(sideId);
+    if (WidgetManager.open(sideId, title, _vendorDetailHTML(company, vendor), {
+      width: 440, autoHeight: true, category: 'contact', ...pos,
+    }) !== false) _bindVendorDetail(sideId, companyId, parentWidgetId, navInfo);
+  }
+
+  function _bindVendorDetail(sideId, companyId, parentWidgetId, navInfo) {
+    const el = document.getElementById('widget-' + sideId);
+    if (!el) return;
+
+    // Nav arrows
+    const prevBtn   = el.querySelector('[data-action="nav-prev"]');
+    const nextBtn   = el.querySelector('[data-action="nav-next"]');
+    const countSpan = el.querySelector('.vd-nav-count');
+    if (navInfo && navInfo.ids.length > 1) {
+      const { ids, index } = navInfo;
+      countSpan.textContent = `${index + 1} of ${ids.length}`;
+      prevBtn.disabled = index === 0;
+      nextBtn.disabled = index === ids.length - 1;
+      prevBtn.addEventListener('click', () =>
+        _openVendorDetail(ids[index - 1], parentWidgetId, { ids, index: index - 1 })
+      );
+      nextBtn.addEventListener('click', () =>
+        _openVendorDetail(ids[index + 1], parentWidgetId, { ids, index: index + 1 })
+      );
+    } else {
+      prevBtn.style.display = 'none';
+      nextBtn.style.display = 'none';
+      countSpan.style.display = 'none';
+    }
+
+    // Vendor search bar
+    const searchInput   = el.querySelector('.vd-search-input');
+    const searchResults = el.querySelector('.vd-search-results');
+    const allVendors    = (AppData.tables['DB_Company'] || [])
+      .filter(c => VENDOR_TYPES.includes(c.Company_Type));
+
+    let searchTimer = null;
+    searchInput.addEventListener('input', function () {
+      clearTimeout(searchTimer);
+      const q = this.value.trim().toLowerCase();
+      if (!q) { searchResults.style.display = 'none'; return; }
+      searchTimer = setTimeout(() => {
+        const matches = allVendors.filter(c =>
+          (c.Company_DBA || c.Company_Name || '').toLowerCase().includes(q)
+        ).slice(0, 8);
+        if (!matches.length) { searchResults.style.display = 'none'; return; }
+        searchResults.innerHTML = matches.map(c => `
+          <div class="vd-search-item" data-company-id="${c.Company_ID}">
+            <span class="vd-search-item-name">${c.Company_DBA || c.Company_Name}</span>
+            <span class="vd-search-item-type">${c.Vendor_Category || c.Company_Type}</span>
+          </div>`).join('');
+        searchResults.style.display = '';
+      }, 150);
+    });
+
+    searchResults.addEventListener('click', function (e) {
+      const item = e.target.closest('.vd-search-item');
+      if (!item) return;
+      searchResults.style.display = 'none';
+      searchInput.value = '';
+      // Build new nav list from all vendors, centred on selection
+      const ids   = allVendors.map(c => c.Company_ID);
+      const index = ids.indexOf(item.dataset.companyId);
+      _openVendorDetail(item.dataset.companyId, parentWidgetId, { ids, index });
+    });
+
+    searchInput.addEventListener('blur', () => {
+      setTimeout(() => { searchResults.style.display = 'none'; }, 150);
+    });
+
+    // Edit Contact → open person card
+    el.addEventListener('click', function (e) {
+      const btn = e.target.closest('[data-action="open-profile"]');
+      if (!btn) return;
+      openProfile(btn.dataset.type, btn.dataset.id);
+    });
+
+    // Add Contact → open new contact form
+    el.addEventListener('click', function (e) {
+      if (!e.target.closest('[data-action="add-contact"]')) return;
+      openNewContact();
+    });
+
+    // Toggle WC fields when Exempt checked
+    function _syncWcExempt() {
+      const exempt = el.querySelector('[data-vd="wc-exempt"]').checked;
+      el.querySelector('.vd-wc-fields').style.opacity = exempt ? '0.35' : '';
+      el.querySelectorAll('.vd-wc-fields input').forEach(i => i.disabled = exempt);
+    }
+    el.querySelector('[data-vd="wc-exempt"]').addEventListener('change', _syncWcExempt);
+    _syncWcExempt();
+
+    el.querySelector('[data-action="cancel"]').addEventListener('click', () => {
+      WidgetManager.close(sideId);
+    });
+
+    el.querySelector('[data-action="save"]').addEventListener('click', () => {
+      // Read all fields
+      const vdData = {
+        companyId,
+        contactName:        el.querySelector('[data-vd="contact-name"]').value.trim(),
+        contactPhone:       el.querySelector('[data-vd="contact-phone"]').value.trim(),
+        contactEmail:       el.querySelector('[data-vd="contact-email"]').value.trim(),
+        entityType:         el.querySelector('[data-vd="entity-type"]').value,
+        ein:                el.querySelector('[data-vd="ein"]').value.trim(),
+        ssn:                el.querySelector('[data-vd="ssn"]').value.trim(),
+        w9OnFile:           el.querySelector('[data-vd="w9-on-file"]').checked ? 'Yes' : 'No',
+        w9Date:             el.querySelector('[data-vd="w9-date"]').value,
+        coiOnFile:          el.querySelector('[data-vd="coi-on-file"]').checked ? 'Yes' : 'No',
+        coiExpiration:      el.querySelector('[data-vd="coi-expiration"]').value,
+        glCoverageLimit:    el.querySelector('[data-vd="gl-coverage"]').value.trim(),
+        wcExempt:           el.querySelector('[data-vd="wc-exempt"]').checked ? 'Yes' : 'No',
+        wcOnFile:           el.querySelector('[data-vd="wc-on-file"]').checked ? 'Yes' : 'No',
+        wcExpiration:       el.querySelector('[data-vd="wc-expiration"]').value,
+        licenseNumber:      el.querySelector('[data-vd="license-number"]').value.trim(),
+        licenseState:       el.querySelector('[data-vd="license-state"]').value.trim().toUpperCase(),
+        licenseType:        el.querySelector('[data-vd="license-type"]').value.trim(),
+        licenseExpiration:  el.querySelector('[data-vd="license-expiration"]').value,
+        paymentMethod:      el.querySelector('[data-vd="payment-method"]').value,
+        paymentTerms:       el.querySelector('[data-vd="payment-terms"]').value,
+        notes:              el.querySelector('[data-vd="notes"]').value.trim(),
+      };
+
+      // Save to localStorage vendor records
+      const stored  = JSON.parse(localStorage.getItem('crm_vendors') || '[]');
+      const idx     = stored.findIndex(v => v.companyId === companyId);
+      const now     = new Date().toISOString();
+      if (idx >= 0) {
+        stored[idx] = { ...stored[idx], ...vdData, dateModified: now };
+      } else {
+        stored.push({ ...vdData, vendorId: _generateId('VND'), dateCreated: now, dateModified: now });
+      }
+      localStorage.setItem('crm_vendors', JSON.stringify(stored));
+
+      // Refresh parent list
+      const parentEl = document.getElementById('widget-' + parentWidgetId);
+      if (parentEl) {
+        // Merge saved record back into AppData so list re-renders correctly
+        const vendors = AppData.tables['DB_Vendor'] || [];
+        const vi = vendors.findIndex(v => v.Company_ID === companyId);
+        const merged = {
+          Company_ID:        companyId,
+          Entity_Type:       vdData.entityType,
+          EIN:               vdData.ein,
+          SSN:               vdData.ssn,
+          W9_On_File:        vdData.w9OnFile,
+          W9_Date:           vdData.w9Date,
+          COI_On_File:       vdData.coiOnFile,
+          COI_Expiration:    vdData.coiExpiration,
+          GL_Coverage_Limit: vdData.glCoverageLimit,
+          WC_Exempt:         vdData.wcExempt,
+          WC_On_File:        vdData.wcOnFile,
+          WC_Expiration:     vdData.wcExpiration,
+          License_Number:    vdData.licenseNumber,
+          License_State:     vdData.licenseState,
+          License_Type:      vdData.licenseType,
+          License_Expiration:vdData.licenseExpiration,
+          Payment_Method:    vdData.paymentMethod,
+          Payment_Terms:     vdData.paymentTerms,
+          Notes:             vdData.notes,
+        };
+        if (vi >= 0) AppData.tables['DB_Vendor'][vi] = merged;
+        else AppData.tables['DB_Vendor'].push(merged);
+      }
+
+      WidgetManager.close(sideId);
+    });
+  }
+
+  function openVendorMgmt() {
+    const widgetId = 'vendor-mgmt';
+    if (WidgetManager.open(widgetId, 'Vendor Management', _vendorMgmtHTML(), {
+      width: 700, height: 460,
+    }) !== false) _bindVendorMgmt(widgetId);
+  }
+
+  return { openNewContact, openNewContactFromSearch, openProfile, openPhonebook, openEditContact, openVendorMgmt };
 
 })();
