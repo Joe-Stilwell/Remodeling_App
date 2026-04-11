@@ -2283,6 +2283,417 @@ body.is-dragging .widget {
   text-align: center;
 }
 
+/* --- Costbook Widget --- */
+
+/* Column widths via CSS custom properties — drag header edge to resize */
+.cb-main {
+  --cb-w-desc:  280px;
+  --cb-w-uom:    46px;
+  --cb-w-labor:  64px;
+  --cb-w-mat:    68px;
+  --cb-w-subc:   64px;
+  --cb-w-other:  58px;
+  --cb-w-unit:   72px;
+  --cb-w-specs: 160px;
+}
+
+/* All column cells stretch to fill row height — border-left is always visible even when empty */
+.cb-col-desc,
+.cb-col-uom,
+.cb-col-labor,
+.cb-col-mat,
+.cb-col-subc,
+.cb-col-other,
+.cb-col-unit,
+.cb-col-specs {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+}
+
+.cb-col-desc  { overflow: hidden; padding: 0 4px 0 20px; }
+.cb-col-uom   { justify-content: center; border-left: 1px solid var(--color-border-slate); padding: 0 4px; overflow: hidden; }
+.cb-col-labor { justify-content: flex-end; padding-right: 6px; border-left: 1px solid var(--color-border-slate); }
+.cb-col-mat   { justify-content: flex-end; padding-right: 6px; border-left: 1px solid var(--color-border-slate); }
+.cb-col-subc  { justify-content: flex-end; padding-right: 6px; border-left: 1px solid var(--color-border-slate); }
+.cb-col-other { justify-content: flex-end; padding-right: 6px; border-left: 1px solid var(--color-border-slate); }
+.cb-col-unit  { justify-content: flex-end; padding-right: 6px; font-weight: 600; border-left: 1px solid var(--color-border-slate); }
+.cb-col-specs { border-left: 1px solid var(--color-border-slate); overflow: hidden; }
+
+/* Numeric columns are always white on div/sub/hdr rows — only the description area keeps the row color */
+:is(.cb-row-div, .cb-row-sub, .cb-row-hdr) :is(.cb-col-uom, .cb-col-labor, .cb-col-mat, .cb-col-subc, .cb-col-other, .cb-col-unit, .cb-col-specs) {
+  background: white;
+}
+
+/* Center column labels in the header row */
+.cb-header :is(.cb-col-labor, .cb-col-mat, .cb-col-subc, .cb-col-other, .cb-col-unit) {
+  justify-content: center;
+}
+
+/* Inline specs input */
+.cb-specs-input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 11px;
+  color: var(--color-ink-dark);
+  padding: 0 6px;
+  cursor: text;
+}
+.cb-specs-input::placeholder { color: var(--color-ink-mid); font-style: italic; }
+.cb-specs-input:focus { background: #fffbe6; }
+
+
+.cb-widget {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  font-size: 12px;
+}
+
+/* Toolbar */
+.cb-toolbar {
+  display: flex;
+  align-items: stretch;
+  background: var(--color-brand-tint);
+  border-bottom: 1px solid var(--color-border-slate);
+  flex-shrink: 0;
+}
+
+/* Mirrors the nav + resize handle width so cb-toolbar-main aligns with cb-main */
+.cb-toolbar-nav {
+  width: 165px; /* 160px nav + 5px resize handle — updated by JS on nav resize */
+  flex-shrink: 0;
+}
+
+.cb-toolbar-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  overflow: hidden;
+}
+
+.cb-tag-count { margin-left: auto; }
+
+.cb-btn {
+  height: 22px;
+  font-size: 11px;
+  padding: 0 10px;
+  white-space: nowrap;
+  width: auto;
+}
+
+.cb-tag-count {
+  font-size: 11px;
+  color: var(--color-brand-primary);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Body: nav + grid side by side */
+.cb-body {
+  display: flex;
+  flex: 1 1 0;
+  overflow: hidden;
+}
+
+/* Left nav panel */
+.cb-nav {
+  width: 160px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--color-border-slate);
+  background: var(--color-surface-mid);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* "Divisions" label bar — same dark bar as cb-header, sits above the nav list */
+.cb-nav-header {
+  height: 26px;
+  flex-shrink: 0;
+  background: var(--color-ink-dark);
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+}
+
+.cb-nav-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 2px 0;
+}
+
+.cb-nav-div {
+  padding: 5px 10px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-ink-dark);
+  border-bottom: 1px solid var(--color-border-slate);
+  line-height: 1.3;
+  user-select: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cb-nav-div:hover     { color: var(--color-brand-accent); }
+.cb-nav-div.is-active { background: var(--color-brand-primary); color: white; }
+
+.cb-nav-div-name { line-height: 1.2; }
+
+/* Resizable divider between nav and grid */
+.cb-panel-resize {
+  width: 5px;
+  flex-shrink: 0;
+  background: var(--color-border-slate);
+  cursor: col-resize;
+  transition: background 0.15s;
+}
+
+.cb-panel-resize:hover { background: var(--color-brand-accent); }
+
+.cb-nav-search {
+  height: 22px;
+  width: 160px;
+  font-size: 11px;
+  padding: 0 7px;
+  border: 1px solid var(--color-border-slate);
+  border-radius: 4px;
+  background: white;
+  color: var(--color-ink-dark);
+  box-sizing: border-box;
+  outline: none;
+}
+
+.cb-nav-search:focus { border-color: var(--color-brand-accent); }
+
+/* Right: grid area */
+.cb-main {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Shared column grid — header and every row type use the same 11-column template */
+.cb-header,
+.cb-row {
+  display: grid;
+  grid-template-columns:
+    22px                          /* col1: drag handle  */
+    24px                          /* col2: tag checkbox */
+    18px                          /* col3: expand icon  */
+    var(--cb-w-desc)              /* col4: description  */
+    var(--cb-w-uom)               /* col5: UofM         */
+    var(--cb-w-labor)             /* col6: Labor        */
+    var(--cb-w-mat)               /* col7: Material     */
+    var(--cb-w-subc)              /* col8: Sub          */
+    var(--cb-w-other)             /* col9: Other        */
+    var(--cb-w-unit)              /* col10: Unit Cost   */
+    minmax(var(--cb-w-specs), 1fr); /* col11: Specs — fills remaining space */
+  align-items: center;
+  padding: 0 0 0 8px;  /* no right padding — last column fills to edge */
+  box-sizing: border-box;
+}
+
+/* Column header row */
+.cb-header {
+  height: 26px;
+  background: var(--color-ink-dark);
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+
+.cb-header-tag { text-align: center; }
+
+/* Resizable header cell */
+.cb-rz-hd {
+  position: relative;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.cb-col-resize {
+  position: absolute;
+  right: 0;
+  top: 2px;
+  bottom: 2px;
+  width: 5px;
+  cursor: col-resize;
+  background: transparent;
+  border-radius: 2px;
+}
+
+.cb-col-resize:hover { background: var(--color-brand-orange); opacity: 0.8; }
+
+/* Scrollable rows */
+.cb-rows {
+  flex: 1 1 0;
+  overflow-y: auto;
+}
+
+/* Shared row base — grid template is defined on .cb-header,.cb-row above */
+.cb-row {
+  min-height: 22px;
+  border-bottom: 1px solid var(--color-border-slate);
+}
+
+/* Drag handle — col1, shown on row hover */
+.cb-drag-handle {
+  font-size: 11px;
+  letter-spacing: -2px;
+  color: transparent;
+  cursor: grab;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cb-row:hover .cb-drag-handle      { color: rgba(255,255,255,0.5); }
+.cb-row-item:hover .cb-drag-handle { color: var(--color-border-slate); }
+.cb-drag-handle:active             { cursor: grabbing; }
+
+/* Division and subdivision rows are not draggable — hide handle and reset cursor */
+.cb-row-div .cb-drag-handle,
+.cb-row-sub .cb-drag-handle {
+  cursor: default;
+  pointer-events: none;
+}
+.cb-row-div:hover .cb-drag-handle,
+.cb-row-sub:hover .cb-drag-handle {
+  color: transparent;
+}
+
+/* Expand/collapse icon — col3 */
+.cb-expand-icon {
+  font-size: 8px;
+  color: var(--color-ink-mid);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+/* Division rows */
+.cb-row-div {
+  background: var(--color-brand-primary);
+  color: white;
+  font-weight: 700;
+  font-size: 11px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.cb-row-div .cb-expand-icon { color: rgba(255,255,255,0.7); }
+.cb-row-div-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-left: 4px; }
+
+/* Subdivision rows */
+.cb-row-sub {
+  background: var(--color-surface-mid);
+  color: var(--color-ink-dark);
+  font-weight: 700;
+  font-size: 11px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.cb-row-sub .cb-expand-icon { color: var(--color-ink-mid); }
+.cb-row-sub-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-left: 12px; }
+
+/* Item rows */
+.cb-row-item {
+  background: white;
+  font-size: 11px;
+  color: var(--color-ink-dark);
+}
+
+.cb-row-item:nth-child(even) { background: var(--color-brand-tint); }
+.cb-row-item:hover { background: #EAF4FB; }
+
+/* Header rows (section separators within a subdivision) */
+.cb-row-hdr {
+  background: #e8edf2;
+  font-weight: 700;
+  font-size: 11px;
+  color: var(--color-ink-dark);
+}
+.cb-row-hdr:hover { background: #dde4eb; }
+.cb-row-hdr .cb-drag-handle { color: transparent; }
+.cb-row-hdr:hover .cb-drag-handle { color: var(--color-ink-mid); }
+
+.cb-hdr-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-ink-dark);
+  padding: 0 4px 0 20px;
+  cursor: text;
+}
+.cb-hdr-input::placeholder { color: var(--color-ink-mid); font-weight: 400; font-style: italic; }
+
+/* Column dividers turn accent on row hover */
+.cb-row:hover :is(.cb-col-uom, .cb-col-labor, .cb-col-mat, .cb-col-subc, .cb-col-other, .cb-col-unit, .cb-col-specs) {
+  border-left-color: var(--color-brand-accent);
+}
+
+/* Header row input: readonly by default, writable on double-click */
+.cb-hdr-input[readonly] {
+  pointer-events: none;
+  cursor: default;
+}
+
+/* Context menu */
+.cb-ctx-menu {
+  position: fixed;
+  z-index: 9999;
+  background: white;
+  border: 1px solid var(--color-border-slate);
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  padding: 4px 0;
+  min-width: 140px;
+  font-size: 12px;
+}
+.cb-ctx-item {
+  padding: 6px 14px;
+  cursor: pointer;
+  color: var(--color-ink-dark);
+  white-space: nowrap;
+  user-select: none;
+}
+.cb-ctx-item:hover { background: var(--color-brand-tint); color: var(--color-brand-primary); }
+
+.cb-tag {
+  cursor: pointer;
+  margin: 0;
+  justify-self: center;
+  accent-color: var(--color-brand-primary);
+}
+
+/* Drag-and-drop states */
+.cb-row-dragging  { opacity: 0.35; }
+.cb-drop-before   { border-top: 2px solid var(--color-brand-orange) !important; }
+.cb-drop-after    { border-bottom: 2px solid var(--color-brand-orange) !important; }
+
 /* --- Status Bar --- */
 .status-bar {
   height: var(--spacing-status-bar);

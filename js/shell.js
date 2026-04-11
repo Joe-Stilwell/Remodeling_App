@@ -306,12 +306,14 @@ const WIDGET_ROUTES = {
   'edit-contact':   () => CRM.openPhonebook({ editMode: true }),
   'new-contact':    () => CRM.openNewContact(),
   'vendor-mgmt':    () => CRM.openVendorMgmt(),
+  'costbook':       () => Estimating.openCostbook(),
 };
 
 const WIDGET_CATEGORIES = {
   'phonebook':     'contact',
   'edit-contact':  'contact',
   'new-contact':   'contact',
+  'costbook':      'estimating',
   'vendor-mgmt':   'contact',
   'workorder':     'workorder',
   'new-workorder': 'workorder',
@@ -360,6 +362,7 @@ const SUBMENUS = {
     items: [
       { title: 'Estimates',    widget: 'estimating' },
       { title: 'New Estimate', widget: 'new-estimate' },
+      { title: 'Costbook',     widget: 'costbook' },
     ],
   },
   settings: {
