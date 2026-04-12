@@ -20,6 +20,7 @@ const AppData = (function () {
     'Link_Property_People',
     'Link_Property_Company',
     'Link_People_Relationship',
+    'DB_Costbook',
   ];
 
   // Converts a sheet tab (rows of values) into an array of objects
@@ -35,7 +36,9 @@ const AppData = (function () {
   }
 
   async function _fetchTab(tabName) {
-    const url = `${BASE_URL}/${encodeURIComponent(tabName)}?key=${API_KEY}`;
+    const url = `${BASE_URL}/${encodeURIComponent(tabName)}`
+              + `?valueRenderOption=UNFORMATTED_VALUE`
+              + `&key=${API_KEY}`;
     const res  = await fetch(url);
     if (!res.ok) throw new Error(`Failed to fetch tab "${tabName}": ${res.status}`);
     const json = await res.json();

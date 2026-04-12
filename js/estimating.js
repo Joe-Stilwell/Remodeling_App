@@ -1,9 +1,9 @@
 /* --- Estimating Module --- */
 const Estimating = (function () {
 
-  /* ── Sample costbook data ─────────────────────────────────── */
-  /* Replace with AppData.tables['DB_Costbook'] once sheet is wired */
-  const COSTBOOK = [
+  /* ── Costbook data — loaded from Google Sheets via AppData ─── */
+  /* Kept as fallback in case the sheet is unavailable           */
+  const COSTBOOK_FALLBACK = [
     // 02 · Plans & Permits
     { divNum:'02', divName:'Plans & Permits',       subNum:'010', subName:'Plans',                 sortWeight:10,  itemId:'02.010.0001', description:'Plan Reproductions',               uom:'EA', labor:0,     material:0,      sub:0, other:45.00  },
     { divNum:'02', divName:'Plans & Permits',       subNum:'010', subName:'Plans',                 sortWeight:20,  itemId:'02.010.0002', description:"Architect's Fee",                  uom:'EA', labor:0,     material:0,      sub:0, other:0      },
@@ -93,6 +93,25 @@ const Estimating = (function () {
     { divNum:'44', divName:'Painting',              subNum:'020', subName:'Exterior Painting',     sortWeight:10,  itemId:'44.020.0001', description:'Exterior Siding - Prime & 2 Coats',  uom:'SF', labor:1.10,  material:0.45,   sub:0, other:0      },
     { divNum:'44', divName:'Painting',              subNum:'020', subName:'Exterior Painting',     sortWeight:20,  itemId:'44.020.0002', description:'Exterior Trim Paint',                uom:'LF', labor:0.65,  material:0.28,   sub:0, other:0      },
   ];
+
+  /* ── Map a raw DB_Costbook sheet row to the internal format ── */
+  function _mapRow(row, index) {
+    return {
+      divNum:      String(row.Division_Number    || '').trim(),
+      divName:     String(row.Division_Name      || '').trim(),
+      subNum:      String(row.Subdivision_Number || '').trim(),
+      subName:     String(row.Subdivision_Name   || '').trim(),
+      sortWeight:  parseFloat(row.Sort_Weight)   || index,
+      itemId:      String(row.Item_ID            || '').trim(),
+      description: String(row.Item_Description  || '').trim(),
+      uom:         String(row.Unit_Of_Measure    || '').trim(),
+      labor:       parseFloat(row.Cost_Labor)        || 0,
+      material:    parseFloat(row.Cost_Material)     || 0,
+      sub:         parseFloat(row.Cost_Subcontractor)|| 0,
+      other:       parseFloat(row.Cost_Other)        || 0,
+      specs:       String(row.Item_Specifications || '').trim(),
+    };
+  }
 
   /* ── Helpers ──────────────────────────────────────────────── */
 
@@ -379,7 +398,12 @@ const Estimating = (function () {
         row.dataset.expanded = 'false';
         row.querySelector('.cb-expand-icon').innerHTML = '&#9654;';
       });
-      el.querySelectorAll('.cb-row-sub, .cb-row-item, .cb-row-hdr').forEach(row => row.style.display = 'none');
+      el.querySelectorAll('.cb-row-sub').forEach(row => {
+        row.style.display = 'none';
+        row.dataset.expanded = 'false';
+        row.querySelector('.cb-expand-icon').innerHTML = '&#9654;';
+      });
+      el.querySelectorAll('.cb-row-item, .cb-row-hdr').forEach(row => row.style.display = 'none');
     });
 
     /* --- Left nav: click division → scroll grid to that division row --- */
@@ -494,7 +518,7 @@ const Estimating = (function () {
         <span class="cb-drag-handle">&#8942;&#8942;</span>
         <input type="checkbox" class="cb-tag cb-tag-item" data-item="${hdrId}" data-div="${divNum}" data-sub="${subNum}">
         <span class="cb-expand-icon"></span>
-        <input class="cb-hdr-input" type="text" placeholder="Header label...">
+        <div class="cb-col-desc"><input class="cb-hdr-input" type="text" placeholder="Header label..."></div>
         <span class="cb-col-uom"></span>
         <span class="cb-col-labor"></span>
         <span class="cb-col-mat"></span>
@@ -577,9 +601,18 @@ const Estimating = (function () {
     el.querySelector('.cb-nav-search') && el.querySelector('.cb-nav-search').addEventListener('input', function () {
       const q = this.value.trim().toLowerCase();
       if (!q) {
-        // Restore collapsed state
-        el.querySelectorAll('.cb-row-sub, .cb-row-item, .cb-row-hdr').forEach(r => r.style.display = 'none');
-        el.querySelectorAll('.cb-row-div').forEach(r => { r.style.display = ''; r.dataset.expanded = 'false'; r.querySelector('.cb-expand-icon').innerHTML = '&#9654;'; });
+        // Restore fully collapsed state — reset all sub/div expanded flags and arrows
+        el.querySelectorAll('.cb-row-sub').forEach(r => {
+          r.style.display = 'none';
+          r.dataset.expanded = 'false';
+          r.querySelector('.cb-expand-icon').innerHTML = '&#9654;';
+        });
+        el.querySelectorAll('.cb-row-item, .cb-row-hdr').forEach(r => r.style.display = 'none');
+        el.querySelectorAll('.cb-row-div').forEach(r => {
+          r.style.display = '';
+          r.dataset.expanded = 'false';
+          r.querySelector('.cb-expand-icon').innerHTML = '&#9654;';
+        });
         return;
       }
       // Show only items matching query, expand their parents
@@ -610,9 +643,14 @@ const Estimating = (function () {
 
   /* ── Public: open costbook widget ────────────────────────── */
 
-  function openCostbook() {
+  async function openCostbook() {
+    await AppData.ready;
+    const raw  = AppData.tables['DB_Costbook'];
+    const data = (raw && raw.length)
+      ? raw.filter(r => r.Item_Description).map(_mapRow)
+      : COSTBOOK_FALLBACK;
     const id   = 'costbook';
-    const tree = _buildTree(COSTBOOK);
+    const tree = _buildTree(data);
     if (WidgetManager.open(id, 'Costbook', _costbookHTML(tree), {
       width: 1060, height: 620, category: 'estimating',
     }) !== false) {
