@@ -108,7 +108,10 @@ const Estimating = (function () {
       labor:       parseFloat(row.Cost_Labor)        || 0,
       material:    parseFloat(row.Cost_Material)     || 0,
       sub:         parseFloat(row.Cost_Subcontractor)|| 0,
-      other:       parseFloat(row.Cost_Other)        || 0,
+      equipment:   parseFloat(row.Cost_Equipment)    || 0,
+      allowance:   parseFloat(row.Cost_Allowance)    || 0,
+      laborHours:  parseFloat(row.Labor_Hours)       || 0,
+      masterItemId: String(row.Master_Item_ID || '').trim(),
       specs:       String(row.Item_Specifications || '').trim(),
     };
   }
@@ -121,7 +124,7 @@ const Estimating = (function () {
   }
 
   function _unitCost(item) {
-    return (item.labor || 0) + (item.material || 0) + (item.sub || 0) + (item.other || 0);
+    return (item.labor || 0) + (item.material || 0) + (item.sub || 0) + (item.equipment || 0) + (item.allowance || 0);
   }
 
   /* Build a structured tree: [ { divNum, divName, subs: [ { subNum, subName, items: [...] } ] } ] */
@@ -160,7 +163,8 @@ const Estimating = (function () {
         <span class="cb-col-labor"></span>
         <span class="cb-col-mat"></span>
         <span class="cb-col-subc"></span>
-        <span class="cb-col-other"></span>
+        <span class="cb-col-equip"></span>
+        <span class="cb-col-allow"></span>
         <span class="cb-col-unit"></span>
         <span class="cb-col-specs"></span>
       </div>
@@ -174,7 +178,8 @@ const Estimating = (function () {
           <span class="cb-col-labor"></span>
           <span class="cb-col-mat"></span>
           <span class="cb-col-subc"></span>
-          <span class="cb-col-other"></span>
+          <span class="cb-col-equip"></span>
+          <span class="cb-col-allow"></span>
           <span class="cb-col-unit"></span>
           <span class="cb-col-specs"></span>
         </div>
@@ -190,7 +195,8 @@ const Estimating = (function () {
             <span class="cb-col-labor">${_fmt(item.labor)}</span>
             <span class="cb-col-mat">${_fmt(item.material)}</span>
             <span class="cb-col-subc">${_fmt(item.sub)}</span>
-            <span class="cb-col-other">${_fmt(item.other)}</span>
+            <span class="cb-col-equip">${_fmt(item.equipment)}</span>
+            <span class="cb-col-allow">${_fmt(item.allowance)}</span>
             <span class="cb-col-unit">${_fmt(uc)}</span>
             <span class="cb-col-specs"><input class="cb-specs-input" type="text" value="${item.specs || ''}" placeholder="Notes / specs..."></span>
           </div>`;
@@ -234,7 +240,8 @@ const Estimating = (function () {
               <span class="cb-col-labor cb-rz-hd" data-col="--cb-w-labor">Labor<span class="cb-col-resize"></span></span>
               <span class="cb-col-mat cb-rz-hd" data-col="--cb-w-mat">Material<span class="cb-col-resize"></span></span>
               <span class="cb-col-subc cb-rz-hd" data-col="--cb-w-subc">Sub<span class="cb-col-resize"></span></span>
-              <span class="cb-col-other cb-rz-hd" data-col="--cb-w-other">Other<span class="cb-col-resize"></span></span>
+              <span class="cb-col-equip cb-rz-hd" data-col="--cb-w-equip">Equip<span class="cb-col-resize"></span></span>
+              <span class="cb-col-allow cb-rz-hd" data-col="--cb-w-allow">Allowance<span class="cb-col-resize"></span></span>
               <span class="cb-col-unit cb-rz-hd" data-col="--cb-w-unit">Unit Cost<span class="cb-col-resize"></span></span>
               <span class="cb-col-specs cb-rz-hd" data-col="--cb-w-specs">Specifications<span class="cb-col-resize"></span></span>
             </div>
@@ -291,7 +298,7 @@ const Estimating = (function () {
     /* --- Column resize with localStorage persistence --- */
     const mainEl = el.querySelector('.cb-main');
     const CB_COL_KEY  = 'cb-col-widths';
-    const CB_COL_VARS = ['--cb-w-desc','--cb-w-uom','--cb-w-labor','--cb-w-mat','--cb-w-subc','--cb-w-other','--cb-w-unit','--cb-w-specs'];
+    const CB_COL_VARS = ['--cb-w-desc','--cb-w-uom','--cb-w-labor','--cb-w-mat','--cb-w-subc','--cb-w-equip','--cb-w-allow','--cb-w-unit','--cb-w-specs'];
 
     // Restore saved widths on load
     try {
@@ -523,7 +530,8 @@ const Estimating = (function () {
         <span class="cb-col-labor"></span>
         <span class="cb-col-mat"></span>
         <span class="cb-col-subc"></span>
-        <span class="cb-col-other"></span>
+        <span class="cb-col-equip"></span>
+        <span class="cb-col-allow"></span>
         <span class="cb-col-unit"></span>
         <span class="cb-col-specs"></span>
       `;
@@ -570,6 +578,13 @@ const Estimating = (function () {
     });
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape') _closeCtx();
+    });
+
+    /* --- Item row: double-click to open Edit Cost Item widget --- */
+    rowsEl.addEventListener('dblclick', function (e) {
+      const itemRow = e.target.closest('.cb-row-item');
+      if (!itemRow) return;
+      openEditCostItem(itemRow.dataset.item);
     });
 
     /* --- Header row label: double-click to edit, Enter/blur to lock --- */
@@ -641,6 +656,327 @@ const Estimating = (function () {
     });
   }
 
+  /* ── Edit Cost Item Widget ────────────────────────────────── */
+
+  const _ECI_UOM = ['EA','SF','LF','SQ','CY','MO','DY','HR','LS','LOT','ALLOW','BF'];
+
+  function _eciDivisions() {
+    const raw = AppData.tables['DB_Costbook'] || [];
+    const seen = new Map();
+    raw.forEach(r => {
+      const num  = String(r.Division_Number || '').trim();
+      const name = String(r.Division_Name   || '').trim();
+      if (num && name && !seen.has(num)) seen.set(num, name);
+    });
+    return [...seen.entries()].map(([num, name]) => ({ num, name }));
+  }
+
+  function _eciSubs(divNum) {
+    const raw = AppData.tables['DB_Costbook'] || [];
+    const seen = new Map();
+    raw.filter(r => String(r.Division_Number || '').trim() === divNum)
+       .forEach(r => {
+         const num  = String(r.Subdivision_Number || '').trim();
+         const name = String(r.Subdivision_Name   || '').trim();
+         if (num && name && !seen.has(num)) seen.set(num, name);
+       });
+    return [...seen.entries()].map(([num, name]) => ({ num, name }));
+  }
+
+  function _divOpts(divs, sel) {
+    return '<option value="">— select —</option>' +
+      divs.map(d => `<option value="${d.num}"${d.num === sel ? ' selected' : ''}>${d.name}</option>`).join('');
+  }
+
+  function _subOpts(subs, sel) {
+    if (!subs.length) return '<option value="">— select division first —</option>';
+    return '<option value="">— select —</option>' +
+      subs.map(s => `<option value="${s.num}"${s.num === sel ? ' selected' : ''}>${s.name}</option>`).join('');
+  }
+
+  function _eciAliasRowHTML(a) {
+    return `
+      <span class="eci-alias-cell">${a.divName}</span>
+      <span class="eci-alias-cell">${a.subName}</span>
+      <span class="eci-alias-cell">${a.description}</span>
+      <span class="eci-alias-cell muted">${a.specs || ''}</span>
+      <button class="eci-alias-remove" data-alias-id="${a.itemId || ''}" title="Remove alias">&#215;</button>`;
+  }
+
+  function _eciHTML(item, aliases) {
+    const divs    = _eciDivisions();
+    const subs    = _eciSubs(item.divNum);
+    const uomOpts = _ECI_UOM.map(u =>
+      `<option value="${u}"${u === item.uom ? ' selected' : ''}>${u}</option>`).join('');
+
+    const aliasRowsHTML = aliases.map(a => `
+      <div class="eci-alias-grid-row" data-alias-id="${a.itemId || ''}">
+        ${_eciAliasRowHTML(a)}
+      </div>`).join('');
+
+    const unitTotal = _unitCost(item);
+    const taxAmt    = (item.material || 0) * ((item.tax || 0) / 100);
+
+    return `
+      <div class="eci-widget">
+        <div class="eci-body">
+
+          <div class="eci-main">
+
+            <!-- Left: identity + costs -->
+            <div class="eci-left">
+
+              <div class="eci-row">
+                <span class="eci-label">Division</span>
+                <select class="eci-select eci-div-sel">${_divOpts(divs, item.divNum)}</select>
+              </div>
+              <div class="eci-row">
+                <span class="eci-label">Sub-Division</span>
+                <select class="eci-select eci-sub-sel">${_subOpts(subs, item.subNum)}</select>
+              </div>
+              <div class="eci-row">
+                <span class="eci-label">U/M</span>
+                <select class="eci-select eci-uom-sel">${uomOpts}</select>
+              </div>
+
+              <hr class="eci-rule">
+
+              <div class="eci-row">
+                <span class="eci-label">Material</span>
+                <div class="eci-material-row" style="flex:1;display:flex;gap:4px">
+                  <input class="eci-input eci-cost-input" type="number" min="0" step="0.01"
+                    data-field="material" value="${item.material || ''}" placeholder="0.00">
+                  <button class="btn-secondary cb-btn eci-formula-btn" title="Formula builder (coming soon)">ƒ</button>
+                </div>
+              </div>
+              <div class="eci-row">
+                <span class="eci-label">Labor</span>
+                <input class="eci-input eci-cost-input" type="number" min="0" step="0.01"
+                  data-field="labor" value="${item.labor || ''}" placeholder="0.00">
+              </div>
+              <div class="eci-row">
+                <span class="eci-label">Subcontractor</span>
+                <input class="eci-input eci-cost-input" type="number" min="0" step="0.01"
+                  data-field="sub" value="${item.sub || ''}" placeholder="0.00">
+              </div>
+              <div class="eci-row">
+                <span class="eci-label">Allowance</span>
+                <input class="eci-input eci-cost-input" type="number" min="0" step="0.01"
+                  data-field="allowance" value="${item.allowance || ''}" placeholder="0.00">
+              </div>
+              <div class="eci-row">
+                <span class="eci-label">Equipment</span>
+                <input class="eci-input eci-cost-input" type="number" min="0" step="0.01"
+                  data-field="equipment" value="${item.equipment || ''}" placeholder="0.00">
+              </div>
+              <div class="eci-row">
+                <span class="eci-label">Tax (%)</span>
+                <input class="eci-input eci-cost-input eci-tax-pct" type="number" min="0" max="100" step="0.01"
+                  data-field="tax" value="${item.tax || ''}" placeholder="0.00">
+              </div>
+
+              <div class="eci-total-row">
+                <span class="eci-label">Unit Cost</span>
+                <div class="eci-total-value">${_fmt(unitTotal + taxAmt)}</div>
+              </div>
+
+            </div>
+
+            <!-- Right: description + specs -->
+            <div class="eci-right">
+              <div>
+                <div class="eci-field-label">Item Description</div>
+                <textarea class="eci-textarea" data-field="description"
+                  style="height:90px" placeholder="Item description...">${(item.description || '').replace(/</g,'&lt;')}</textarea>
+              </div>
+              <div style="flex:1;display:flex;flex-direction:column">
+                <div class="eci-field-label">Item Specifications</div>
+                <textarea class="eci-textarea" data-field="specs"
+                  style="flex:1;min-height:80px" placeholder="Notes and specifications...">${(item.specs || '').replace(/</g,'&lt;')}</textarea>
+              </div>
+              <div style="font-size:10px;color:var(--color-ink-light);text-align:right;padding-top:2px">
+                ${item.itemId || 'New Item'}
+              </div>
+            </div>
+
+          </div><!-- /.eci-main -->
+
+          <!-- Aliases -->
+          <div class="eci-aliases-section">
+            <div class="eci-aliases-hdr">Aliases</div>
+            <div class="eci-alias-grid">
+              <div class="eci-alias-col-hdr">Division</div>
+              <div class="eci-alias-col-hdr">Sub-Division</div>
+              <div class="eci-alias-col-hdr">Description</div>
+              <div class="eci-alias-col-hdr">Item Specifications</div>
+              <div class="eci-alias-col-hdr"></div>
+              ${aliasRowsHTML}
+              <!-- Add-alias input row (hidden until button clicked) -->
+              <div class="eci-alias-add-row" style="display:contents;visibility:hidden">
+                <select class="eci-select eci-alias-div-sel" style="margin:3px 0">${_divOpts(divs, '')}</select>
+                <select class="eci-select eci-alias-sub-sel" style="margin:3px 0"><option value="">— select division —</option></select>
+                <input class="eci-input eci-alias-desc-inp" type="text" style="margin:3px 0" placeholder="Description (optional)">
+                <input class="eci-input eci-alias-specs-inp" type="text" style="margin:3px 0" placeholder="Specs (optional)">
+                <span></span>
+              </div>
+            </div>
+            <div class="eci-add-alias-btn-row">
+              <button class="btn-secondary cb-btn eci-add-alias-btn">+ Add Alias</button>
+              <button class="btn-primary cb-btn eci-confirm-alias-btn" style="display:none">Add</button>
+              <button class="btn-secondary cb-btn eci-cancel-alias-btn" style="display:none">Cancel</button>
+            </div>
+          </div>
+
+          <!-- Formula placeholder -->
+          <div class="eci-formula-bar">
+            <button class="btn-secondary cb-btn" disabled title="Formula builder — coming in a future update">ƒ Formula</button>
+            <span class="eci-formula-placeholder">Formula builder — coming soon</span>
+          </div>
+
+        </div><!-- /.eci-body -->
+
+        <div class="eci-footer">
+          <button class="btn-primary cb-btn eci-save-btn">Save</button>
+          <button class="btn-secondary cb-btn eci-copy-btn">Copy Item</button>
+          <div style="flex:1"></div>
+          <button class="btn-secondary cb-btn eci-cancel-btn">Cancel</button>
+        </div>
+
+      </div>`;
+  }
+
+  function _bindECI(wid, item) {
+    const el = document.getElementById(wid);
+    if (!el) return;
+
+    /* Live total recalculation */
+    function _recalc() {
+      const costs = ['labor','material','sub','allowance','equipment'];
+      let base = 0;
+      costs.forEach(f => {
+        const inp = el.querySelector(`.eci-cost-input[data-field="${f}"]`);
+        base += parseFloat(inp?.value) || 0;
+      });
+      const taxPct = parseFloat(el.querySelector('.eci-tax-pct')?.value) || 0;
+      const mat    = parseFloat(el.querySelector('.eci-cost-input[data-field="material"]')?.value) || 0;
+      const total  = base + (mat * taxPct / 100);
+      const tv = el.querySelector('.eci-total-value');
+      if (tv) tv.textContent = _fmt(total);
+    }
+
+    el.querySelectorAll('.eci-cost-input').forEach(inp => inp.addEventListener('input', _recalc));
+
+    /* Division → Subdivision cascade */
+    const divSel = el.querySelector('.eci-div-sel');
+    const subSel = el.querySelector('.eci-sub-sel');
+    divSel?.addEventListener('change', () => {
+      subSel.innerHTML = _subOpts(_eciSubs(divSel.value), '');
+    });
+
+    /* Formula button placeholder */
+    el.querySelector('.eci-formula-btn')?.addEventListener('click', () => {
+      /* TODO: open formula builder widget */
+    });
+
+    /* Alias: remove */
+    el.querySelector('.eci-alias-grid')?.addEventListener('click', e => {
+      const btn = e.target.closest('.eci-alias-remove');
+      if (!btn) return;
+      const row = btn.closest('.eci-alias-grid-row');
+      if (row) row.remove();
+    });
+
+    /* Alias: show add form */
+    const addBtn     = el.querySelector('.eci-add-alias-btn');
+    const confirmBtn = el.querySelector('.eci-confirm-alias-btn');
+    const cancelBtn  = el.querySelector('.eci-cancel-alias-btn');
+    const addRow     = el.querySelector('.eci-alias-add-row');
+
+    addBtn?.addEventListener('click', () => {
+      addRow.style.visibility = '';
+      addBtn.style.display    = 'none';
+      confirmBtn.style.display = '';
+      cancelBtn.style.display  = '';
+    });
+
+    cancelBtn?.addEventListener('click', () => {
+      addRow.style.visibility  = 'hidden';
+      addBtn.style.display     = '';
+      confirmBtn.style.display = 'none';
+      cancelBtn.style.display  = 'none';
+    });
+
+    /* Alias add form: division cascade */
+    const aliasDivSel = el.querySelector('.eci-alias-div-sel');
+    const aliasSubSel = el.querySelector('.eci-alias-sub-sel');
+    aliasDivSel?.addEventListener('change', () => {
+      aliasSubSel.innerHTML = _subOpts(_eciSubs(aliasDivSel.value), '');
+    });
+
+    /* Alias: confirm add */
+    confirmBtn?.addEventListener('click', () => {
+      const divNum  = aliasDivSel?.value;
+      const subNum  = aliasSubSel?.value;
+      if (!divNum || !subNum) return;
+      const divName  = aliasDivSel.options[aliasDivSel.selectedIndex]?.text || '';
+      const subName  = aliasSubSel.options[aliasSubSel.selectedIndex]?.text || '';
+      const desc     = el.querySelector('.eci-alias-desc-inp')?.value.trim() || item.description || '';
+      const specs    = el.querySelector('.eci-alias-specs-inp')?.value.trim() || '';
+
+      const row = document.createElement('div');
+      row.className = 'eci-alias-grid-row';
+      row.innerHTML = _eciAliasRowHTML({ divName, subName, description: desc, specs, itemId: '' });
+      addRow.parentElement.insertBefore(row, addRow);
+
+      /* Reset form */
+      el.querySelector('.eci-alias-desc-inp').value  = '';
+      el.querySelector('.eci-alias-specs-inp').value = '';
+      aliasDivSel.value = '';
+      aliasSubSel.innerHTML = '<option value="">— select division —</option>';
+      addRow.style.visibility  = 'hidden';
+      addBtn.style.display     = '';
+      confirmBtn.style.display = 'none';
+      cancelBtn.style.display  = 'none';
+    });
+
+    /* Footer */
+    el.querySelector('.eci-save-btn')?.addEventListener('click', () => {
+      /* TODO: persist to Sheets */
+      WidgetManager.close(wid);
+    });
+
+    el.querySelector('.eci-copy-btn')?.addEventListener('click', () => {
+      /* TODO: open new ECI pre-filled as copy */
+      WidgetManager.close(wid);
+    });
+
+    el.querySelector('.eci-cancel-btn')?.addEventListener('click', () => {
+      WidgetManager.close(wid);
+    });
+  }
+
+  function openEditCostItem(itemId) {
+    const raw      = AppData.tables['DB_Costbook'] || [];
+    const allItems = raw.filter(r => r.Item_Description).map(_mapRow);
+
+    let item = itemId ? allItems.find(i => i.itemId === itemId) : null;
+    if (!item) return;
+
+    /* Resolve alias → master */
+    if (item.masterItemId) {
+      item = allItems.find(i => i.itemId === item.masterItemId) || item;
+    }
+
+    const aliases = allItems.filter(i => i.masterItemId === item.itemId);
+
+    const wid = 'edit-cost-item';
+    if (WidgetManager.open(wid, 'Edit Cost Item', _eciHTML(item, aliases), {
+      width: 700, height: 660, category: 'estimating',
+    }) !== false) {
+      _bindECI(wid, item);
+    }
+  }
+
   /* ── Public: open costbook widget ────────────────────────── */
 
   async function openCostbook() {
@@ -659,6 +995,6 @@ const Estimating = (function () {
   }
 
   /* ── Public API ───────────────────────────────────────────── */
-  return { openCostbook };
+  return { openCostbook, openEditCostItem };
 
 }());

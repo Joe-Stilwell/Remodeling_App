@@ -2292,7 +2292,8 @@ body.is-dragging .widget {
   --cb-w-labor:  64px;
   --cb-w-mat:    68px;
   --cb-w-subc:   64px;
-  --cb-w-other:  58px;
+  --cb-w-equip:  58px;
+  --cb-w-allow:  62px;
   --cb-w-unit:   72px;
   --cb-w-specs: 160px;
 }
@@ -2303,7 +2304,8 @@ body.is-dragging .widget {
 .cb-col-labor,
 .cb-col-mat,
 .cb-col-subc,
-.cb-col-other,
+.cb-col-equip,
+.cb-col-allow,
 .cb-col-unit,
 .cb-col-specs {
   align-self: stretch;
@@ -2317,17 +2319,18 @@ body.is-dragging .widget {
 .cb-col-labor { justify-content: flex-end; padding-right: 6px; border-left: 1px solid var(--color-border-slate); }
 .cb-col-mat   { justify-content: flex-end; padding-right: 6px; border-left: 1px solid var(--color-border-slate); }
 .cb-col-subc  { justify-content: flex-end; padding-right: 6px; border-left: 1px solid var(--color-border-slate); }
-.cb-col-other { justify-content: flex-end; padding-right: 6px; border-left: 1px solid var(--color-border-slate); }
+.cb-col-equip { justify-content: flex-end; padding-right: 6px; border-left: 1px solid var(--color-border-slate); }
+.cb-col-allow { justify-content: flex-end; padding-right: 6px; border-left: 1px solid var(--color-border-slate); }
 .cb-col-unit  { justify-content: flex-end; padding-right: 6px; font-weight: 600; border-left: 1px solid var(--color-border-slate); }
 .cb-col-specs { border-left: 1px solid var(--color-border-slate); overflow: hidden; }
 
 /* Numeric columns are always white on div/sub/hdr rows — only the description area keeps the row color */
-:is(.cb-row-div, .cb-row-sub, .cb-row-hdr) :is(.cb-col-uom, .cb-col-labor, .cb-col-mat, .cb-col-subc, .cb-col-other, .cb-col-unit, .cb-col-specs) {
+:is(.cb-row-div, .cb-row-sub, .cb-row-hdr) :is(.cb-col-uom, .cb-col-labor, .cb-col-mat, .cb-col-subc, .cb-col-equip, .cb-col-allow, .cb-col-unit, .cb-col-specs) {
   background: white;
 }
 
 /* Center column labels in the header row */
-.cb-header :is(.cb-col-labor, .cb-col-mat, .cb-col-subc, .cb-col-other, .cb-col-unit) {
+.cb-header :is(.cb-col-labor, .cb-col-mat, .cb-col-subc, .cb-col-equip, .cb-col-allow, .cb-col-unit) {
   justify-content: center;
 }
 
@@ -2491,22 +2494,23 @@ body.is-dragging .widget {
   overflow: hidden;
 }
 
-/* Shared column grid — header and every row type use the same 11-column template */
+/* Shared column grid — header and every row type use the same 12-column template */
 .cb-header,
 .cb-row {
   display: grid;
   grid-template-columns:
-    22px                          /* col1: drag handle  */
-    24px                          /* col2: tag checkbox */
-    18px                          /* col3: expand icon  */
-    var(--cb-w-desc)              /* col4: description  */
-    var(--cb-w-uom)               /* col5: UofM         */
-    var(--cb-w-labor)             /* col6: Labor        */
-    var(--cb-w-mat)               /* col7: Material     */
-    var(--cb-w-subc)              /* col8: Sub          */
-    var(--cb-w-other)             /* col9: Other        */
-    var(--cb-w-unit)              /* col10: Unit Cost   */
-    minmax(var(--cb-w-specs), 1fr); /* col11: Specs — fills remaining space */
+    22px                          /* col1:  drag handle  */
+    24px                          /* col2:  tag checkbox */
+    18px                          /* col3:  expand icon  */
+    var(--cb-w-desc)              /* col4:  description  */
+    var(--cb-w-uom)               /* col5:  UofM         */
+    var(--cb-w-labor)             /* col6:  Labor        */
+    var(--cb-w-mat)               /* col7:  Material     */
+    var(--cb-w-subc)              /* col8:  Sub          */
+    var(--cb-w-equip)             /* col9:  Equipment    */
+    var(--cb-w-allow)             /* col10: Allowance    */
+    var(--cb-w-unit)              /* col11: Unit Cost    */
+    minmax(var(--cb-w-specs), 1fr); /* col12: Specs — fills remaining space */
   align-items: center;
   padding: 0 0 0 8px;  /* no right padding — last column fills to edge */
   box-sizing: border-box;
@@ -2657,7 +2661,7 @@ body.is-dragging .widget {
 .cb-hdr-input::placeholder { color: var(--color-ink-mid); font-weight: 400; font-style: italic; }
 
 /* Column dividers turn accent on row hover */
-.cb-row:hover :is(.cb-col-uom, .cb-col-labor, .cb-col-mat, .cb-col-subc, .cb-col-other, .cb-col-unit, .cb-col-specs) {
+.cb-row:hover :is(.cb-col-uom, .cb-col-labor, .cb-col-mat, .cb-col-subc, .cb-col-equip, .cb-col-allow, .cb-col-unit, .cb-col-specs) {
   border-left-color: var(--color-brand-accent);
 }
 
@@ -2699,6 +2703,279 @@ body.is-dragging .widget {
 .cb-row-dragging  { opacity: 0.35; }
 .cb-drop-before   { border-top: 2px solid var(--color-brand-orange) !important; }
 .cb-drop-after    { border-bottom: 2px solid var(--color-brand-orange) !important; }
+
+/* ── Edit Cost Item Widget ──────────────────────────────────── */
+
+.eci-widget {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.eci-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* Two-column main area */
+.eci-main {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+
+/* Left column: dropdowns + cost fields */
+.eci-left {
+  width: 270px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+/* Right column: description + specs */
+.eci-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Shared field row */
+.eci-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 24px;
+}
+
+.eci-label {
+  width: 96px;
+  font-size: 11px;
+  color: var(--color-ink-dark);
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.eci-input,
+.eci-select {
+  flex: 1;
+  height: 24px;
+  padding: 0 6px;
+  font-size: 12px;
+  border: 1px solid var(--color-border-slate);
+  border-radius: 3px;
+  background: white;
+  color: var(--color-ink-dark);
+  box-sizing: border-box;
+}
+
+.eci-select { padding: 0 4px; cursor: pointer; }
+
+.eci-input:focus,
+.eci-select:focus { outline: none; border-color: var(--color-brand-primary); }
+
+/* Numeric cost inputs — right-aligned */
+.eci-cost-input {
+  text-align: right;
+}
+
+/* Divider between identity fields and cost fields */
+.eci-rule {
+  border: none;
+  border-top: 1px solid var(--color-border-slate);
+  margin: 4px 0;
+}
+
+/* Material row: input + formula button inline */
+.eci-material-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.eci-material-row .eci-input { flex: 1; }
+
+.eci-formula-btn {
+  height: 24px;
+  width: 28px;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 600;
+  font-style: italic;
+  color: var(--color-ink-light);
+  flex-shrink: 0;
+}
+
+.eci-formula-btn:hover { color: var(--color-brand-primary); border-color: var(--color-brand-primary); }
+
+/* Total Unit Cost row */
+.eci-total-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-top: 2px solid var(--color-brand-primary);
+  padding-top: 5px;
+  margin-top: 2px;
+}
+
+.eci-total-value {
+  flex: 1;
+  height: 24px;
+  padding: 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-brand-primary);
+  background: var(--color-brand-tint);
+  border: 1px solid var(--color-border-slate);
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  pointer-events: none;
+}
+
+/* Right column labels */
+.eci-field-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-brand-primary);
+  margin-bottom: 2px;
+}
+
+.eci-textarea {
+  width: 100%;
+  padding: 5px 7px;
+  font-size: 12px;
+  border: 1px solid var(--color-border-slate);
+  border-radius: 3px;
+  resize: none;
+  font-family: inherit;
+  color: var(--color-ink-dark);
+  box-sizing: border-box;
+  flex: 1;
+}
+
+.eci-textarea:focus { outline: none; border-color: var(--color-brand-primary); }
+
+/* Aliases section */
+.eci-aliases-section {
+  border-top: 1px solid var(--color-border-slate);
+  padding-top: 8px;
+}
+
+.eci-aliases-hdr {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-brand-primary);
+  border-bottom: 1px solid var(--color-brand-primary);
+  padding-bottom: 2px;
+  margin-bottom: 4px;
+}
+
+/* Alias grid: Division | Sub-Division | Description | Item Specs | × */
+.eci-alias-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr 22px;
+  gap: 0 6px;
+}
+
+.eci-alias-col-hdr {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--color-ink-mid);
+  padding: 2px 0 3px;
+  border-bottom: 1px solid var(--color-border-slate);
+  margin-bottom: 1px;
+}
+
+.eci-alias-col-hdr:last-child { border: none; }
+
+.eci-alias-cell {
+  font-size: 12px;
+  color: var(--color-ink-dark);
+  padding: 3px 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--color-border-slate);
+  align-self: center;
+}
+
+.eci-alias-cell.muted { color: var(--color-ink-mid); }
+
+.eci-alias-remove {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  line-height: 1;
+  color: var(--color-ink-light);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  border-radius: 3px;
+  align-self: center;
+  border-bottom: 1px solid var(--color-border-slate);
+}
+
+.eci-alias-remove:hover { color: var(--color-danger); background: #fee2e2; }
+
+/* Add-alias input row — shown when form is open */
+.eci-alias-add-row {
+  display: contents; /* participates in same grid as alias rows */
+}
+
+.eci-alias-add-row .eci-select,
+.eci-alias-add-row .eci-input {
+  height: 22px;
+  font-size: 11px;
+  margin: 3px 0;
+}
+
+.eci-add-alias-btn-row {
+  padding-top: 5px;
+}
+
+/* Formula placeholder bar */
+.eci-formula-bar {
+  border-top: 1px solid var(--color-border-slate);
+  margin-top: 8px;
+  padding: 7px 0 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.eci-formula-placeholder {
+  font-size: 11px;
+  color: var(--color-ink-light);
+  font-style: italic;
+}
+
+/* Footer */
+.eci-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-top: 2px solid var(--color-border-slate);
+  background: var(--color-brand-tint);
+  flex-shrink: 0;
+}
 
 /* --- Status Bar --- */
 .status-bar {
