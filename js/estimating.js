@@ -113,21 +113,20 @@ const Estimating = (function () {
       laborHours:  parseFloat(row.Labor_Hours)       || 0,
       masterItemId: String(row.Master_Item_ID || '').trim(),
       specs:       String(row.Item_Specifications || '').trim(),
-      // Adjustment % per cost type (columns pending in sheet)
-      adjMaterial:  parseFloat(row.Adj_Material)   || 0,
-      adjLabor:     parseFloat(row.Adj_Labor)      || 0,
-      adjSub:       parseFloat(row.Adj_Sub)        || 0,
-      adjEquipment: parseFloat(row.Adj_Equipment)  || 0,
-      adjOther:     parseFloat(row.Adj_Other)      || 0,
+      // Waste factor % per cost type (columns pending in sheet)
+      wasteMaterial:  parseFloat(row.Waste_Material)  || 0,
+      wasteLabor:     parseFloat(row.Waste_Labor)     || 0,
+      wasteSub:       parseFloat(row.Waste_Sub)       || 0,
+      wasteEquipment: parseFloat(row.Waste_Equipment) || 0,
+      wasteOther:     parseFloat(row.Waste_Other)     || 0,
       // Is_Allowance flags per cost type (columns pending in sheet)
       allowMaterial:  _truthy(row.Allow_Material),
       allowLabor:     _truthy(row.Allow_Labor),
       allowSub:       _truthy(row.Allow_Sub),
       allowEquipment: _truthy(row.Allow_Equipment),
       allowOther:     _truthy(row.Allow_Other),
-      // Waste and Tax % (columns pending in sheet)
-      waste: parseFloat(row.Waste_Pct) || 0,
-      tax:   parseFloat(row.Tax_Pct)   || 0,
+      // Tax % — applies to Material only (columns pending in sheet)
+      tax: parseFloat(row.Tax_Pct) || 0,
       // Vendor and archived state (columns pending in sheet)
       vendor:     String(row.Preferred_Vendor || '').trim(),
       isArchived: _truthy(row.Is_Archived),
@@ -153,14 +152,14 @@ const Estimating = (function () {
     return (item.labor || 0) + (item.material || 0) + (item.sub || 0) + (item.equipment || 0) + (item.other || 0);
   }
 
-  /* Full unit cost with Waste %, Tax %, and Adj % per cost type — used in ECI */
+  /* Full unit cost with per-row waste factor and Tax % on material — used in ECI */
   function _eciCalcTotal(item) {
-    const mat = (item.material  || 0) * (1 + (item.waste       || 0) / 100) * (1 + (item.adjMaterial  || 0) / 100);
+    const mat = (item.material  || 0) * (1 + (item.wasteMaterial  || 0) / 100);
     const tax = mat * ((item.tax || 0) / 100);
-    const lab = (item.labor     || 0) * (1 + (item.adjLabor    || 0) / 100);
-    const sub = (item.sub       || 0) * (1 + (item.adjSub      || 0) / 100);
-    const eqp = (item.equipment || 0) * (1 + (item.adjEquipment|| 0) / 100);
-    const oth = (item.other     || 0) * (1 + (item.adjOther    || 0) / 100);
+    const lab = (item.labor     || 0) * (1 + (item.wasteLabor     || 0) / 100);
+    const sub = (item.sub       || 0) * (1 + (item.wasteSub       || 0) / 100);
+    const eqp = (item.equipment || 0) * (1 + (item.wasteEquipment || 0) / 100);
+    const oth = (item.other     || 0) * (1 + (item.wasteOther     || 0) / 100);
     return mat + tax + lab + sub + eqp + oth;
   }
 
@@ -752,163 +751,129 @@ const Estimating = (function () {
       </div>`).join('');
 
     const unitTotal = _eciCalcTotal(item);
+    function cb(val) { return val ? ' checked' : ''; }
+    function nv(n)   { return n   ? n          : ''; }
 
-    function cb(field, val) { return val ? ` checked` : ''; }
-    function nv(n) { return n ? n : ''; }
+    /* Helper: one cost row — cost input | waste input | allow checkbox | formula btn or spacer */
+    function costRow(label, costField, wasteField, allowField, hasFormula) {
+      return `
+        <span class="eci-cost-label">${label}</span>
+        <input class="eci-input eci-cost-input" type="number" min="0" step="0.01"
+          data-field="${costField}" value="${nv(item[costField])}" placeholder="0.00">
+        <input class="eci-waste-inp" type="number" min="-100" step="0.1"
+          data-field="${wasteField}" value="${nv(item[wasteField])}" placeholder="">
+        <input type="checkbox" class="eci-allow-cb" data-field="${allowField}"${cb(item[allowField])}>
+        ${hasFormula
+          ? `<button class="btn-secondary cb-btn eci-formula-btn" title="Formula builder (coming soon)">ƒ</button>`
+          : '<span></span>'}`;
+    }
 
     return `
       <div class="eci-widget">
 
-        <!-- Toolbar -->
+        <!-- Toolbar: Add New | Copy | Save & New | Archive — Prev Item | Next Item (locked right) -->
         <div class="eci-toolbar">
           <button class="btn-secondary cb-btn eci-new-btn">Add New</button>
           <button class="btn-secondary cb-btn eci-copy-btn">Copy</button>
-          <button class="btn-secondary cb-btn eci-delete-btn">Delete</button>
-          <div class="eci-tb-gap"></div>
-          <button class="btn-secondary cb-btn eci-prev-btn">&#8249; Prev</button>
-          <button class="btn-secondary cb-btn eci-next-btn">Next &#8250;</button>
-          <div class="eci-tb-gap"></div>
           <button class="btn-primary cb-btn eci-save-new-btn">Save &amp; New</button>
-          <button class="btn-primary cb-btn eci-save-close-btn">Save &amp; Close</button>
-          <button class="btn-secondary cb-btn eci-cancel-btn">Cancel</button>
+          <label class="eci-archive-label">
+            Archive <input type="checkbox" class="eci-active-cb" data-field="isArchived"${cb(item.isArchived)}>
+          </label>
+          <div class="eci-tb-right">
+            <button class="btn-secondary cb-btn eci-prev-btn">&#8249; Prev Item</button>
+            <button class="btn-secondary cb-btn eci-next-btn">Next Item &#8250;</button>
+          </div>
         </div>
 
         <div class="eci-body">
 
-          <div class="eci-main">
+          <!-- Top: identity (left) + costs (right) -->
+          <div class="eci-top-row">
 
-            <!-- Left: identity + costs -->
-            <div class="eci-left">
-
+            <!-- Identity column -->
+            <div class="eci-identity">
               <div class="eci-row">
                 <span class="eci-label">Division</span>
-                <select class="eci-select eci-div-sel" style="flex:none;width:150px">${_divOpts(divs, item.divNum)}</select>
+                <select class="eci-select eci-div-sel">${_divOpts(divs, item.divNum)}</select>
               </div>
               <div class="eci-row">
                 <span class="eci-label">Sub-Division</span>
-                <select class="eci-select eci-sub-sel" style="flex:none;width:150px">${_subOpts(subs, item.subNum)}</select>
+                <select class="eci-select eci-sub-sel">${_subOpts(subs, item.subNum)}</select>
               </div>
               <div class="eci-row">
                 <span class="eci-label">U/M</span>
                 <select class="eci-select eci-uom-sel" style="flex:none;width:54px">${uomOpts}</select>
               </div>
               <div class="eci-row">
-                <span class="eci-label">Labor Hrs / U/M</span>
+                <span class="eci-label">Hours / U/M</span>
                 <input class="eci-input eci-cost-input" type="number" min="0" step="0.01"
-                  style="flex:none;width:68px"
+                  style="flex:none;width:54px"
                   data-field="laborHours" value="${nv(item.laborHours)}" placeholder="0.00">
               </div>
               <div class="eci-row">
-                <span class="eci-label">Vendor</span>
-                <input class="eci-input" type="text"
-                  style="flex:none;width:150px"
+                <span class="eci-label">Pref. Vendor</span>
+                <input class="eci-input eci-vendor-inp" type="text"
                   data-field="vendor" value="${(item.vendor || '').replace(/"/g, '&quot;')}" placeholder="Supplier...">
               </div>
               <div class="eci-row">
-                <span class="eci-label">Archived</span>
-                <input type="checkbox" class="eci-active-cb" data-field="isArchived" ${item.isArchived ? 'checked' : ''}>
+                <span class="eci-label">Date Created</span>
+                <span class="eci-date-val">${item.dateCreated || '—'}</span>
               </div>
+              <div class="eci-row">
+                <span class="eci-label">Last Modified</span>
+                <span class="eci-date-val">${item.dateModified || '—'}</span>
+              </div>
+            </div><!-- /.eci-identity -->
 
-              <hr class="eci-rule">
+            <!-- Costs column -->
+            <div class="eci-costs">
+              <div class="eci-item-id">${item.itemId || 'New Item'}</div>
 
-              <!-- Cost grid: label | Unit Cost | Adj % | Allow | ƒ -->
+              <!-- Cost grid header row -->
               <div class="eci-cost-grid">
                 <span></span>
-                <span class="eci-cost-col-hdr" style="text-align:right;padding-right:2px">Unit Cost</span>
-                <span class="eci-cost-col-hdr" style="text-align:center">Adj %</span>
+                <span></span>
+                <span class="eci-cost-col-hdr" style="text-align:center">Waste<br>Factor</span>
                 <span class="eci-cost-col-hdr" style="text-align:center">Allow</span>
-                <span class="eci-cost-col-hdr" style="text-align:center">ƒ</span>
-
-                <!-- Material -->
-                <span class="eci-cost-label">Material</span>
-                <input class="eci-input eci-cost-input" type="number" min="0" step="0.01"
-                  data-field="material" value="${nv(item.material)}" placeholder="0.00">
-                <input class="eci-adj-inp" type="number" min="-100" step="0.1"
-                  data-field="adj_material" value="${nv(item.adjMaterial)}" placeholder="0">
-                <input type="checkbox" class="eci-allow-cb" data-field="allow_material"${cb('allow_material', item.allowMaterial)}>
-                <button class="btn-secondary cb-btn eci-formula-btn" title="Formula builder (coming soon)">ƒ</button>
-
-                <!-- Labor -->
-                <span class="eci-cost-label">Labor</span>
-                <input class="eci-input eci-cost-input" type="number" min="0" step="0.01"
-                  data-field="labor" value="${nv(item.labor)}" placeholder="0.00">
-                <input class="eci-adj-inp" type="number" min="-100" step="0.1"
-                  data-field="adj_labor" value="${nv(item.adjLabor)}" placeholder="0">
-                <input type="checkbox" class="eci-allow-cb" data-field="allow_labor"${cb('allow_labor', item.allowLabor)}>
                 <span></span>
 
-                <!-- Subcontractor -->
-                <span class="eci-cost-label">Subcontractor</span>
-                <input class="eci-input eci-cost-input" type="number" min="0" step="0.01"
-                  data-field="sub" value="${nv(item.sub)}" placeholder="0.00">
-                <input class="eci-adj-inp" type="number" min="-100" step="0.1"
-                  data-field="adj_sub" value="${nv(item.adjSub)}" placeholder="0">
-                <input type="checkbox" class="eci-allow-cb" data-field="allow_sub"${cb('allow_sub', item.allowSub)}>
-                <span></span>
+                ${costRow('Material',     'material',  'wasteMaterial',  'allowMaterial',  true)}
+                ${costRow('Labor',        'labor',     'wasteLabor',     'allowLabor',     true)}
+                ${costRow('Subcontractor','sub',       'wasteSub',       'allowSub',       true)}
+                ${costRow('Equipment',    'equipment', 'wasteEquipment', 'allowEquipment', false)}
+                ${costRow('Other',        'other',     'wasteOther',     'allowOther',     false)}
 
-                <!-- Equipment -->
-                <span class="eci-cost-label">Equipment</span>
-                <input class="eci-input eci-cost-input" type="number" min="0" step="0.01"
-                  data-field="equipment" value="${nv(item.equipment)}" placeholder="0.00">
-                <input class="eci-adj-inp" type="number" min="-100" step="0.1"
-                  data-field="adj_equipment" value="${nv(item.adjEquipment)}" placeholder="0">
-                <input type="checkbox" class="eci-allow-cb" data-field="allow_equipment"${cb('allow_equipment', item.allowEquipment)}>
-                <span></span>
-
-                <!-- Other -->
-                <span class="eci-cost-label">Other</span>
-                <input class="eci-input eci-cost-input" type="number" min="0" step="0.01"
-                  data-field="other" value="${nv(item.other)}" placeholder="0.00">
-                <input class="eci-adj-inp" type="number" min="-100" step="0.1"
-                  data-field="adj_other" value="${nv(item.adjOther)}" placeholder="0">
-                <input type="checkbox" class="eci-allow-cb" data-field="allow_other"${cb('allow_other', item.allowOther)}>
-                <span></span>
-              </div>
-
-              <hr class="eci-rule">
-
-              <div class="eci-row">
-                <span class="eci-label">Tax % (Mat)</span>
+                <!-- Tax: cost input only, no waste/allow/formula -->
+                <span class="eci-cost-label">Tax</span>
                 <input class="eci-input eci-cost-input eci-tax-pct" type="number" min="0" max="100" step="0.01"
-                  style="flex:none;width:84px"
                   data-field="tax" value="${nv(item.tax)}" placeholder="0.00">
-              </div>
-              <div class="eci-row">
-                <span class="eci-label">Waste % (Mat)</span>
-                <input class="eci-input eci-cost-input eci-waste-pct" type="number" min="0" step="0.01"
-                  style="flex:none;width:84px"
-                  data-field="waste" value="${nv(item.waste)}" placeholder="0.00">
+                <span></span><span></span><span></span>
               </div>
 
+              <!-- Total Unit Cost -->
               <div class="eci-total-row">
                 <span class="eci-label">Unit Cost</span>
                 <div class="eci-total-value">${_fmt(unitTotal) || '0.00'}</div>
               </div>
+            </div><!-- /.eci-costs -->
 
-            </div><!-- /.eci-left -->
+          </div><!-- /.eci-top-row -->
 
-            <!-- Right: description + specs + item ID + dates -->
-            <div class="eci-right">
-              <div style="font-size:10px;color:var(--color-ink-light);text-align:right;margin-bottom:2px">
-                ${item.itemId || 'New Item'}
-              </div>
-              <div style="display:flex;flex-direction:column;gap:2px">
-                <div class="eci-field-label">Item Description</div>
-                <textarea class="eci-textarea" data-field="description"
-                  rows="3" placeholder="Item description...">${(item.description || '').replace(/</g, '&lt;')}</textarea>
-              </div>
-              <div style="flex:1;display:flex;flex-direction:column;gap:2px">
-                <div class="eci-field-label">Item Specifications</div>
-                <textarea class="eci-textarea" style="flex:1;min-height:100px" data-field="specs"
-                  placeholder="Notes and specifications...">${(item.specs || '').replace(/</g, '&lt;')}</textarea>
-              </div>
-              <div class="eci-dates-row">
-                <span>Created: ${item.dateCreated || '—'}</span>
-                <span>Modified: ${item.dateModified || '—'}</span>
-              </div>
-            </div><!-- /.eci-right -->
+          <hr class="eci-sep">
 
-          </div><!-- /.eci-main -->
+          <!-- Description + Specs side by side -->
+          <div class="eci-desc-row">
+            <div class="eci-desc-col">
+              <div class="eci-field-label">Item Description</div>
+              <textarea class="eci-textarea" data-field="description"
+                rows="3" placeholder="Item description...">${(item.description || '').replace(/</g, '&lt;')}</textarea>
+            </div>
+            <div class="eci-desc-col">
+              <div class="eci-field-label">Detailed Specifications</div>
+              <textarea class="eci-textarea" data-field="specs"
+                rows="3" placeholder="Notes and specifications...">${(item.specs || '').replace(/</g, '&lt;')}</textarea>
+            </div>
+          </div>
 
           <!-- Aliases -->
           <div class="eci-aliases-section">
@@ -917,10 +882,10 @@ const Estimating = (function () {
               <div class="eci-alias-col-hdr">Division</div>
               <div class="eci-alias-col-hdr">Sub-Division</div>
               <div class="eci-alias-col-hdr">Description</div>
-              <div class="eci-alias-col-hdr">Item Specifications</div>
+              <div class="eci-alias-col-hdr">Specifications</div>
               <div class="eci-alias-col-hdr"></div>
               ${aliasRowsHTML}
-              <div class="eci-alias-add-row" style="display:contents;visibility:hidden">
+              <div class="eci-alias-add-row" style="display:none">
                 <select class="eci-select eci-alias-div-sel" style="margin:3px 0">${_divOpts(divs, '')}</select>
                 <select class="eci-select eci-alias-sub-sel" style="margin:3px 0"><option value="">— select division —</option></select>
                 <input class="eci-input eci-alias-desc-inp" type="text" style="margin:3px 0" placeholder="Description (optional)">
@@ -943,6 +908,15 @@ const Estimating = (function () {
 
         </div><!-- /.eci-body -->
 
+        <!-- Footer: Delete (left) | Cancel | Save & Close (locked right) -->
+        <div class="eci-footer">
+          <button class="btn-secondary cb-btn eci-delete-btn">Delete</button>
+          <div class="eci-footer-right">
+            <button class="btn-secondary cb-btn eci-cancel-btn">Cancel</button>
+            <button class="btn-primary cb-btn eci-save-close-btn">Save &amp; Close</button>
+          </div>
+        </div>
+
       </div>`;
   }
 
@@ -953,23 +927,30 @@ const Estimating = (function () {
     /* Live total recalculation — mirrors _eciCalcTotal but reads from DOM */
     function _recalc() {
       const v = f => parseFloat(el.querySelector(`.eci-cost-input[data-field="${f}"]`)?.value) || 0;
-      const a = f => parseFloat(el.querySelector(`.eci-adj-inp[data-field="${f}"]`)?.value) || 0;
-      const waste  = parseFloat(el.querySelector('.eci-waste-pct')?.value) || 0;
-      const taxPct = parseFloat(el.querySelector('.eci-tax-pct')?.value)   || 0;
-      const mat = v('material') * (1 + waste / 100) * (1 + a('adj_material') / 100);
+      const w = f => parseFloat(el.querySelector(`.eci-waste-inp[data-field="${f}"]`)?.value) || 0;
+      const taxPct = parseFloat(el.querySelector('.eci-tax-pct')?.value) || 0;
+      const mat = v('material') * (1 + w('wasteMaterial') / 100);
       const tax = mat * (taxPct / 100);
       const total = mat + tax
-        + v('labor')     * (1 + a('adj_labor')     / 100)
-        + v('sub')       * (1 + a('adj_sub')       / 100)
-        + v('equipment') * (1 + a('adj_equipment') / 100)
-        + v('other')     * (1 + a('adj_other')     / 100);
+        + v('labor')     * (1 + w('wasteLabor')     / 100)
+        + v('sub')       * (1 + w('wasteSub')       / 100)
+        + v('equipment') * (1 + w('wasteEquipment') / 100)
+        + v('other')     * (1 + w('wasteOther')     / 100);
       const tv = el.querySelector('.eci-total-value');
       if (tv) tv.textContent = _fmt(total) || '0.00';
     }
 
-    el.querySelectorAll('.eci-cost-input, .eci-adj-inp, .eci-tax-pct, .eci-waste-pct')
+    el.querySelectorAll('.eci-cost-input, .eci-waste-inp, .eci-tax-pct')
       .forEach(inp => inp.addEventListener('input', _recalc));
 
+
+    /* Auto-expanding textareas */
+    el.querySelectorAll('.eci-textarea').forEach(ta => {
+      ta.addEventListener('input', function () {
+        this.style.overflowY = this.scrollHeight > this.clientHeight ? 'auto' : 'hidden';
+      });
+      new ResizeObserver(() => WidgetManager.resizeToContent(wid)).observe(ta);
+    });
 
     /* Division → Subdivision cascade */
     const divSel = el.querySelector('.eci-div-sel');
@@ -995,7 +976,7 @@ const Estimating = (function () {
     const addRow     = el.querySelector('.eci-alias-add-row');
 
     function _showAliasForm(show) {
-      addRow.style.visibility  = show ? '' : 'hidden';
+      addRow.style.display     = show ? 'contents' : 'none';
       addBtn.style.display     = show ? 'none' : '';
       confirmBtn.style.display = show ? '' : 'none';
       cancelBtn.style.display  = show ? '' : 'none';
@@ -1092,7 +1073,7 @@ const Estimating = (function () {
 
     const wid = 'edit-cost-item';
     if (WidgetManager.open(wid, 'Edit Cost Item', _eciHTML(item, aliases), {
-      width: 760, height: 680, category: 'estimating',
+      width: 550, height: 650, category: 'estimating',
     }) !== false) {
       _bindECI(wid, item, allItems);
     }
