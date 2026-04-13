@@ -2293,7 +2293,7 @@ body.is-dragging .widget {
   --cb-w-mat:    68px;
   --cb-w-subc:   64px;
   --cb-w-equip:  58px;
-  --cb-w-allow:  62px;
+  --cb-w-other:  58px;
   --cb-w-unit:   72px;
   --cb-w-specs: 160px;
 }
@@ -2305,7 +2305,7 @@ body.is-dragging .widget {
 .cb-col-mat,
 .cb-col-subc,
 .cb-col-equip,
-.cb-col-allow,
+.cb-col-other,
 .cb-col-unit,
 .cb-col-specs {
   align-self: stretch;
@@ -2320,17 +2320,17 @@ body.is-dragging .widget {
 .cb-col-mat   { justify-content: flex-end; padding-right: 6px; border-left: 1px solid var(--color-border-slate); }
 .cb-col-subc  { justify-content: flex-end; padding-right: 6px; border-left: 1px solid var(--color-border-slate); }
 .cb-col-equip { justify-content: flex-end; padding-right: 6px; border-left: 1px solid var(--color-border-slate); }
-.cb-col-allow { justify-content: flex-end; padding-right: 6px; border-left: 1px solid var(--color-border-slate); }
+.cb-col-other { justify-content: flex-end; padding-right: 6px; border-left: 1px solid var(--color-border-slate); }
 .cb-col-unit  { justify-content: flex-end; padding-right: 6px; font-weight: 600; border-left: 1px solid var(--color-border-slate); }
 .cb-col-specs { border-left: 1px solid var(--color-border-slate); overflow: hidden; }
 
 /* Numeric columns are always white on div/sub/hdr rows — only the description area keeps the row color */
-:is(.cb-row-div, .cb-row-sub, .cb-row-hdr) :is(.cb-col-uom, .cb-col-labor, .cb-col-mat, .cb-col-subc, .cb-col-equip, .cb-col-allow, .cb-col-unit, .cb-col-specs) {
+:is(.cb-row-div, .cb-row-sub, .cb-row-hdr) :is(.cb-col-uom, .cb-col-labor, .cb-col-mat, .cb-col-subc, .cb-col-equip, .cb-col-other, .cb-col-unit, .cb-col-specs) {
   background: white;
 }
 
 /* Center column labels in the header row */
-.cb-header :is(.cb-col-labor, .cb-col-mat, .cb-col-subc, .cb-col-equip, .cb-col-allow, .cb-col-unit) {
+.cb-header :is(.cb-col-labor, .cb-col-mat, .cb-col-subc, .cb-col-equip, .cb-col-other, .cb-col-unit) {
   justify-content: center;
 }
 
@@ -2508,7 +2508,7 @@ body.is-dragging .widget {
     var(--cb-w-mat)               /* col7:  Material     */
     var(--cb-w-subc)              /* col8:  Sub          */
     var(--cb-w-equip)             /* col9:  Equipment    */
-    var(--cb-w-allow)             /* col10: Allowance    */
+    var(--cb-w-other)             /* col10: Other        */
     var(--cb-w-unit)              /* col11: Unit Cost    */
     minmax(var(--cb-w-specs), 1fr); /* col12: Specs — fills remaining space */
   align-items: center;
@@ -2661,7 +2661,7 @@ body.is-dragging .widget {
 .cb-hdr-input::placeholder { color: var(--color-ink-mid); font-weight: 400; font-style: italic; }
 
 /* Column dividers turn accent on row hover */
-.cb-row:hover :is(.cb-col-uom, .cb-col-labor, .cb-col-mat, .cb-col-subc, .cb-col-equip, .cb-col-allow, .cb-col-unit, .cb-col-specs) {
+.cb-row:hover :is(.cb-col-uom, .cb-col-labor, .cb-col-mat, .cb-col-subc, .cb-col-equip, .cb-col-other, .cb-col-unit, .cb-col-specs) {
   border-left-color: var(--color-brand-accent);
 }
 
@@ -2713,10 +2713,23 @@ body.is-dragging .widget {
   overflow: hidden;
 }
 
+/* Toolbar — action buttons across the top */
+.eci-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  background: var(--color-brand-tint);
+  border-bottom: 1px solid var(--color-border-slate);
+  flex-shrink: 0;
+}
+
+.eci-tb-gap { flex: 1; }
+
 .eci-body {
   flex: 1;
   overflow-y: auto;
-  padding: 12px 14px;
+  padding: 10px 14px;
   display: flex;
   flex-direction: column;
   gap: 0;
@@ -2731,11 +2744,11 @@ body.is-dragging .widget {
 
 /* Left column: dropdowns + cost fields */
 .eci-left {
-  width: 270px;
+  width: 310px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 4px;
 }
 
 /* Right column: description + specs */
@@ -2743,10 +2756,11 @@ body.is-dragging .widget {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
+  min-width: 0;
 }
 
-/* Shared field row */
+/* Shared field row (Division, Sub-Division, U/M, Tax, Waste) */
 .eci-row {
   display: flex;
   align-items: center;
@@ -2755,7 +2769,7 @@ body.is-dragging .widget {
 }
 
 .eci-label {
-  width: 96px;
+  width: 106px;
   font-size: 11px;
   color: var(--color-ink-dark);
   text-align: right;
@@ -2781,26 +2795,49 @@ body.is-dragging .widget {
 .eci-select:focus { outline: none; border-color: var(--color-brand-primary); }
 
 /* Numeric cost inputs — right-aligned */
-.eci-cost-input {
-  text-align: right;
-}
+.eci-cost-input { text-align: right; }
 
-/* Divider between identity fields and cost fields */
+/* Divider */
 .eci-rule {
   border: none;
   border-top: 1px solid var(--color-border-slate);
-  margin: 4px 0;
+  margin: 3px 0;
 }
 
-/* Material row: input + formula button inline */
-.eci-material-row {
-  display: flex;
+/* Cost grid — 5 columns: label | unit cost | adj% | allow cb | ƒ btn */
+.eci-cost-grid {
+  display: grid;
+  grid-template-columns: 106px 84px 52px 22px 28px;
+  gap: 3px 4px;
   align-items: center;
-  gap: 6px;
 }
 
-.eci-material-row .eci-input { flex: 1; }
+/* Inputs inside the cost grid fill their column cell */
+.eci-cost-grid .eci-input,
+.eci-cost-grid .eci-adj-inp {
+  width: 100%;
+  flex: none;
+}
 
+/* Small column headers for the cost grid */
+.eci-cost-col-hdr {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-ink-mid);
+  padding-bottom: 1px;
+}
+
+/* Cost row label (inside grid) */
+.eci-cost-label {
+  font-size: 11px;
+  color: var(--color-ink-dark);
+  text-align: right;
+  padding-right: 0;
+}
+
+/* Formula button — col 3 of cost grid (Material row only) */
 .eci-formula-btn {
   height: 24px;
   width: 28px;
@@ -2811,8 +2848,31 @@ body.is-dragging .widget {
   color: var(--color-ink-light);
   flex-shrink: 0;
 }
-
 .eci-formula-btn:hover { color: var(--color-brand-primary); border-color: var(--color-brand-primary); }
+
+/* Allow checkbox — col 4 of cost grid */
+.eci-allow-cb {
+  justify-self: center;
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+  accent-color: var(--color-brand-primary);
+}
+
+/* Adj% input — col 5 of cost grid */
+.eci-adj-inp {
+  height: 24px;
+  padding: 0 4px;
+  font-size: 11px;
+  text-align: right;
+  border: 1px solid var(--color-border-slate);
+  border-radius: 3px;
+  background: white;
+  color: var(--color-ink-dark);
+  box-sizing: border-box;
+  width: 100%;
+}
+.eci-adj-inp:focus { outline: none; border-color: var(--color-brand-primary); }
 
 /* Total Unit Cost row */
 .eci-total-row {
@@ -2820,7 +2880,7 @@ body.is-dragging .widget {
   align-items: center;
   gap: 6px;
   border-top: 2px solid var(--color-brand-primary);
-  padding-top: 5px;
+  padding-top: 4px;
   margin-top: 2px;
 }
 
@@ -2840,7 +2900,7 @@ body.is-dragging .widget {
   pointer-events: none;
 }
 
-/* Right column labels */
+/* Right column section label */
 .eci-field-label {
   font-size: 10px;
   font-weight: 700;
@@ -2860,10 +2920,32 @@ body.is-dragging .widget {
   font-family: inherit;
   color: var(--color-ink-dark);
   box-sizing: border-box;
-  flex: 1;
 }
 
 .eci-textarea:focus { outline: none; border-color: var(--color-brand-primary); }
+
+/* Archived checkbox */
+.eci-active-cb {
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+  accent-color: var(--color-brand-primary);
+  flex-shrink: 0;
+}
+
+.eci-active-cb:checked {
+  accent-color: var(--color-danger);
+}
+
+/* Dates row — bottom of right column */
+.eci-dates-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--color-ink-mid);
+  padding-top: 2px;
+  flex-shrink: 0;
+}
 
 /* Aliases section */
 .eci-aliases-section {
@@ -2936,7 +3018,7 @@ body.is-dragging .widget {
 
 /* Add-alias input row — shown when form is open */
 .eci-alias-add-row {
-  display: contents; /* participates in same grid as alias rows */
+  display: contents;
 }
 
 .eci-alias-add-row .eci-select,
@@ -2964,17 +3046,6 @@ body.is-dragging .widget {
   font-size: 11px;
   color: var(--color-ink-light);
   font-style: italic;
-}
-
-/* Footer */
-.eci-footer {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 14px;
-  border-top: 2px solid var(--color-border-slate);
-  background: var(--color-brand-tint);
-  flex-shrink: 0;
 }
 
 /* --- Status Bar --- */
