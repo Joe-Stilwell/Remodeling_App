@@ -51,6 +51,8 @@ const WidgetManager = (function () {
     }
 
     widget.style.cssText = `width:${w}px; height:${autoHeight ? workspace.clientHeight + 'px' : h + 'px'}; top:${top}px; left:${left}px;`;
+    if (options.minWidth)  widget.style.minWidth  = options.minWidth  + 'px';
+    if (options.minHeight) widget.style.minHeight = options.minHeight + 'px';
     if (autoHeight) widget.style.visibility = 'hidden';
     if (isPanel) widget.classList.add('is-panel');
 
@@ -584,10 +586,12 @@ const WidgetManager = (function () {
       }
     });
 
-    // Clamp to minimums and workspace bounds
+    // Clamp to minimums (per-widget override or global fallback) and workspace bounds
+    const minW = parseInt(widget.style.minWidth)  || MIN_WIDTH;
+    const minH = parseInt(widget.style.minHeight) || MIN_HEIGHT;
     return {
-      width:  Math.max(MIN_WIDTH,  Math.min(sw, workspace.clientWidth  - left)),
-      height: Math.max(MIN_HEIGHT, Math.min(sh, workspace.clientHeight - top)),
+      width:  Math.max(minW, Math.min(sw, workspace.clientWidth  - left)),
+      height: Math.max(minH, Math.min(sh, workspace.clientHeight - top)),
     };
   }
 

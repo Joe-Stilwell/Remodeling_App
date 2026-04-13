@@ -750,6 +750,7 @@ const CRM = (function () {
     const id     = 'new-contact-' + Date.now();
     const opened = WidgetManager.open(id, 'New Contact', _newClientHTML(id), {
       width:      425,
+      minWidth:   380,
       autoHeight: true,
       category:   'contact',
       getLabel:   (el) => {
@@ -969,6 +970,7 @@ const CRM = (function () {
       const mainTop  = parseInt(el.style.top)  || 0;
       const opened   = WidgetManager.open(sideId, 'Add Person', _personSideWidgetHTML(), {
         width:      425,
+        minWidth:   360,
         autoHeight: true,
         top:        mainTop + 30,
         left:       mainLeft + el.offsetWidth,
@@ -996,6 +998,7 @@ const CRM = (function () {
       const dividerTop  = divider.getBoundingClientRect().top - wRect.top;
       const opened = WidgetManager.open(sideId, 'Add Address', _addressSideWidgetHTML(), {
         width:      360,
+        minWidth:   300,
         autoHeight: true,
         top:        dividerTop,
         left:       mainLeft + el.offsetWidth,
@@ -1014,6 +1017,7 @@ const CRM = (function () {
       const mainTop  = parseInt(el.style.top)  || 0;
       const opened   = WidgetManager.open(sideId, 'Add Company', _companySideWidgetHTML(), {
         width:      425,
+        minWidth:   360,
         autoHeight: true,
         top:        mainTop + 30,
         left:       mainLeft + el.offsetWidth,
@@ -1106,7 +1110,7 @@ const CRM = (function () {
           'detail-person-' + Date.now(),
           name,
           _personDetailWidgetHTML(personData),
-          { width: 300, height: 260 }
+          { width: 300, minWidth: 260, height: 260, minHeight: 220 }
         )
       );
 
@@ -1328,7 +1332,7 @@ const CRM = (function () {
           'detail-address-' + Date.now(),
           addrLine,
           _addressDetailWidgetHTML(addrData),
-          { width: 300, height: 260 }
+          { width: 300, minWidth: 260, height: 260, minHeight: 220 }
         )
       );
 
@@ -1872,7 +1876,7 @@ const CRM = (function () {
       const divider    = el.querySelector('.form-divider');
       const dividerTop = divider.getBoundingClientRect().top - wRect.top;
       const opened = WidgetManager.open(sideId, 'Add Address', _addressSideWidgetHTML(), {
-        width: 360, autoHeight: true, top: dividerTop,
+        width: 360, minWidth: 300, autoHeight: true, top: dividerTop,
         left: mainLeft + el.offsetWidth, panel: true, parentId: widgetId,
       });
       if (opened === false) { addAddressBtn.disabled = false; return; }
@@ -1885,7 +1889,7 @@ const CRM = (function () {
       addPersonBtn.disabled = true;
       const sideId = 'side-person-' + Date.now();
       const opened = WidgetManager.open(sideId, 'Add Person', _personSideWidgetHTML(), {
-        width: 425, autoHeight: true,
+        width: 425, minWidth: 360, autoHeight: true,
         top: (parseInt(el.style.top) || 0) + 30,
         left: (parseInt(el.style.left) || 0) + el.offsetWidth,
         panel: true, parentId: widgetId,
@@ -1903,7 +1907,7 @@ const CRM = (function () {
       addCompanyBtn.disabled = true;
       const sideId = 'side-company-' + Date.now();
       const opened = WidgetManager.open(sideId, 'Add Company', _companySideWidgetHTML(), {
-        width: 425, autoHeight: true,
+        width: 425, minWidth: 360, autoHeight: true,
         top: (parseInt(el.style.top) || 0) + 30,
         left: (parseInt(el.style.left) || 0) + el.offsetWidth,
         panel: true, parentId: widgetId,
@@ -2118,7 +2122,7 @@ const CRM = (function () {
       const widgetId = `edit-person-${id}`;
       const title    = `Edit — ${person.People_Last_Name}, ${person.People_First_Name}`;
       if (WidgetManager.open(widgetId, title, _editPersonHTML(person), {
-        width: 425, autoHeight: true, category: 'contact',
+        width: 425, minWidth: 380, autoHeight: true, category: 'contact',
       }) !== false) _bindEditPersonForm(person, widgetId);
 
     } else if (type === 'company') {
@@ -2127,7 +2131,7 @@ const CRM = (function () {
       const widgetId = `edit-company-${id}`;
       const title    = `Edit — ${company.Company_DBA || company.Company_Name}`;
       if (WidgetManager.open(widgetId, title, _editCompanyHTML(company), {
-        width: 425, autoHeight: true, category: 'contact',
+        width: 425, minWidth: 380, autoHeight: true, category: 'contact',
       }) !== false) _bindEditCompanyForm(company, widgetId);
     }
   }
@@ -2498,7 +2502,7 @@ const CRM = (function () {
   function openNewContactFromSearch(query) {
     const id     = 'new-contact-' + Date.now();
     const opened = WidgetManager.open(id, 'New Contact', _newClientHTML(id), {
-      width: 425, autoHeight: true, category: 'contact',
+      width: 425, minWidth: 380, autoHeight: true, category: 'contact',
       getLabel: (el) => {
         const last  = el.querySelector('[data-field="last-name"]')?.value.trim()  || '';
         const first = el.querySelector('[data-field="first-name"]')?.value.trim() || '';
@@ -2548,7 +2552,7 @@ const CRM = (function () {
     const widgetId = editMode ? 'phonebook-edit' : 'phonebook';
     const title    = editMode ? 'Edit Contact' : 'Phone Book';
     if (WidgetManager.open(widgetId, title, _phonebookHTML(), {
-      width: 720, height: 480,
+      width: 720, minWidth: 500, height: 480, minHeight: 360,
     }) !== false) _bindPhonebook(widgetId, editMode);
   }
 
@@ -2561,7 +2565,7 @@ const CRM = (function () {
       if (!person) return;
       const title = `${person.People_Last_Name}, ${person.People_First_Name}`;
       if (WidgetManager.open(widgetId, title, _personProfileHTML(person), {
-        width: 300, autoHeight: true, noDock: true,
+        width: 300, minWidth: 260, autoHeight: true, noDock: true,
       }) !== false) _bindProfileWidget(widgetId);
 
     } else if (type === 'company') {
@@ -2569,7 +2573,7 @@ const CRM = (function () {
       if (!company) return;
       const title = company.Company_DBA || company.Company_Name;
       if (WidgetManager.open(widgetId, title, _companyProfileHTML(company), {
-        width: 300, autoHeight: true, noDock: true,
+        width: 300, minWidth: 260, autoHeight: true, noDock: true,
       }) !== false) _bindProfileWidget(widgetId);
 
     } else if (type === 'property') {
@@ -2577,7 +2581,7 @@ const CRM = (function () {
       if (!property) return;
       const title = property.Address_Street_1;
       if (WidgetManager.open(widgetId, title, _propertyProfileHTML(property), {
-        width: 300, autoHeight: true, noDock: true,
+        width: 300, minWidth: 260, autoHeight: true, noDock: true,
       }) !== false) _bindProfileWidget(widgetId);
     }
   }
@@ -3086,7 +3090,7 @@ const CRM = (function () {
       : {};
     WidgetManager.close(sideId);
     if (WidgetManager.open(sideId, title, _vendorDetailHTML(company, vendor), {
-      width: 440, autoHeight: true, category: 'contact', ...pos,
+      width: 440, minWidth: 360, autoHeight: true, category: 'contact', ...pos,
     }) !== false) _bindVendorDetail(sideId, companyId, parentWidgetId, navInfo);
   }
 
@@ -3257,7 +3261,7 @@ const CRM = (function () {
   function openVendorMgmt() {
     const widgetId = 'vendor-mgmt';
     if (WidgetManager.open(widgetId, 'Vendor Management', _vendorMgmtHTML(), {
-      width: 700, height: 460,
+      width: 700, minWidth: 500, height: 460, minHeight: 360,
     }) !== false) _bindVendorMgmt(widgetId);
   }
 

@@ -1073,7 +1073,7 @@ const Estimating = (function () {
 
     const wid = 'edit-cost-item';
     if (WidgetManager.open(wid, 'Edit Cost Item', _eciHTML(item, aliases), {
-      width: 550, height: 650, category: 'estimating',
+      width: 550, height: 650, minWidth: 550, minHeight: 500, category: 'estimating',
     }) !== false) {
       _bindECI(wid, item, allItems);
     }
@@ -1090,7 +1090,7 @@ const Estimating = (function () {
     const id   = 'costbook';
     const tree = _buildTree(data);
     if (WidgetManager.open(id, 'Costbook', _costbookHTML(tree), {
-      width: 1060, height: 620, category: 'estimating',
+      width: 1060, height: 620, minWidth: 600, minHeight: 400, category: 'estimating',
     }) !== false) {
       _bindCostbook(id);
     }
