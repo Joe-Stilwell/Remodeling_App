@@ -97,7 +97,7 @@ const WidgetManager = (function () {
       _initDrag(widget, id);
       _initResize(widget, id);
     }
-    state[id] = { el: widget, dockIcon, isMinimized: false, preMaximize: null, panelIds: [], parentId: options.parentId || null };
+    state[id] = { el: widget, dockIcon, isMinimized: false, preMaximize: null, panelIds: [], parentId: options.parentId || null, isResizing: false, userResized: false };
 
     if (options.parentId && state[options.parentId]) {
       state[options.parentId].panelIds.push(id);
@@ -146,6 +146,7 @@ const WidgetManager = (function () {
         const natural = headerH + padTop + formH + padBot + afterH + 6; // buffer prevents scrollbar from pixel rounding
         const maxH    = workspace.clientHeight - top;
         widget.style.height      = Math.min(natural, maxH) + 'px';
+        if (options.autoMinHeight) widget.style.minHeight = Math.round(natural * options.autoMinHeight) + 'px';
         widget.style.visibility  = '';
 
         // Auto-focus: honour data-autofocus if present, else first input
@@ -659,6 +660,7 @@ const WidgetManager = (function () {
   /* ── Public: resize widget to fit current content ────────── */
   function resizeToContent(id) {
     if (!state[id]) return;
+    if (state[id].isResizing) return;           // suppress during handle drag
     const widget    = state[id].el;
     const workspace = WORKSPACE();
     const header    = widget.querySelector('.widget-header');
@@ -673,7 +675,10 @@ const WidgetManager = (function () {
     const natural   = headerH + padTop + formH + padBot + afterH + 6;
     const top       = parseInt(widget.style.top) || 0;
     const maxH      = workspace.clientHeight - top;
-    widget.style.height = Math.min(natural, maxH) + 'px';
+    const clamped   = Math.min(natural, maxH);
+    // After a manual resize: only grow, never shrink back below the user-set height
+    if (state[id].userResized && clamped <= widget.offsetHeight) return;
+    widget.style.height = clamped + 'px';
   }
 
   /* ── Private: resize ──────────────────────────────────────── */
@@ -683,6 +688,7 @@ const WidgetManager = (function () {
     handle.addEventListener('mousedown', function (e) {
       e.preventDefault();
       e.stopPropagation();
+      if (state[id]) state[id].isResizing = true;
 
       const startX      = e.clientX;
       const startY      = e.clientY;
@@ -712,6 +718,7 @@ const WidgetManager = (function () {
       document.body.classList.add('is-dragging');
 
       function onUp() {
+        if (state[id]) { state[id].isResizing = false; state[id].userResized = true; }
         document.body.classList.remove('is-dragging');
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('mouseup',   onUp);

@@ -749,11 +749,12 @@ const CRM = (function () {
   function openNewContact() {
     const id     = 'new-contact-' + Date.now();
     const opened = WidgetManager.open(id, 'New Contact', _newClientHTML(id), {
-      width:      425,
-      minWidth:   380,
-      autoHeight: true,
-      category:   'contact',
-      getLabel:   (el) => {
+      width:         425,
+      minWidth:      425,
+      autoHeight:    true,
+      autoMinHeight: 0.5,
+      category:      'contact',
+      getLabel:      (el) => {
         const last  = el.querySelector('[data-field="last-name"]')?.value.trim()  || '';
         const first = el.querySelector('[data-field="first-name"]')?.value.trim() || '';
         if (last && first) return `${last}, ${first}`;
@@ -2157,42 +2158,43 @@ const CRM = (function () {
     return `<div class="phonebook-widget">
       <div class="pb-sidebar">
         <button class="btn-primary pb-new-btn" data-action="new-contact">+ New Contact</button>
-        <button class="pb-filter-btn" data-action="toggle-filters">⚙ Filter</button>
         <div class="pb-sidebar-divider"></div>
         <button class="pb-nav-btn active" data-view="all">All</button>
         <button class="pb-nav-btn" data-view="clients">Clients</button>
         <button class="pb-nav-btn" data-view="companies">Companies</button>
         <button class="pb-nav-btn" data-view="employees" disabled>Employees</button>
         <button class="pb-nav-btn" data-view="personal" disabled>Personal</button>
-        <div class="pb-labels-section" style="display:none">
+        <div class="pb-labels-section">
           <div class="pb-labels-header">Labels</div>
           <div class="pb-labels-list"></div>
         </div>
         <div class="pb-sidebar-footer">
-          <button class="pb-nav-btn pb-advanced-search" disabled title="Coming soon: cross-table queries in the Reports module">Advanced Search</button>
           <button class="pb-nav-btn" disabled>Merge</button>
         </div>
       </div>
+      <div class="pb-panel-divider"></div>
       <div class="pb-main">
         <div class="pb-toolbar">
           <input class="pb-search" type="text" placeholder="Search contacts..." autocomplete="off">
-        </div>
-        <div class="pb-filter-bar" style="display:none">
-          <div class="pb-filter-chips"></div>
-          <div class="pb-filter-add">
-            <select class="pb-filter-field-select">
-              <option value="">+ Add filter...</option>
-              <option value="city">City</option>
-              <option value="lead_source">Lead Source</option>
-              <option value="company_type">Company Type</option>
-              <option value="vendor_category">Vendor Category</option>
-              <option value="vendor_specialty">Vendor Specialty</option>
-            </select>
+          <div class="pb-filter-controls">
+            <div class="pb-filter-ctrl-row">
+              <select class="pb-filter-field-select">
+                <option value="">Filter PhoneBook</option>
+                <option value="city">City</option>
+                <option value="lead_source">Lead Source</option>
+                <option value="company_type">Company Type</option>
+                <option value="vendor_category">Vendor Category</option>
+                <option value="vendor_specialty">Vendor Specialty</option>
+              </select>
+            </div>
           </div>
+        </div>
+        <div class="pb-chips-bar" style="display:none">
+          <div class="pb-filter-chips"></div>
           <button class="pb-filter-clear" style="display:none" data-action="clear-filters">Clear all</button>
         </div>
         <div class="pb-col-headers">
-          <div class="pb-col-header pb-col-name" data-sort="name">Name <span class="pb-sort-icon"></span></div>
+          <div class="pb-col-header pb-col-name">Name</div>
           <div class="pb-col-header pb-col-phone" data-sort="phone">Phone</div>
           <div class="pb-col-header pb-col-email">Email</div>
         </div>
@@ -2204,6 +2206,14 @@ const CRM = (function () {
         </div>
       </div>
     </div>`;
+  }
+
+  function _fmtPhone(raw) {
+    if (!raw) return '';
+    const digits = raw.replace(/\D/g, '');
+    if (digits.length === 10) return '(' + digits.slice(0,3) + ') ' + digits.slice(3,6) + '-' + digits.slice(6);
+    if (digits.length === 7)  return digits.slice(0,3) + '-' + digits.slice(3);
+    return raw; // already formatted or non-standard — return as-is
   }
 
   function _pbRender(listEl, view, labelFilter, sortCol, sortDir, searchText, activeFilters) {
@@ -2285,7 +2295,7 @@ const CRM = (function () {
     listEl.innerHTML = rows.map(r => `
       <div class="pb-row" data-type="${r.type}" data-id="${r.id}">
         <div class="pb-cell pb-col-name">${r.name}</div>
-        <div class="pb-cell pb-col-phone">${r.phone}</div>
+        <div class="pb-cell pb-col-phone">${_fmtPhone(r.phone)}</div>
         <div class="pb-cell pb-col-email">${r.email}</div>
       </div>`).join('');
   }
@@ -2327,6 +2337,8 @@ const CRM = (function () {
     function _renderChips() {
       const chipsEl  = el.querySelector('.pb-filter-chips');
       const clearBtn = el.querySelector('.pb-filter-clear');
+      const fieldSel = el.querySelector('.pb-filter-field-select');
+      const bar      = el.querySelector('.pb-chips-bar');
       const keys     = Object.keys(activeFilters);
       chipsEl.innerHTML = keys.map(k => `
         <span class="pb-chip">
@@ -2335,10 +2347,11 @@ const CRM = (function () {
           <button class="pb-chip-remove" data-filter-key="${k}">×</button>
         </span>`).join('');
       clearBtn.style.display = keys.length ? '' : 'none';
+      bar.style.display = keys.length ? '' : 'none';
+      if (fieldSel) fieldSel.options[0].textContent = keys.length ? 'Add Another' : 'Filter PhoneBook';
     }
 
     function _showValuePicker(field) {
-      // Remove any existing picker
       el.querySelector('.pb-filter-value-wrap')?.remove();
 
       const options = _filterOptions(field);
@@ -2346,27 +2359,32 @@ const CRM = (function () {
       wrap.className = 'pb-filter-value-wrap';
 
       if (field === 'city') {
-        // free-text for city
-        wrap.innerHTML = `<input class="pb-filter-value-input" placeholder="City name..." autofocus>
-          <button class="pb-chip-confirm btn-action" data-action="confirm-filter" data-field="${field}">Add</button>
+        wrap.innerHTML = `<input class="pb-filter-value-input" placeholder="City name...">
           <button class="pb-chip-cancel" data-action="cancel-filter">✕</button>`;
       } else {
         wrap.innerHTML = `<select class="pb-filter-value-select">
             <option value="">-- Select --</option>
             ${options.map(o => `<option>${o}</option>`).join('')}
           </select>
-          <button class="pb-chip-confirm btn-action" data-action="confirm-filter" data-field="${field}">Add</button>
           <button class="pb-chip-cancel" data-action="cancel-filter">✕</button>`;
       }
-      el.querySelector('.pb-filter-add').after(wrap);
+
+      el.querySelector('.pb-filter-controls').appendChild(wrap);
+      wrap.querySelector('input, select')?.focus();
+
+      function _confirm() {
+        const val = field === 'city'
+          ? (wrap.querySelector('.pb-filter-value-input')?.value.trim() || '')
+          : (wrap.querySelector('.pb-filter-value-select')?.value || '');
+        if (val) { activeFilters[field] = val; _renderChips(); render(); }
+        wrap.remove();
+      }
+      wrap.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); _confirm(); } });
     }
 
     function _updateLabels() {
-      const section  = el.querySelector('.pb-labels-section');
       const labelsEl = el.querySelector('.pb-labels-list');
       const labels   = _pbGetLabels(activeView);
-      if (!labels.length) { section.style.display = 'none'; return; }
-      section.style.display = '';
       labelsEl.innerHTML = labels.map(l =>
         `<button class="pb-label-btn${labelFilter === l ? ' active' : ''}" data-label="${l}">${l}</button>`
       ).join('');
@@ -2413,15 +2431,6 @@ const CRM = (function () {
       searchTimer = setTimeout(() => { searchText = val; render(); }, 200);
     });
 
-    // Filter bar toggle
-    el.querySelector('[data-action="toggle-filters"]').addEventListener('click', function () {
-      const bar = el.querySelector('.pb-filter-bar');
-      const open = bar.style.display === 'none';
-      bar.style.display = open ? '' : 'none';
-      this.classList.toggle('active', open);
-      WidgetManager.resizeToContent(widgetId);
-    });
-
     // Field select → show value picker
     el.querySelector('.pb-filter-field-select').addEventListener('change', function () {
       if (!this.value) return;
@@ -2429,35 +2438,6 @@ const CRM = (function () {
       this.value = '';
     });
 
-    // Filter bar delegated clicks
-    el.querySelector('.pb-filter-bar').addEventListener('click', function (e) {
-      const btn = e.target.closest('[data-action]');
-      if (!btn) return;
-
-      if (btn.dataset.action === 'confirm-filter') {
-        const field = btn.dataset.field;
-        const wrap  = el.querySelector('.pb-filter-value-wrap');
-        const val   = field === 'city'
-          ? wrap.querySelector('.pb-filter-value-input').value.trim()
-          : wrap.querySelector('.pb-filter-value-select').value;
-        if (val) {
-          activeFilters[field] = val;
-          _renderChips();
-          render();
-        }
-        wrap.remove();
-      }
-
-      if (btn.dataset.action === 'cancel-filter') {
-        el.querySelector('.pb-filter-value-wrap')?.remove();
-      }
-
-      if (btn.dataset.action === 'clear-filters') {
-        activeFilters = {};
-        _renderChips();
-        render();
-      }
-    });
 
     // Chip remove
     el.querySelector('.pb-filter-chips').addEventListener('click', function (e) {
@@ -2486,13 +2466,44 @@ const CRM = (function () {
       else openProfile(row.dataset.type, row.dataset.id);
     });
 
-    // Footer actions
+    // Delegated actions — footer + filter
     el.addEventListener('click', function (e) {
       const btn = e.target.closest('[data-action]');
       if (!btn) return;
-      if (btn.dataset.action === 'cancel')      WidgetManager.close(widgetId);
-      if (btn.dataset.action === 'new-contact') openNewContact();
+      if (btn.dataset.action === 'cancel')       WidgetManager.close(widgetId);
+      if (btn.dataset.action === 'new-contact')  openNewContact();
+      if (btn.dataset.action === 'cancel-filter') el.querySelector('.pb-filter-value-wrap')?.remove();
+      if (btn.dataset.action === 'clear-filters') { activeFilters = {}; _renderChips(); render(); }
     });
+
+    // Resizable sidebar divider
+    const sidebar  = el.querySelector('.pb-sidebar');
+    const divider  = el.querySelector('.pb-panel-divider');
+    divider.addEventListener('mousedown', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      const startX = e.clientX;
+      const startW = sidebar.offsetWidth;
+      function onMove(e) {
+        sidebar.style.width = Math.max(100, Math.min(280, startW + e.clientX - startX)) + 'px';
+      }
+      document.body.classList.add('is-dragging');
+      function onUp() {
+        document.body.classList.remove('is-dragging');
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      }
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+
+    // Hide email column when main panel is too narrow for it
+    const pbWidget = el.querySelector('.phonebook-widget');
+    const mainEl   = el.querySelector('.pb-main');
+    const EMAIL_HIDE_WIDTH = 280; // name(155) + phone(105) + 20px container padding
+    new ResizeObserver(() => {
+      pbWidget.classList.toggle('pb-hide-email', mainEl.offsetWidth < EMAIL_HIDE_WIDTH);
+    }).observe(mainEl);
 
     _updateLabels();
     render();
@@ -2502,7 +2513,7 @@ const CRM = (function () {
   function openNewContactFromSearch(query) {
     const id     = 'new-contact-' + Date.now();
     const opened = WidgetManager.open(id, 'New Contact', _newClientHTML(id), {
-      width: 425, minWidth: 380, autoHeight: true, category: 'contact',
+      width: 425, minWidth: 425, autoHeight: true, autoMinHeight: 0.5, category: 'contact',
       getLabel: (el) => {
         const last  = el.querySelector('[data-field="last-name"]')?.value.trim()  || '';
         const first = el.querySelector('[data-field="first-name"]')?.value.trim() || '';
@@ -2632,20 +2643,15 @@ const CRM = (function () {
   function _vendorMgmtHTML() {
     return `<div class="vm-widget">
       <div class="vm-sidebar">
-        <div class="vm-view-toggle">
-          <button class="vm-view-btn active" data-vm-view="credentials">Credentials</button>
-          <button class="vm-view-btn" data-vm-view="setup">Setup</button>
-        </div>
-        <div class="vm-sidebar-divider"></div>
         <div class="vm-section-label">Type</div>
         <button class="vm-nav-btn active" data-type-filter="">All Vendors</button>
         <button class="vm-nav-btn" data-type-filter="Subcontractor">Subcontractors</button>
         <button class="vm-nav-btn" data-type-filter="Supplier">Suppliers</button>
         <button class="vm-nav-btn" data-type-filter="Professional Services">Professional</button>
-        <div class="vm-sidebar-divider vm-cred-only"></div>
-        <div class="vm-section-label vm-cred-only">Status</div>
-        <button class="vm-nav-btn vm-cred-only active" data-alert-filter="">All</button>
-        <button class="vm-nav-btn vm-cred-only" data-alert-filter="issues">Issues Only</button>
+        <div class="vm-sidebar-divider"></div>
+        <div class="vm-section-label">Status</div>
+        <button class="vm-nav-btn active" data-alert-filter="">All</button>
+        <button class="vm-nav-btn" data-alert-filter="issues">Issues Only</button>
         <div class="vm-sidebar-footer">
           <div class="vm-issue-badge" style="display:none"></div>
         </div>
@@ -2653,6 +2659,20 @@ const CRM = (function () {
       <div class="vm-main">
         <div class="vm-toolbar">
           <input class="vm-search" type="text" placeholder="Search vendors..." autocomplete="off">
+          <div class="vm-filter-controls">
+            <div class="vm-filter-ctrl-row">
+              <select class="vm-filter-field-select">
+                <option value="">Filter Vendors</option>
+                <option value="vendor_category">Vendor Category</option>
+                <option value="vendor_specialty">Vendor Specialty</option>
+                <option value="w9">W-9 On File</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="vm-chips-bar" style="display:none">
+          <div class="vm-filter-chips"></div>
+          <button class="vm-filter-clear" style="display:none" data-action="clear-vm-filters">Clear all</button>
         </div>
         <div class="vm-col-headers"></div>
         <div class="vm-list-wrap">
@@ -2683,16 +2703,19 @@ const CRM = (function () {
     }
   }
 
-  function _vmRender(listEl, headersEl, view, typeFilter, alertFilter, sortCol, sortDir, searchText) {
+  function _vmRender(listEl, headersEl, view, typeFilter, alertFilter, sortCol, sortDir, searchText, vmFilters) {
     const companies = AppData.tables['DB_Company'] || [];
     const vendors   = AppData.tables['DB_Vendor']  || [];
     const q = searchText.toLowerCase();
+    const vf = vmFilters || {};
 
     // Pool: companies that are vendor types
     let pool = companies.filter(c => VENDOR_TYPES.includes(c.Company_Type));
-    if (typeFilter) pool = pool.filter(c => c.Company_Type === typeFilter);
+    if (typeFilter)              pool = pool.filter(c => c.Company_Type     === typeFilter);
+    if (vf.vendor_category)     pool = pool.filter(c => c.Vendor_Category  === vf.vendor_category);
+    if (vf.vendor_specialty)    pool = pool.filter(c => c.Vendor_Specialty === vf.vendor_specialty);
 
-    const rows = [];
+    let rows = [];
     pool.forEach(c => {
       const name = (c.Company_DBA || c.Company_Name || '').toLowerCase();
       if (q && !name.includes(q)) return;
@@ -2704,6 +2727,14 @@ const CRM = (function () {
 
       rows.push({ company: c, vendor, worst, key: name });
     });
+
+    if (vf.w9) {
+      const wantW9 = vf.w9 === 'Yes';
+      rows = rows.filter(r => {
+        const has = r.vendor && r.vendor.W9_On_File === 'Yes';
+        return wantW9 ? has : !has;
+      });
+    }
 
     // Sort: dates push missing/exempt to end regardless of direction
     function _dateSort(dateStr, exempt) {
@@ -2788,46 +2819,115 @@ const CRM = (function () {
     const el = document.getElementById('widget-' + widgetId);
     if (!el) return;
 
-    let activeView   = 'credentials';
-    let typeFilter   = '';
-    let alertFilter  = '';
-    let sortCol      = 'name';
-    let sortDir      = 'asc';
-    let searchText   = '';
-    let searchTimer  = null;
+    let typeFilter  = '';
+    let alertFilter = '';
+    let sortCol     = 'name';
+    let sortDir     = 'asc';
+    let searchText  = '';
+    let searchTimer = null;
+    let vmFilters   = {};
 
     const listEl    = el.querySelector('.vm-list');
     const headersEl = el.querySelector('.vm-col-headers');
 
-    function _updateCredOnly() {
-      el.querySelectorAll('.vm-cred-only').forEach(n =>
-        n.style.display = activeView === 'credentials' ? '' : 'none'
-      );
+    function _vmGetValueOptions(field) {
+      if (field === 'vendor_category') {
+        const all = Object.values(VENDOR_CAT_BY_TYPE).flat();
+        return [...new Set(all)].sort();
+      }
+      if (field === 'vendor_specialty') return Object.keys(VENDOR_SPEC_BY_CAT).sort();
+      if (field === 'w9') return ['Yes', 'No'];
+      return [];
+    }
+
+    function _vmFieldLabel(field) {
+      return { vendor_category: 'Category', vendor_specialty: 'Specialty', w9: 'W-9' }[field] || field;
+    }
+
+    function _vmRenderChips() {
+      const bar      = el.querySelector('.vm-chips-bar');
+      const chipsEl  = el.querySelector('.vm-filter-chips');
+      const clearBtn = el.querySelector('[data-action="clear-vm-filters"]');
+      const fieldSel = el.querySelector('.vm-filter-field-select');
+      const keys     = Object.keys(vmFilters);
+      chipsEl.innerHTML = keys.map(k =>
+        `<span class="vm-chip" data-filter-key="${k}">${_vmFieldLabel(k)}: ${vmFilters[k]}&nbsp;<span class="vm-chip-x" data-action="remove-vm-chip" data-key="${k}">✕</span></span>`
+      ).join('');
+      bar.style.display      = keys.length ? '' : 'none';
+      clearBtn.style.display = keys.length ? '' : 'none';
+      if (fieldSel) fieldSel.options[0].textContent = keys.length ? 'Add Another' : 'Filter Vendors';
+    }
+
+    function _vmShowValuePicker(field) {
+      const ctrl = el.querySelector('.vm-filter-controls');
+      const old  = ctrl.querySelector('.vm-filter-value-wrap');
+      if (old) old.remove();
+      if (!field) return;
+
+      const options = _vmGetValueOptions(field);
+      const wrap    = document.createElement('div');
+      wrap.className = 'vm-filter-value-wrap';
+
+      const sel = document.createElement('select');
+      sel.className = 'vm-filter-value-select';
+      sel.innerHTML = '<option value="">Select...</option>' + options.map(o => `<option>${o}</option>`).join('');
+      wrap.appendChild(sel);
+      ctrl.appendChild(wrap);
+      sel.focus();
+
+      sel.addEventListener('change', function () {
+        if (!this.value) return;
+        vmFilters[field] = this.value;
+        el.querySelector('.vm-filter-field-select').value = '';
+        wrap.remove();
+        _vmRenderChips();
+        render();
+      });
+      sel.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+          wrap.remove();
+          el.querySelector('.vm-filter-field-select').value = '';
+        }
+      });
     }
 
     function render() {
       el.querySelectorAll('.vm-col-sortable .vm-sort-icon').forEach(i => i.textContent = '');
       const icon = headersEl.querySelector(`.vm-col-sortable[data-sort="${sortCol}"] .vm-sort-icon`);
       if (icon) icon.textContent = sortDir === 'asc' ? ' ▲' : ' ▼';
-      _vmRender(listEl, headersEl, activeView, typeFilter, alertFilter, sortCol, sortDir, searchText);
+      _vmRender(listEl, headersEl, 'credentials', typeFilter, alertFilter, sortCol, sortDir, searchText, vmFilters);
       _vmUpdateIssueBadge(el);
     }
 
-    // View toggle
-    el.querySelector('.vm-view-toggle').addEventListener('click', function (e) {
-      const btn = e.target.closest('.vm-view-btn');
-      if (!btn) return;
-      activeView = btn.dataset.vmView;
-      sortCol    = 'name';
-      sortDir    = 'asc';
-      el.querySelectorAll('.vm-view-btn').forEach(b => b.classList.toggle('active', b === btn));
-      _vmRenderHeaders(headersEl, activeView);
-      _updateCredOnly();
-      render();
-      WidgetManager.resizeToContent(widgetId);
+    // El-level: filter chip actions + close
+    el.addEventListener('click', function (e) {
+      if (e.target.closest('[data-action="clear-vm-filters"]')) {
+        vmFilters = {};
+        const ctrl = el.querySelector('.vm-filter-controls');
+        const old  = ctrl.querySelector('.vm-filter-value-wrap');
+        if (old) old.remove();
+        _vmRenderChips();
+        render();
+        return;
+      }
+      if (e.target.closest('[data-action="remove-vm-chip"]')) {
+        const key = e.target.closest('[data-action="remove-vm-chip"]').dataset.key;
+        delete vmFilters[key];
+        _vmRenderChips();
+        render();
+        return;
+      }
+      if (e.target.closest('[data-action="cancel"]')) {
+        WidgetManager.close(widgetId);
+      }
     });
 
-    // Type filter nav
+    // Filter field select
+    el.querySelector('.vm-filter-field-select').addEventListener('change', function () {
+      _vmShowValuePicker(this.value);
+    });
+
+    // Type / status filter nav
     el.querySelector('.vm-sidebar').addEventListener('click', function (e) {
       const btn = e.target.closest('[data-type-filter]');
       if (btn) {
@@ -2870,13 +2970,7 @@ const CRM = (function () {
       _openVendorDetail(row.dataset.companyId, widgetId, { ids: allIds, index });
     });
 
-    // Close
-    el.querySelector('[data-action="cancel"]').addEventListener('click', () => {
-      WidgetManager.close(widgetId);
-    });
-
-    _vmRenderHeaders(headersEl, activeView);
-    _updateCredOnly();
+    _vmRenderHeaders(headersEl, 'credentials');
     render();
   }
 
