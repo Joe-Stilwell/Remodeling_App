@@ -2656,6 +2656,7 @@ const CRM = (function () {
           <div class="vm-issue-badge" style="display:none"></div>
         </div>
       </div>
+      <div class="vm-panel-divider"></div>
       <div class="vm-main">
         <div class="vm-toolbar">
           <input class="vm-search" type="text" placeholder="Search vendors..." autocomplete="off">
@@ -2927,6 +2928,26 @@ const CRM = (function () {
       _vmShowValuePicker(this.value);
     });
 
+    // Panel divider drag
+    const vmSidebar = el.querySelector('.vm-sidebar');
+    el.querySelector('.vm-panel-divider').addEventListener('mousedown', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      const startX = e.clientX;
+      const startW = vmSidebar.offsetWidth;
+      function onMove(e) {
+        vmSidebar.style.width = Math.max(100, Math.min(280, startW + e.clientX - startX)) + 'px';
+      }
+      document.body.classList.add('is-dragging');
+      function onUp() {
+        document.body.classList.remove('is-dragging');
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      }
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+
     // Type / status filter nav
     el.querySelector('.vm-sidebar').addEventListener('click', function (e) {
       const btn = e.target.closest('[data-type-filter]');
@@ -2979,8 +3000,6 @@ const CRM = (function () {
   function _vendorDetailHTML(company, vendor) {
     const v = vendor || {};
     const entityTypes  = ['Sole Proprietor', 'LLC', 'S-Corp', 'C-Corp', 'Partnership'];
-    const payMethods   = ['Check', 'ACH / Direct Deposit', 'Credit Card', 'Cash'];
-    const payTermsList = ['Due on Receipt', 'Net 15', 'Net 30', 'Net 45', 'Net 60'];
 
     function opt(list, selected) {
       return list.map(o => `<option${o === selected ? ' selected' : ''}>${o}</option>`).join('');
@@ -3006,18 +3025,17 @@ const CRM = (function () {
 
     return `<div class="vd-form">
       <div class="vd-type-tag">
+        <span class="vd-type-label">${company.Company_Type}${company.Vendor_Category ? ' · ' + company.Vendor_Category : ''}</span>
         ${contactId
           ? `<button class="btn-xs" data-action="open-profile" data-type="person" data-id="${contactId}">Edit Contact</button>`
           : `<button class="btn-xs" data-action="add-contact">+ Add Contact</button>`}
-        <span class="vd-type-label">${company.Company_Type}${company.Vendor_Category ? ' · ' + company.Vendor_Category : ''}</span>
       </div>
       <div class="vd-contact-display">${contactDisplay}</div>
 
       <div class="vd-columns">
 
-        <!-- LEFT: Business Info + Payment + Notes -->
+        <!-- COL 1: Business Info + W-9 + 1099 -->
         <div class="vd-col">
-
           <div class="form-section">Business Info</div>
           <div class="form-row">
             <div class="form-group f-grow">
@@ -3040,37 +3058,6 @@ const CRM = (function () {
             </div>
           </div>
 
-          <div class="form-section">Payment</div>
-          <div class="form-row">
-            <div class="form-group f-grow">
-              <label class="form-label">Method</label>
-              <select class="form-select" data-vd="payment-method">
-                <option value="">-- Select --</option>${opt(payMethods, v.Payment_Method)}
-              </select>
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="form-group f-grow">
-              <label class="form-label">Terms</label>
-              <select class="form-select" data-vd="payment-terms">
-                <option value="">-- Select --</option>${opt(payTermsList, v.Payment_Terms)}
-              </select>
-            </div>
-          </div>
-
-          <div class="form-section">Notes</div>
-          <div class="form-row">
-            <div class="form-group f-grow">
-              <label class="form-label">Notes</label>
-              <textarea class="form-textarea" data-vd="notes" rows="4" style="resize:vertical">${v.Notes || ''}</textarea>
-            </div>
-          </div>
-
-        </div>
-
-        <!-- RIGHT: Credentials -->
-        <div class="vd-col">
-
           <div class="form-section">W-9</div>
           <div class="form-row">
             <label class="vd-check">
@@ -3083,7 +3070,15 @@ const CRM = (function () {
               <input class="form-input" data-vd="w9-date" type="date" value="${v.W9_Date || ''}">
             </div>
           </div>
+          <div class="form-row">
+            <label class="vd-check">
+              <input type="checkbox" data-vd="eligible-1099"${v.Eligible_1099 === 'Yes' ? ' checked' : ''}> 1099 Eligible
+            </label>
+          </div>
+        </div>
 
+        <!-- COL 2: Credentials -->
+        <div class="vd-col">
           <div class="form-section">General Liability</div>
           <div class="form-row">
             <label class="vd-check">
@@ -3120,7 +3115,10 @@ const CRM = (function () {
               <input class="form-input" data-vd="wc-expiration" type="date" value="${v.WC_Expiration || ''}">
             </div>
           </div>
+        </div>
 
+        <!-- COL 3: License + Notes -->
+        <div class="vd-col">
           <div class="form-section">License</div>
           <div class="form-row">
             <div class="form-group f-grow">
@@ -3145,7 +3143,14 @@ const CRM = (function () {
             </div>
           </div>
 
+          <div class="form-section">Notes</div>
+          <div class="form-row">
+            <div class="form-group f-grow">
+              <textarea class="form-textarea" data-vd="notes" rows="4" style="resize:vertical">${v.Notes || ''}</textarea>
+            </div>
+          </div>
         </div>
+
       </div>
 
       <div class="vd-footer">
@@ -3184,7 +3189,7 @@ const CRM = (function () {
       : {};
     WidgetManager.close(sideId);
     if (WidgetManager.open(sideId, title, _vendorDetailHTML(company, vendor), {
-      width: 440, minWidth: 360, autoHeight: true, category: 'contact', ...pos,
+      width: 500, height: 450, minWidth: 500, minHeight: 450, category: 'contact', ...pos,
     }) !== false) _bindVendorDetail(sideId, companyId, parentWidgetId, navInfo);
   }
 
@@ -3291,6 +3296,7 @@ const CRM = (function () {
         ssn:                el.querySelector('[data-vd="ssn"]').value.trim(),
         w9OnFile:           el.querySelector('[data-vd="w9-on-file"]').checked ? 'Yes' : 'No',
         w9Date:             el.querySelector('[data-vd="w9-date"]').value,
+        eligible1099:       el.querySelector('[data-vd="eligible-1099"]').checked ? 'Yes' : 'No',
         coiOnFile:          el.querySelector('[data-vd="coi-on-file"]').checked ? 'Yes' : 'No',
         coiExpiration:      el.querySelector('[data-vd="coi-expiration"]').value,
         glCoverageLimit:    el.querySelector('[data-vd="gl-coverage"]').value.trim(),
@@ -3301,8 +3307,6 @@ const CRM = (function () {
         licenseState:       el.querySelector('[data-vd="license-state"]').value.trim().toUpperCase(),
         licenseType:        el.querySelector('[data-vd="license-type"]').value.trim(),
         licenseExpiration:  el.querySelector('[data-vd="license-expiration"]').value,
-        paymentMethod:      el.querySelector('[data-vd="payment-method"]').value,
-        paymentTerms:       el.querySelector('[data-vd="payment-terms"]').value,
         notes:              el.querySelector('[data-vd="notes"]').value.trim(),
       };
 
@@ -3330,6 +3334,7 @@ const CRM = (function () {
           SSN:               vdData.ssn,
           W9_On_File:        vdData.w9OnFile,
           W9_Date:           vdData.w9Date,
+          Eligible_1099:     vdData.eligible1099,
           COI_On_File:       vdData.coiOnFile,
           COI_Expiration:    vdData.coiExpiration,
           GL_Coverage_Limit: vdData.glCoverageLimit,
@@ -3340,8 +3345,6 @@ const CRM = (function () {
           License_State:     vdData.licenseState,
           License_Type:      vdData.licenseType,
           License_Expiration:vdData.licenseExpiration,
-          Payment_Method:    vdData.paymentMethod,
-          Payment_Terms:     vdData.paymentTerms,
           Notes:             vdData.notes,
         };
         if (vi >= 0) AppData.tables['DB_Vendor'][vi] = merged;
