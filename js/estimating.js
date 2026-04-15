@@ -97,10 +97,10 @@ const Estimating = (function () {
   /* ── Map a raw DB_Costbook sheet row to the internal format ── */
   function _mapRow(row, index) {
     return {
-      divNum:      String(row.Division_Number    || '').trim(),
-      divName:     String(row.Division_Name      || '').trim(),
-      subNum:      String(row.Subdivision_Number || '').trim(),
-      subName:     String(row.Subdivision_Name   || '').trim(),
+      divNum:      String(row.Div_ID    || '').trim(),
+      divName:     String(row.Div_Name  || '').trim(),
+      subNum:      String(row.Subdiv_ID   || '').trim(),
+      subName:     String(row.Subdiv_Name || '').trim(),
       sortWeight:  parseFloat(row.Sort_Weight)   || index,
       itemId:      String(row.Item_ID            || '').trim(),
       description: String(row.Item_Description  || '').trim(),
@@ -190,12 +190,17 @@ const Estimating = (function () {
       </div>
     `).join('');
 
-    const gridRows = tree.map(div => `
+    const gridRows = tree.map(div => {
+      const divSubCount  = div.subs.length;
+      const divItemCount = div.subs.reduce((n, s) => n + s.items.length, 0);
+      return `
       <div class="cb-row cb-row-div" data-div="${div.divNum}" data-expanded="false">
-        <span class="cb-drag-handle">&#8942;&#8942;</span>
-        <span></span>
+        <span class="cb-drag-handle" data-tip="Drag to reorder">&#8942;&#8942;</span>
+        <button class="cb-edit-del" data-tip="Delete Division">&#10005;</button>
+        <button class="cb-edit-add-sub btn-secondary" data-tip="Add Sub-Division">+ Sub</button>
+        <span class="cb-tag-slot"></span>
         <span class="cb-expand-icon">&#9654;</span>
-        <span class="cb-row-div-name">${div.divName}</span>
+        <span class="cb-row-div-name" data-tip="Double-click to rename">${div.divName}</span>
         <span class="cb-col-uom"></span>
         <span class="cb-col-labor"></span>
         <span class="cb-col-mat"></span>
@@ -204,13 +209,17 @@ const Estimating = (function () {
         <span class="cb-col-other"></span>
         <span class="cb-col-unit"></span>
         <span class="cb-col-specs"></span>
+        <span class="cb-edit-count">${divSubCount} sub${divSubCount !== 1 ? 's' : ''}, ${divItemCount} item${divItemCount !== 1 ? 's' : ''}</span>
       </div>
-      ${div.subs.map(sub => `
+      ${div.subs.map(sub => {
+        const subItemCount = sub.items.length;
+        return `
         <div class="cb-row cb-row-sub" data-div="${div.divNum}" data-sub="${sub.subNum}" data-expanded="false" style="display:none">
-          <span class="cb-drag-handle">&#8942;&#8942;</span>
-          <span></span>
+          <span class="cb-drag-handle" data-tip="Drag to reorder">&#8942;&#8942;</span>
+          <button class="cb-edit-del" data-tip="Delete Sub-Division">&#10005;</button>
+          <span class="cb-tag-slot"></span>
           <span class="cb-expand-icon">&#9654;</span>
-          <span class="cb-row-sub-name">${sub.subName}</span>
+          <span class="cb-row-sub-name" data-tip="Double-click to rename">${sub.subName}</span>
           <span class="cb-col-uom"></span>
           <span class="cb-col-labor"></span>
           <span class="cb-col-mat"></span>
@@ -219,12 +228,13 @@ const Estimating = (function () {
           <span class="cb-col-other"></span>
           <span class="cb-col-unit"></span>
           <span class="cb-col-specs"></span>
+          <span class="cb-edit-count">${subItemCount} item${subItemCount !== 1 ? 's' : ''}</span>
         </div>
         ${sub.items.map(item => {
           const uc = _unitCost(item);
           return `
           <div class="cb-row cb-row-item" data-div="${div.divNum}" data-sub="${sub.subNum}" data-item="${item.itemId}" draggable="true" style="display:none">
-            <span class="cb-drag-handle">&#8942;&#8942;</span>
+            <span class="cb-drag-handle" data-tip="Drag to reorder">&#8942;&#8942;</span>
             <input type="checkbox" class="cb-tag cb-tag-item" data-item="${item.itemId}" data-div="${div.divNum}" data-sub="${sub.subNum}">
             <span class="cb-expand-icon"></span>
             <span class="cb-col-desc">${item.description}</span>
@@ -238,20 +248,25 @@ const Estimating = (function () {
             <span class="cb-col-specs"><input class="cb-specs-input" type="text" value="${item.specs || ''}" placeholder="Notes / specs..."></span>
           </div>`;
         }).join('')}
-      `).join('')}
-    `).join('');
+      `; }).join('')}
+    `; }).join('');
 
     return `
       <div class="cb-widget">
 
         <div class="cb-toolbar">
-          <div class="cb-toolbar-nav"></div>
+          <div class="cb-toolbar-nav">
+            <button class="btn-secondary cb-btn cb-normal-ctrl" data-action="edit-structure">Edit Layout</button>
+            <button class="btn-secondary cb-btn cb-edit-ctrl" data-action="edit-done">&#9664; Done</button>
+            <button class="btn-secondary cb-btn cb-edit-ctrl" data-action="edit-expand-all">Expand All</button>
+            <button class="btn-primary cb-btn cb-edit-ctrl" data-action="add-div">+ Add Division</button>
+          </div>
           <div class="cb-toolbar-main">
-            <input class="cb-nav-search" type="text" placeholder="Search items..." autocomplete="off">
-            <button class="btn-secondary cb-btn" data-action="expand-all">Expand All</button>
-            <button class="btn-secondary cb-btn" data-action="collapse-all">Collapse All</button>
-            <span class="cb-tag-count" data-count="0"></span>
-            <button class="btn-primary cb-btn" data-action="transfer" disabled>Transfer Selected</button>
+            <input class="cb-nav-search cb-normal-ctrl" type="text" placeholder="Search items..." autocomplete="off">
+            <button class="btn-secondary cb-btn cb-normal-ctrl" data-action="expand-all">Expand All</button>
+            <button class="btn-secondary cb-btn cb-normal-ctrl" data-action="collapse-all">Collapse All</button>
+            <span class="cb-tag-count cb-normal-ctrl" data-count="0"></span>
+            <button class="btn-primary cb-btn cb-normal-ctrl" data-action="transfer" disabled>Transfer Selected</button>
           </div>
         </div>
 
@@ -282,6 +297,7 @@ const Estimating = (function () {
               <span class="cb-col-unit cb-rz-hd" data-col="--cb-w-unit">Unit Cost<span class="cb-col-resize"></span></span>
               <span class="cb-col-specs cb-rz-hd" data-col="--cb-w-specs">Specifications<span class="cb-col-resize"></span></span>
             </div>
+            <div class="cb-edit-header">Edit Layout Mode</div>
             <div class="cb-rows">
               ${gridRows}
             </div>
@@ -412,8 +428,8 @@ const Estimating = (function () {
     rowsEl.addEventListener('click', function (e) {
       const divRow = e.target.closest('.cb-row-div');
       const subRow = e.target.closest('.cb-row-sub');
-      if (divRow && !e.target.matches('.cb-tag, input')) _toggleDiv(divRow);
-      if (subRow && !e.target.matches('.cb-tag, input')) _toggleSub(subRow);
+      if (divRow && !e.target.matches('.cb-tag, input') && !e.target.closest('.cb-edit-del, .cb-edit-add-sub')) _toggleDiv(divRow);
+      if (subRow && !e.target.matches('.cb-tag, input') && !e.target.closest('.cb-edit-del')) _toggleSub(subRow);
     });
 
     /* --- Tag checkboxes (items and headers only) --- */
@@ -691,6 +707,248 @@ const Estimating = (function () {
         }
       });
     });
+
+    /* ── Edit Structure Mode ─────────────────────────────────── */
+
+    const widgetEl  = el.querySelector('.cb-widget');
+    const navListEl = el.querySelector('.cb-nav-list');
+
+    function _isEditMode() {
+      return widgetEl.classList.contains('cb-edit-mode');
+    }
+
+    /* --- Tooltip --- */
+    const tipEl = document.createElement('div');
+    tipEl.className = 'cb-tip';
+    document.body.appendChild(tipEl);
+
+    let tipTimer          = null;
+    let tipCurrentTarget  = null;
+    let tipMouseX         = 0;
+    let tipMouseY         = 0;
+
+    function _showTip() {
+      if (!tipCurrentTarget) return;
+      tipEl.textContent    = tipCurrentTarget.dataset.tip;
+      tipEl.style.display  = 'block';
+      tipEl.style.left     = (tipMouseX + 12) + 'px';
+      tipEl.style.top      = (tipMouseY - tipEl.offsetHeight - 8) + 'px';
+    }
+
+    function _hideTip() {
+      clearTimeout(tipTimer);
+      tipTimer         = null;
+      tipCurrentTarget = null;
+      tipEl.style.display = 'none';
+    }
+
+    rowsEl.addEventListener('mousemove', function (e) {
+      tipMouseX = e.clientX;
+      tipMouseY = e.clientY;
+
+      const target = e.target.closest('[data-tip]');
+
+      if (!target) { _hideTip(); return; }
+
+      // Outside edit mode only show tooltips on item rows
+      if (!_isEditMode() && !target.closest('.cb-row-item')) { _hideTip(); return; }
+
+      // Keep updating position while tooltip is visible
+      if (tipEl.style.display === 'block') {
+        tipEl.style.left = (tipMouseX + 12) + 'px';
+        tipEl.style.top  = (tipMouseY - tipEl.offsetHeight - 8) + 'px';
+      }
+
+      if (target === tipCurrentTarget) return;
+
+      // Moved to a new target — reset timer
+      clearTimeout(tipTimer);
+      tipEl.style.display = 'none';
+      tipCurrentTarget    = target;
+      tipTimer = setTimeout(_showTip, 500);
+    });
+
+    rowsEl.addEventListener('mouseleave', _hideTip);
+
+    function _enterEditMode() {
+      widgetEl.classList.add('cb-edit-mode');
+      el.querySelectorAll('.cb-row-div, .cb-row-sub').forEach(r => r.setAttribute('draggable', 'true'));
+      const expandBtn = el.querySelector('[data-action="edit-expand-all"]');
+      if (expandBtn) expandBtn.textContent = 'Expand All';
+    }
+
+    function _exitEditMode() {
+      _hideTip();
+      widgetEl.classList.remove('cb-edit-mode');
+      el.querySelectorAll('.cb-row-div, .cb-row-sub').forEach(r => r.removeAttribute('draggable'));
+      // Rebuild nav from current div rows
+      navListEl.innerHTML = [...rowsEl.querySelectorAll('.cb-row-div')].map(r => `
+        <div class="cb-nav-div" data-div="${r.dataset.div}">
+          <span class="cb-nav-div-name">${r.querySelector('.cb-row-div-name').textContent.trim()}</span>
+        </div>
+      `).join('');
+      // Collapse all to default state
+      el.querySelectorAll('.cb-row-div').forEach(r => {
+        r.dataset.expanded = 'false';
+        r.querySelector('.cb-expand-icon').innerHTML = '&#9654;';
+      });
+      el.querySelectorAll('.cb-row-sub').forEach(r => {
+        r.style.display = 'none';
+        r.dataset.expanded = 'false';
+        r.querySelector('.cb-expand-icon').innerHTML = '&#9654;';
+      });
+      el.querySelectorAll('.cb-row-item, .cb-row-hdr').forEach(r => r.style.display = 'none');
+    }
+
+    /* --- Toolbar: edit-structure / edit-done / add-div / edit-expand-all --- */
+    el.querySelector('.cb-toolbar').addEventListener('click', function (e) {
+      const action = e.target.closest('[data-action]')?.dataset.action;
+      if (action === 'edit-structure') { _enterEditMode(); return; }
+      if (action === 'edit-done')      { _exitEditMode(); return; }
+      if (action === 'add-div')        { _addDivision(); return; }
+      if (action === 'edit-expand-all') {
+        const btn     = e.target.closest('[data-action]');
+        const allDivs = [...rowsEl.querySelectorAll('.cb-row-div')];
+        const expand  = allDivs.some(r => r.dataset.expanded !== 'true');
+        allDivs.forEach(r => {
+          if (expand  && r.dataset.expanded !== 'true') _toggleDiv(r);
+          if (!expand && r.dataset.expanded === 'true')  _toggleDiv(r);
+        });
+        btn.textContent = expand ? 'Collapse All' : 'Expand All';
+        return;
+      }
+    });
+
+    /* --- Inline rename (double-click div/sub name in edit mode) --- */
+    function _startRename(nameEl) {
+      const prev = nameEl.textContent.trim();
+      nameEl.contentEditable = 'true';
+      nameEl.focus();
+      const sel = window.getSelection();
+      const range = document.createRange();
+      range.selectNodeContents(nameEl);
+      sel.removeAllRanges();
+      sel.addRange(range);
+
+      function finish(save) {
+        nameEl.contentEditable = 'false';
+        const val = nameEl.textContent.trim();
+        if (!save || !val) nameEl.textContent = prev;
+      }
+      nameEl.addEventListener('blur', () => finish(true), { once: true });
+      nameEl.addEventListener('keydown', function onKey(e) {
+        if (e.key === 'Enter')  { e.preventDefault(); nameEl.removeEventListener('keydown', onKey); nameEl.blur(); }
+        if (e.key === 'Escape') { e.preventDefault(); nameEl.removeEventListener('keydown', onKey); finish(false); }
+      });
+    }
+
+    rowsEl.addEventListener('dblclick', function (e) {
+      if (!_isEditMode()) return;
+      const nameEl = e.target.closest('.cb-row-div-name, .cb-row-sub-name');
+      if (nameEl) _startRename(nameEl);
+    });
+
+    /* --- Add Division --- */
+    function _addDivision() {
+      const divId  = 'new-' + Date.now();
+      const divRow = document.createElement('div');
+      divRow.className        = 'cb-row cb-row-div';
+      divRow.dataset.div      = divId;
+      divRow.dataset.expanded = 'true';
+      divRow.setAttribute('draggable', 'true');
+      divRow.innerHTML = `
+        <span class="cb-drag-handle" data-tip="Drag to reorder">&#8942;&#8942;</span>
+        <button class="cb-edit-del" data-tip="Delete Division">&#10005;</button>
+        <button class="cb-edit-add-sub btn-secondary" data-tip="Add Sub-Division">+ Sub</button>
+        <span class="cb-tag-slot"></span>
+        <span class="cb-expand-icon">&#9660;</span>
+        <span class="cb-row-div-name" data-tip="Double-click to rename">New Division</span>
+        <span class="cb-col-uom"></span><span class="cb-col-labor"></span><span class="cb-col-mat"></span>
+        <span class="cb-col-subc"></span><span class="cb-col-equip"></span><span class="cb-col-other"></span>
+        <span class="cb-col-unit"></span><span class="cb-col-specs"></span>
+        <span class="cb-edit-count">0 subs, 0 items</span>`;
+      rowsEl.appendChild(divRow);
+      _startRename(divRow.querySelector('.cb-row-div-name'));
+    }
+
+    /* --- Add Sub-Division under a given division row --- */
+    function _addSubDivision(divRow) {
+      const divId  = divRow.dataset.div;
+      const subId  = 'new-' + Date.now();
+      const subRow = document.createElement('div');
+      subRow.className        = 'cb-row cb-row-sub';
+      subRow.dataset.div      = divId;
+      subRow.dataset.sub      = subId;
+      subRow.dataset.expanded = 'true';
+      subRow.setAttribute('draggable', 'true');
+      subRow.innerHTML = `
+        <span class="cb-drag-handle" data-tip="Drag to reorder">&#8942;&#8942;</span>
+        <button class="cb-edit-del" data-tip="Delete Sub-Division">&#10005;</button>
+        <span class="cb-tag-slot"></span>
+        <span class="cb-expand-icon"></span>
+        <span class="cb-row-sub-name" data-tip="Double-click to rename">New Sub-Division</span>
+        <span class="cb-col-uom"></span><span class="cb-col-labor"></span><span class="cb-col-mat"></span>
+        <span class="cb-col-subc"></span><span class="cb-col-equip"></span><span class="cb-col-other"></span>
+        <span class="cb-col-unit"></span><span class="cb-col-specs"></span>
+        <span class="cb-edit-count">0 items</span>`;
+      // Insert after the last sub/item of this division, or directly after the div row
+      const siblings = [...rowsEl.querySelectorAll(`.cb-row[data-div="${divId}"]:not(.cb-row-div)`)];
+      const anchor   = siblings.length ? siblings[siblings.length - 1] : divRow;
+      anchor.after(subRow);
+      _startRename(subRow.querySelector('.cb-row-sub-name'));
+    }
+
+    /* --- Delete Division or Sub-Division --- */
+    function _deleteDivision(divRow) {
+      const divId     = divRow.dataset.div;
+      const subCount  = rowsEl.querySelectorAll(`.cb-row-sub[data-div="${divId}"]`).length;
+      const itemCount = rowsEl.querySelectorAll(`.cb-row-item[data-div="${divId}"]`).length;
+      const name      = divRow.querySelector('.cb-row-div-name').textContent.trim();
+      let msg = `Delete division "${name}"?`;
+      if (subCount || itemCount) {
+        msg += `\n\nThis will also remove ${subCount} sub-division${subCount !== 1 ? 's' : ''}`;
+        if (itemCount) msg += ` and ${itemCount} item${itemCount !== 1 ? 's' : ''}`;
+        msg += '.';
+      }
+      if (!confirm(msg)) return;
+      rowsEl.querySelectorAll(`.cb-row[data-div="${divId}"]`).forEach(r => r.remove());
+    }
+
+    function _deleteSubDivision(subRow) {
+      const divId     = subRow.dataset.div;
+      const subId     = subRow.dataset.sub;
+      const itemCount = rowsEl.querySelectorAll(
+        `.cb-row-item[data-div="${divId}"][data-sub="${subId}"], .cb-row-hdr[data-div="${divId}"][data-sub="${subId}"]`
+      ).length;
+      const name = subRow.querySelector('.cb-row-sub-name').textContent.trim();
+      let msg = `Delete sub-division "${name}"?`;
+      if (itemCount) msg += `\n\nThis will also remove ${itemCount} item${itemCount !== 1 ? 's' : ''}.`;
+      if (!confirm(msg)) return;
+      rowsEl.querySelectorAll(
+        `.cb-row-item[data-div="${divId}"][data-sub="${subId}"], .cb-row-hdr[data-div="${divId}"][data-sub="${subId}"]`
+      ).forEach(r => r.remove());
+      subRow.remove();
+    }
+
+    /* --- Edit action button clicks (del + add-sub) --- */
+    rowsEl.addEventListener('click', function (e) {
+      if (!_isEditMode()) return;
+      const delBtn    = e.target.closest('.cb-edit-del');
+      const addSubBtn = e.target.closest('.cb-edit-add-sub');
+      if (delBtn) {
+        e.stopPropagation();
+        const divRow = delBtn.closest('.cb-row-div');
+        const subRow = delBtn.closest('.cb-row-sub');
+        if (divRow) _deleteDivision(divRow);
+        if (subRow) _deleteSubDivision(subRow);
+      }
+      if (addSubBtn) {
+        e.stopPropagation();
+        const divRow = addSubBtn.closest('.cb-row-div');
+        if (divRow) _addSubDivision(divRow);
+      }
+    });
+
   }
 
   /* ── Edit Cost Item Widget ────────────────────────────────── */
@@ -701,8 +959,8 @@ const Estimating = (function () {
     const raw = AppData.tables['DB_Costbook'] || [];
     const seen = new Map();
     raw.forEach(r => {
-      const num  = String(r.Division_Number || '').trim();
-      const name = String(r.Division_Name   || '').trim();
+      const num  = String(r.Div_ID   || '').trim();
+      const name = String(r.Div_Name || '').trim();
       if (num && name && !seen.has(num)) seen.set(num, name);
     });
     return [...seen.entries()].map(([num, name]) => ({ num, name }));
@@ -711,10 +969,10 @@ const Estimating = (function () {
   function _eciSubs(divNum) {
     const raw = AppData.tables['DB_Costbook'] || [];
     const seen = new Map();
-    raw.filter(r => String(r.Division_Number || '').trim() === divNum)
+    raw.filter(r => String(r.Div_ID || '').trim() === divNum)
        .forEach(r => {
-         const num  = String(r.Subdivision_Number || '').trim();
-         const name = String(r.Subdivision_Name   || '').trim();
+         const num  = String(r.Subdiv_ID   || '').trim();
+         const name = String(r.Subdiv_Name || '').trim();
          if (num && name && !seen.has(num)) seen.set(num, name);
        });
     return [...seen.entries()].map(([num, name]) => ({ num, name }));
@@ -1136,8 +1394,8 @@ const Estimating = (function () {
     const active = row.Is_Active;
     return {
       itemId:       String(row.Item_ID         || '').trim(),
-      category:     String(row.Category        || '').trim(),
-      subCategory:  String(row.Sub_Category    || '').trim(),
+      category:     String(row.PL_Cat_ID    || '').trim(),
+      subCategory:  String(row.PL_Subcat_ID || '').trim(),
       itemName:     String(row.Item_Name       || '').trim(),
       uom:          String(row.Unit_Of_Measure || '').trim(),
       currentCost:  parseFloat(row.Current_Cost)  || 0,
@@ -1176,32 +1434,32 @@ const Estimating = (function () {
   }
 
   const PL_SEED = [
-    { Item_ID:'PL-S01', Category:'Lumber',               Sub_Category:'Dimensional',     Item_Name:'2x4x8 Stud',               Unit_Of_Measure:'EA',  Current_Cost:4.25,   Starting_Cost:3.89,   Date_Modified:'4/14/26',  Is_Active:'TRUE' },
-    { Item_ID:'PL-S02', Category:'Lumber',               Sub_Category:'Dimensional',     Item_Name:'2x6x8',                    Unit_Of_Measure:'EA',  Current_Cost:6.75,   Starting_Cost:5.99,   Date_Modified:'4/14/26',  Is_Active:'TRUE' },
-    { Item_ID:'PL-S03', Category:'Lumber',               Sub_Category:'Engineered',      Item_Name:'LVL 1-3/4"x9-1/2" x20\'', Unit_Of_Measure:'EA',  Current_Cost:145.00, Starting_Cost:138.00, Date_Modified:'3/22/26',  Is_Active:'TRUE' },
-    { Item_ID:'PL-S04', Category:'Sheet Goods',          Sub_Category:'Plywood',         Item_Name:'3/4" AC Plywood 4x8',      Unit_Of_Measure:'SHT', Current_Cost:52.50,  Starting_Cost:48.00,  Date_Modified:'4/14/26',  Is_Active:'TRUE' },
-    { Item_ID:'PL-S05', Category:'Sheet Goods',          Sub_Category:'Drywall',         Item_Name:'1/2" Drywall 4x8',         Unit_Of_Measure:'SHT', Current_Cost:14.75,  Starting_Cost:13.50,  Date_Modified:'2/10/26',  Is_Active:'TRUE' },
-    { Item_ID:'PL-S06', Category:'Sheet Goods',          Sub_Category:'OSB',             Item_Name:'7/16" OSB 4x8',            Unit_Of_Measure:'SHT', Current_Cost:22.00,  Starting_Cost:20.50,  Date_Modified:'2/10/26',  Is_Active:'TRUE' },
-    { Item_ID:'PL-S07', Category:'Concrete & Masonry',   Sub_Category:'Concrete Mix',    Item_Name:'80 lb Concrete Mix',       Unit_Of_Measure:'BAG', Current_Cost:7.25,   Starting_Cost:6.50,   Date_Modified:'1/5/26',   Is_Active:'TRUE' },
-    { Item_ID:'PL-S08', Category:'Insulation',           Sub_Category:'Batt',            Item_Name:'R-13 Batt 15"x93"',        Unit_Of_Measure:'EA',  Current_Cost:18.50,  Starting_Cost:16.99,  Date_Modified:'3/22/26',  Is_Active:'TRUE' },
-    { Item_ID:'PL-S09', Category:'Insulation',           Sub_Category:'Rigid Foam',      Item_Name:'2" Rigid Foam 4x8',        Unit_Of_Measure:'SHT', Current_Cost:28.00,  Starting_Cost:25.50,                            Is_Active:'TRUE' },
-    { Item_ID:'PL-S10', Category:'Roofing',              Sub_Category:'Shingles',        Item_Name:'Arch. Shingles 30yr',      Unit_Of_Measure:'SQ',  Current_Cost:95.00,  Starting_Cost:87.50,  Date_Modified:'4/1/26',   Is_Active:'TRUE' },
-    { Item_ID:'PL-S11', Category:'Roofing',              Sub_Category:'Underlayment',    Item_Name:'Synthetic Underlayment',   Unit_Of_Measure:'SQ',  Current_Cost:12.50,  Starting_Cost:11.00,                            Is_Active:'TRUE' },
-    { Item_ID:'PL-S12', Category:'Flooring',             Sub_Category:'LVP / LVT',       Item_Name:'LVP 6" Click Lock',        Unit_Of_Measure:'SF',  Current_Cost:2.85,   Starting_Cost:2.65,   Date_Modified:'3/5/26',   Is_Active:'TRUE' },
-    { Item_ID:'PL-S13', Category:'Flooring',             Sub_Category:'Tile',            Item_Name:'12x24 Porcelain Tile',     Unit_Of_Measure:'SF',  Current_Cost:4.10,   Starting_Cost:3.75,                            Is_Active:'TRUE' },
-    { Item_ID:'PL-S14', Category:'Paint & Coatings',     Sub_Category:'Interior Paint',  Item_Name:'Interior Latex Paint',     Unit_Of_Measure:'GAL', Current_Cost:38.00,  Starting_Cost:34.50,  Date_Modified:'4/14/26',  Is_Active:'TRUE' },
-    { Item_ID:'PL-S15', Category:'Paint & Coatings',     Sub_Category:'Primer',          Item_Name:'PVA Drywall Primer',       Unit_Of_Measure:'GAL', Current_Cost:22.00,  Starting_Cost:19.99,                            Is_Active:'TRUE' },
-    { Item_ID:'PL-S16', Category:'Fasteners & Hardware', Sub_Category:'Nails & Staples', Item_Name:'16d Framing Nails 50lb',   Unit_Of_Measure:'EA',  Current_Cost:42.00,  Starting_Cost:39.99,  Date_Modified:'1/5/26',   Is_Active:'TRUE' },
-    { Item_ID:'PL-S17', Category:'Fasteners & Hardware', Sub_Category:'Screws & Bolts',  Item_Name:'#8 x 1-5/8" Coarse 5lb',  Unit_Of_Measure:'EA',  Current_Cost:14.50,  Starting_Cost:13.00,                            Is_Active:'TRUE' },
-    { Item_ID:'PL-S18', Category:'Plumbing Materials',   Sub_Category:'Pipe & Fittings', Item_Name:'1/2" PEX-A Tubing',        Unit_Of_Measure:'LF',  Current_Cost:0.55,   Starting_Cost:0.48,   Date_Modified:'2/28/26',  Is_Active:'TRUE' },
-    { Item_ID:'PL-S19', Category:'Electrical Materials', Sub_Category:'Wire & Cable',    Item_Name:'12/2 Romex 250ft',         Unit_Of_Measure:'EA',  Current_Cost:78.00,  Starting_Cost:72.50,  Date_Modified:'3/5/26',   Is_Active:'TRUE' },
-    { Item_ID:'PL-S20', Category:'Adhesives & Sealants', Sub_Category:'Caulk',           Item_Name:'Paintable Latex Caulk',    Unit_Of_Measure:'EA',  Current_Cost:3.25,   Starting_Cost:2.99,                            Is_Active:'TRUE' },
-    { Item_ID:'PL-S21', Category:'Windows & Doors',      Sub_Category:'Windows',         Item_Name:'3050 DH Window',           Unit_Of_Measure:'EA',  Current_Cost:285.00, Starting_Cost:265.00, Date_Modified:'4/1/26',   Is_Active:'TRUE' },
-    { Item_ID:'PL-S22', Category:'Windows & Doors',      Sub_Category:'Exterior Doors',  Item_Name:'6-Panel Steel Entry Door', Unit_Of_Measure:'EA',  Current_Cost:320.00, Starting_Cost:298.00, Date_Modified:'4/1/26',   Is_Active:'TRUE' },
+    { Item_ID:'PL-S01', PL_Cat_ID:'Lumber',               PL_Subcat_ID:'Dimensional',     Item_Name:'2x4x8 Stud',               Unit_Of_Measure:'EA',  Current_Cost:4.25,   Starting_Cost:3.89,   Date_Modified:'4/14/26',  Is_Active:'TRUE' },
+    { Item_ID:'PL-S02', PL_Cat_ID:'Lumber',               PL_Subcat_ID:'Dimensional',     Item_Name:'2x6x8',                    Unit_Of_Measure:'EA',  Current_Cost:6.75,   Starting_Cost:5.99,   Date_Modified:'4/14/26',  Is_Active:'TRUE' },
+    { Item_ID:'PL-S03', PL_Cat_ID:'Lumber',               PL_Subcat_ID:'Engineered',      Item_Name:'LVL 1-3/4"x9-1/2" x20\'', Unit_Of_Measure:'EA',  Current_Cost:145.00, Starting_Cost:138.00, Date_Modified:'3/22/26',  Is_Active:'TRUE' },
+    { Item_ID:'PL-S04', PL_Cat_ID:'Sheet Goods',          PL_Subcat_ID:'Plywood',         Item_Name:'3/4" AC Plywood 4x8',      Unit_Of_Measure:'SHT', Current_Cost:52.50,  Starting_Cost:48.00,  Date_Modified:'4/14/26',  Is_Active:'TRUE' },
+    { Item_ID:'PL-S05', PL_Cat_ID:'Sheet Goods',          PL_Subcat_ID:'Drywall',         Item_Name:'1/2" Drywall 4x8',         Unit_Of_Measure:'SHT', Current_Cost:14.75,  Starting_Cost:13.50,  Date_Modified:'2/10/26',  Is_Active:'TRUE' },
+    { Item_ID:'PL-S06', PL_Cat_ID:'Sheet Goods',          PL_Subcat_ID:'OSB',             Item_Name:'7/16" OSB 4x8',            Unit_Of_Measure:'SHT', Current_Cost:22.00,  Starting_Cost:20.50,  Date_Modified:'2/10/26',  Is_Active:'TRUE' },
+    { Item_ID:'PL-S07', PL_Cat_ID:'Concrete & Masonry',   PL_Subcat_ID:'Concrete Mix',    Item_Name:'80 lb Concrete Mix',       Unit_Of_Measure:'BAG', Current_Cost:7.25,   Starting_Cost:6.50,   Date_Modified:'1/5/26',   Is_Active:'TRUE' },
+    { Item_ID:'PL-S08', PL_Cat_ID:'Insulation',           PL_Subcat_ID:'Batt',            Item_Name:'R-13 Batt 15"x93"',        Unit_Of_Measure:'EA',  Current_Cost:18.50,  Starting_Cost:16.99,  Date_Modified:'3/22/26',  Is_Active:'TRUE' },
+    { Item_ID:'PL-S09', PL_Cat_ID:'Insulation',           PL_Subcat_ID:'Rigid Foam',      Item_Name:'2" Rigid Foam 4x8',        Unit_Of_Measure:'SHT', Current_Cost:28.00,  Starting_Cost:25.50,                            Is_Active:'TRUE' },
+    { Item_ID:'PL-S10', PL_Cat_ID:'Roofing',              PL_Subcat_ID:'Shingles',        Item_Name:'Arch. Shingles 30yr',      Unit_Of_Measure:'SQ',  Current_Cost:95.00,  Starting_Cost:87.50,  Date_Modified:'4/1/26',   Is_Active:'TRUE' },
+    { Item_ID:'PL-S11', PL_Cat_ID:'Roofing',              PL_Subcat_ID:'Underlayment',    Item_Name:'Synthetic Underlayment',   Unit_Of_Measure:'SQ',  Current_Cost:12.50,  Starting_Cost:11.00,                            Is_Active:'TRUE' },
+    { Item_ID:'PL-S12', PL_Cat_ID:'Flooring',             PL_Subcat_ID:'LVP / LVT',       Item_Name:'LVP 6" Click Lock',        Unit_Of_Measure:'SF',  Current_Cost:2.85,   Starting_Cost:2.65,   Date_Modified:'3/5/26',   Is_Active:'TRUE' },
+    { Item_ID:'PL-S13', PL_Cat_ID:'Flooring',             PL_Subcat_ID:'Tile',            Item_Name:'12x24 Porcelain Tile',     Unit_Of_Measure:'SF',  Current_Cost:4.10,   Starting_Cost:3.75,                            Is_Active:'TRUE' },
+    { Item_ID:'PL-S14', PL_Cat_ID:'Paint & Coatings',     PL_Subcat_ID:'Interior Paint',  Item_Name:'Interior Latex Paint',     Unit_Of_Measure:'GAL', Current_Cost:38.00,  Starting_Cost:34.50,  Date_Modified:'4/14/26',  Is_Active:'TRUE' },
+    { Item_ID:'PL-S15', PL_Cat_ID:'Paint & Coatings',     PL_Subcat_ID:'Primer',          Item_Name:'PVA Drywall Primer',       Unit_Of_Measure:'GAL', Current_Cost:22.00,  Starting_Cost:19.99,                            Is_Active:'TRUE' },
+    { Item_ID:'PL-S16', PL_Cat_ID:'Fasteners & Hardware', PL_Subcat_ID:'Nails & Staples', Item_Name:'16d Framing Nails 50lb',   Unit_Of_Measure:'EA',  Current_Cost:42.00,  Starting_Cost:39.99,  Date_Modified:'1/5/26',   Is_Active:'TRUE' },
+    { Item_ID:'PL-S17', PL_Cat_ID:'Fasteners & Hardware', PL_Subcat_ID:'Screws & Bolts',  Item_Name:'#8 x 1-5/8" Coarse 5lb',  Unit_Of_Measure:'EA',  Current_Cost:14.50,  Starting_Cost:13.00,                            Is_Active:'TRUE' },
+    { Item_ID:'PL-S18', PL_Cat_ID:'Plumbing Materials',   PL_Subcat_ID:'Pipe & Fittings', Item_Name:'1/2" PEX-A Tubing',        Unit_Of_Measure:'LF',  Current_Cost:0.55,   Starting_Cost:0.48,   Date_Modified:'2/28/26',  Is_Active:'TRUE' },
+    { Item_ID:'PL-S19', PL_Cat_ID:'Electrical Materials', PL_Subcat_ID:'Wire & Cable',    Item_Name:'12/2 Romex 250ft',         Unit_Of_Measure:'EA',  Current_Cost:78.00,  Starting_Cost:72.50,  Date_Modified:'3/5/26',   Is_Active:'TRUE' },
+    { Item_ID:'PL-S20', PL_Cat_ID:'Adhesives & Sealants', PL_Subcat_ID:'Caulk',           Item_Name:'Paintable Latex Caulk',    Unit_Of_Measure:'EA',  Current_Cost:3.25,   Starting_Cost:2.99,                            Is_Active:'TRUE' },
+    { Item_ID:'PL-S21', PL_Cat_ID:'Windows & Doors',      PL_Subcat_ID:'Windows',         Item_Name:'3050 DH Window',           Unit_Of_Measure:'EA',  Current_Cost:285.00, Starting_Cost:265.00, Date_Modified:'4/1/26',   Is_Active:'TRUE' },
+    { Item_ID:'PL-S22', PL_Cat_ID:'Windows & Doors',      PL_Subcat_ID:'Exterior Doors',  Item_Name:'6-Panel Steel Entry Door', Unit_Of_Measure:'EA',  Current_Cost:320.00, Starting_Cost:298.00, Date_Modified:'4/1/26',   Is_Active:'TRUE' },
   ];
 
   function _plSeedData() {
-    const tbl = AppData.tables['Price_List'];
+    const tbl = AppData.tables['DB_Price_List'];
     if (!tbl || tbl.length > 0) return; // only seed if sheet is empty
     PL_SEED.forEach(row => tbl.push(row));
   }
@@ -1298,7 +1556,7 @@ const Estimating = (function () {
     const el = document.getElementById('widget-' + widgetId);
     if (!el) return;
 
-    const raw   = AppData.tables['Price_List'] || [];
+    const raw   = AppData.tables['DB_Price_List'] || [];
     let items   = raw.filter(r => r.Item_Name).map(_mapPriceRow);
 
     let catFilter    = '';
@@ -1396,7 +1654,7 @@ const Estimating = (function () {
       localStorage.setItem('pl_price_items', JSON.stringify(stored));
       const item = items.find(i => i.itemId === id);
       if (item) item.currentCost = val;
-      const tbl = AppData.tables['Price_List'] || [];
+      const tbl = AppData.tables['DB_Price_List'] || [];
       const row = tbl.find(r => r.Item_ID === id);
       if (row) row.Current_Cost = val;
     }
@@ -1499,8 +1757,8 @@ const Estimating = (function () {
         const stored = JSON.parse(localStorage.getItem('pl_price_items') || '[]');
         stored.push(pfData);
         localStorage.setItem('pl_price_items', JSON.stringify(stored));
-        const tbl = AppData.tables['Price_List'] || [];
-        tbl.push({ Item_ID: pfData.itemId, Category: pfData.category, Sub_Category: pfData.subCategory,
+        const tbl = AppData.tables['DB_Price_List'] || [];
+        tbl.push({ Item_ID: pfData.itemId, PL_Cat_ID: pfData.category, PL_Subcat_ID: pfData.subCategory,
           Item_Name: pfData.itemName, Unit_Of_Measure: pfData.uom, Current_Cost: pfData.currentCost,
           Starting_Cost: 0, Is_Active: 'TRUE' });
         pendingFocus = { itemId: pfData.itemId, direction: 'same' };
@@ -1619,7 +1877,7 @@ const Estimating = (function () {
         if (!item || !confirm(`Delete "${item.itemName}"?`)) return;
         const stored = JSON.parse(localStorage.getItem('pl_price_items') || '[]');
         localStorage.setItem('pl_price_items', JSON.stringify(stored.filter(s => s.itemId !== item.itemId)));
-        AppData.tables['Price_List'] = (AppData.tables['Price_List'] || []).filter(r => r.Item_ID !== item.itemId);
+        AppData.tables['DB_Price_List'] = (AppData.tables['DB_Price_List'] || []).filter(r => r.Item_ID !== item.itemId);
         _refreshItems();
         render();
       }
@@ -1667,17 +1925,17 @@ const Estimating = (function () {
         if (idx >= 0) stored[idx] = { ...stored[idx], ...pfData };
         else          stored.push(pfData);
         localStorage.setItem('pl_price_items', JSON.stringify(stored));
-        const tbl = AppData.tables['Price_List'] || [];
+        const tbl = AppData.tables['DB_Price_List'] || [];
         const ri  = tbl.findIndex(r => r.Item_ID === pfData.itemId);
         const merged = {
-          Item_ID: pfData.itemId, Category: pfData.category, Sub_Category: pfData.subCategory,
+          Item_ID: pfData.itemId, PL_Cat_ID: pfData.category, PL_Subcat_ID: pfData.subCategory,
           Item_Name: pfData.itemName, Unit_Of_Measure: pfData.uom, Current_Cost: pfData.currentCost,
           Starting_Cost: pfData.startingCost, Master_Price_ID: pfData.masterId,
           Is_Active: pfData.isActive ? 'TRUE' : 'FALSE',
         };
         if (ri >= 0) tbl[ri] = merged;
         else         tbl.push(merged);
-        AppData.tables['Price_List'] = tbl;
+        AppData.tables['DB_Price_List'] = tbl;
         hideForm();
         _refreshItems();
         render();

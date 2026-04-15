@@ -2819,6 +2819,10 @@ body.is-dragging .widget {
 .cb-toolbar-nav {
   width: 165px; /* 160px nav + 5px resize handle — updated by JS on nav resize */
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
 }
 
 .cb-toolbar-main {
@@ -3023,7 +3027,8 @@ body.is-dragging .widget {
 }
 
 .cb-row:hover .cb-drag-handle      { color: var(--color-ink-light); }
-.cb-row-item:hover .cb-drag-handle { color: var(--color-border-slate); }
+.cb-row-item .cb-drag-handle       { color: var(--color-border-slate); }
+.cb-row-item:hover .cb-drag-handle { color: var(--color-ink-light); }
 .cb-drag-handle:active             { cursor: grabbing; }
 
 /* Division and subdivision rows are not draggable — hide handle and reset cursor */
@@ -3151,6 +3156,154 @@ body.is-dragging .widget {
 .cb-row-dragging  { opacity: 0.35; }
 .cb-drop-before   { border-top: 2px solid var(--color-brand-orange) !important; }
 .cb-drop-after    { border-bottom: 2px solid var(--color-brand-orange) !important; }
+
+/* ── Costbook Edit Structure Mode ───────────────────────────── */
+
+/* Show/hide toolbar controls based on mode */
+.cb-edit-ctrl                 { display: none !important; }
+.cb-edit-mode .cb-edit-ctrl   { display: inline-flex !important; }
+.cb-edit-mode .cb-normal-ctrl { display: none !important; }
+
+/* Toolbar-nav: shrinks to button width in edit mode (nav panel is hidden) */
+.cb-edit-mode .cb-toolbar-nav { width: auto; gap: 6px; }
+
+/* Hide nav panel and resize divider */
+.cb-edit-mode .cb-nav,
+.cb-edit-mode .cb-panel-resize { display: none; }
+
+/* Replace column header with instruction bar */
+.cb-edit-mode .cb-header { display: none; }
+
+.cb-edit-header {
+  display: none;
+  height: 26px;
+  background: var(--color-ink-dark);
+  color: var(--color-ink-light);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  align-items: center;
+  padding: 0 12px;
+  flex-shrink: 0;
+}
+.cb-edit-mode .cb-edit-header { display: flex; }
+
+/* ── Edit mode tooltip bubble ───────────────────────────────── */
+.cb-tip {
+  position: fixed;
+  background: white;
+  color: var(--color-ink-dark);
+  font-size: 11px;
+  font-weight: 400;
+  white-space: nowrap;
+  padding: 5px 9px;
+  border-radius: 4px;
+  border: 1px solid var(--color-border-slate);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  pointer-events: none;
+  z-index: 9999;
+  transform: translateX(-50%);
+  display: none;
+}
+
+/* Hide items and header rows in edit mode; subs stay under normal expand/collapse */
+.cb-edit-mode .cb-row-item,
+.cb-edit-mode .cb-row-hdr                    { display: none !important; }
+
+/* 8-col edit grid: drag | del | gap | +sub | gap | expand | name | count */
+.cb-edit-mode .cb-row-div,
+.cb-edit-mode .cb-row-sub {
+  grid-template-columns: 22px 26px 8px auto 8px 18px 1fr auto;
+  cursor: default;
+}
+
+/* Action elements are direct grid children — hidden in normal mode */
+.cb-edit-del,
+.cb-edit-add-sub,
+.cb-edit-count { display: none; }
+
+/* Hide cost columns */
+.cb-edit-mode :is(.cb-row-div, .cb-row-sub)
+  :is(.cb-col-uom, .cb-col-labor, .cb-col-mat,
+      .cb-col-subc, .cb-col-equip, .cb-col-other,
+      .cb-col-unit, .cb-col-specs) { display: none; }
+
+/* Hide tag slot in edit mode — buttons fill those columns instead */
+.cb-edit-mode .cb-tag-slot { display: none; }
+
+/* Expand icon hidden on sub rows only — divs still expand/collapse */
+.cb-edit-mode .cb-row-sub .cb-expand-icon { visibility: hidden; }
+
+/* Show action elements in edit mode — each pinned to its grid column */
+.cb-edit-mode .cb-edit-del     { display: flex; align-items: center; justify-content: center;
+                                  grid-column: 2; justify-self: center; align-self: center; }
+.cb-edit-mode .cb-edit-add-sub { display: inline-flex; align-items: center;
+                                  grid-column: 4; justify-self: start; align-self: center; }
+.cb-edit-mode .cb-edit-count   { display: flex; align-items: center;
+                                  grid-column: 8; white-space: nowrap;
+                                  font-size: 11px; color: var(--color-ink-light);
+                                  padding-right: 8px; justify-content: flex-end; }
+
+/* Keep expand icon and name locked to their columns in edit mode */
+.cb-edit-mode .cb-row-div .cb-expand-icon,
+.cb-edit-mode .cb-row-sub .cb-expand-icon { grid-column: 6; }
+.cb-edit-mode .cb-row-div-name,
+.cb-edit-mode .cb-row-sub-name            { grid-column: 7; }
+
+/* Add Sub button — override the global --btn-col width; size to text + padding only */
+.cb-edit-add-sub {
+  width: auto;
+  font-size: 11px;
+  padding: 0 5px;
+  height: 20px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* Delete button — circular ✕ */
+.cb-edit-del {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border-slate);
+  background: white;
+  color: var(--color-ink-mid);
+  font-size: 11px;
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 0;
+  line-height: 1;
+}
+.cb-edit-del:hover {
+  border-color: var(--color-danger, #c0392b);
+  color: var(--color-danger, #c0392b);
+  background: #fff5f5;
+}
+
+/* Enable drag handle on div/sub rows in edit mode — always visible */
+.cb-edit-mode .cb-row-div .cb-drag-handle,
+.cb-edit-mode .cb-row-sub .cb-drag-handle {
+  cursor: grab;
+  pointer-events: auto;
+  color: var(--color-border-slate);
+}
+.cb-edit-mode .cb-row-div:hover .cb-drag-handle,
+.cb-edit-mode .cb-row-sub:hover .cb-drag-handle { color: var(--color-ink-light); }
+.cb-edit-mode .cb-row-div .cb-drag-handle:active,
+.cb-edit-mode .cb-row-sub .cb-drag-handle:active { cursor: grabbing; }
+
+/* Inline rename — contentEditable name spans */
+.cb-row-div-name[contenteditable="true"],
+.cb-row-sub-name[contenteditable="true"] {
+  outline: none;
+  background: white;
+  border-bottom: 2px solid var(--color-brand-primary);
+  border-radius: 2px 2px 0 0;
+  padding: 1px 4px;
+  cursor: text;
+  min-width: 40px;
+}
 
 /* ── Edit Cost Item Widget ──────────────────────────────────── */
 
