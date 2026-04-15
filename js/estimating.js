@@ -1467,19 +1467,27 @@ const Estimating = (function () {
   function _priceListHTML() {
     return `<div class="pl-widget">
       <div class="pl-sidebar">
-        <button class="pl-nav-btn active" data-cat="">All Items</button>
-        <div class="pl-cat-list"></div>
-        <div class="pl-sidebar-footer">
+        <div class="pl-sidebar-toolbar">
           <label class="pl-inactive-toggle">
             <input type="checkbox" class="pl-show-inactive"> Show Inactive
           </label>
+        </div>
+        <div class="pl-sidebar-hdr">
+          <button class="btn-secondary cb-btn" data-action="pl-edit-layout">Edit Layout</button>
+        </div>
+        <div class="pl-sidebar-nav">
+          <button class="pl-nav-btn active" data-cat="">All Items</button>
+          <div class="pl-cat-list"></div>
         </div>
       </div>
       <div class="pl-panel-divider"></div>
       <div class="pl-main">
         <div class="pl-list-view">
           <div class="pl-toolbar">
-            <input class="pl-search" type="text" placeholder="Search items..." autocomplete="off">
+            <input class="pl-search pl-normal-ctrl" type="text" placeholder="Search items..." autocomplete="off">
+            <button class="btn-secondary pl-edit-ctrl" data-action="pl-edit-done">&#9664; Done</button>
+            <button class="btn-secondary pl-edit-ctrl" data-action="pl-edit-expand-all">Expand All</button>
+            <button class="btn-primary   pl-edit-ctrl" data-action="pl-add-cat">+ Category</button>
           </div>
           <div class="pl-ctx-menu" style="display:none">
             <div class="pl-ctx-item" data-action="ctx-new">New Item Above</div>
@@ -1488,18 +1496,20 @@ const Estimating = (function () {
             <div class="pl-ctx-item" data-action="ctx-archive">Archive</div>
             <div class="pl-ctx-item pl-ctx-danger" data-action="ctx-delete">Delete</div>
           </div>
-          <div class="pl-col-headers">
+          <div class="pl-edit-header">EDIT LAYOUT MODE</div>
+          <div class="pl-edit-tree"></div>
+          <div class="pl-col-headers pl-normal-ctrl">
             <div class="pl-col pl-col-hdr pl-col-cat">Category<span class="pl-col-handle" data-col="cat"></span></div>
             <div class="pl-col pl-col-hdr pl-col-subcat">Sub-Category<span class="pl-col-handle" data-col="subcat"></span></div>
             <div class="pl-col pl-col-hdr pl-col-name">Item Name<span class="pl-col-handle" data-col="name"></span></div>
             <div class="pl-col pl-col-hdr pl-col-uom">U/M<span class="pl-col-handle" data-col="uom"></span></div>
             <div class="pl-col pl-col-hdr pl-col-cost">Current<br>Cost<span class="pl-col-handle" data-col="cost"></span></div>
             <div class="pl-col pl-col-hdr pl-col-datemod">Date<br>Modified<span class="pl-col-handle" data-col="datemod"></span></div>
-            <div class="pl-col pl-col-hdr pl-col-start">Start<br>Cost<span class="pl-col-handle" data-col="start"></span></div>
+            <div class="pl-col pl-col-hdr pl-col-start">Starting<br>Cost<span class="pl-col-handle" data-col="start"></span></div>
             <div class="pl-col pl-col-hdr pl-col-delta">Δ %<span class="pl-col-handle" data-col="delta"></span></div>
             <div class="pl-col pl-col-hdr pl-col-master" title="Linked to master price">🔗</div>
           </div>
-          <div class="pl-list-wrap">
+          <div class="pl-list-wrap pl-normal-ctrl">
             <div class="pl-list"></div>
           </div>
           <div class="widget-footer">
@@ -1530,17 +1540,30 @@ const Estimating = (function () {
       r.subCategory.toLowerCase().includes(q)
     );
 
+    pool = pool.slice().sort((a, b) => {
+      const ca = a.category || '', cb = b.category || '';
+      if (ca !== cb) return ca.localeCompare(cb);
+      const sa = a.subCategory || '', sb = b.subCategory || '';
+      if (sa !== sb) return sa.localeCompare(sb);
+      return (a.itemName || '').localeCompare(b.itemName || '');
+    });
+
     if (!pool.length) {
       listEl.innerHTML = '<div class="pl-empty">No items found</div>';
       return;
     }
 
+    let prevCat = null, prevSub = null;
     listEl.innerHTML = pool.map(r => {
+      const showCat = r.category !== prevCat;
+      const showSub = showCat || r.subCategory !== prevSub;
+      prevCat = r.category;
+      prevSub = r.subCategory;
       const inactive = !r.isActive ? ' pl-row-inactive' : '';
       const master   = r.masterId ? '<span title="Linked to master price">🔗</span>' : '';
       return `<div class="pl-row${inactive}" data-item-id="${r.itemId}">
-        <div class="pl-cell pl-col-cat">${r.category || '—'}</div>
-        <div class="pl-cell pl-col-subcat">${r.subCategory || '—'}</div>
+        <div class="pl-cell pl-col-cat">${showCat ? (r.category || '—') : ''}</div>
+        <div class="pl-cell pl-col-subcat">${showSub ? (r.subCategory || '—') : ''}</div>
         <div class="pl-cell pl-col-name pl-name-cell">${r.itemName || '—'}</div>
         <div class="pl-cell pl-col-uom">${r.uom || '—'}</div>
         <div class="pl-cell pl-col-cost pl-cost-cell" data-item-id="${r.itemId}" tabindex="0">${r.currentCost.toFixed(2)}</div>
@@ -1550,6 +1573,33 @@ const Estimating = (function () {
         <div class="pl-cell pl-col-master">${master}</div>
       </div>`;
     }).join('');
+  }
+
+  function _plGetCatsAndSubs(currentItems) {
+    const dbCats    = (AppData.tables['DB_PL_Categories']    || []).filter(r => r.PL_Cat_Name);
+    const dbSubcats = (AppData.tables['DB_PL_Subcategories'] || []).filter(r => r.PL_Subcat_Name);
+    if (dbCats.length) {
+      return {
+        cats:    dbCats.sort((a,b) => (+a.Sort_Weight||0) - (+b.Sort_Weight||0)),
+        subcats: dbSubcats.sort((a,b) => (+a.Sort_Weight||0) - (+b.Sort_Weight||0)),
+      };
+    }
+    // Fallback: derive from PL_CATEGORIES + item data
+    const catNames = [...new Set([...Object.keys(PL_CATEGORIES), ...currentItems.map(i=>i.category).filter(Boolean)])].sort();
+    const cats = catNames.map((name,i) => ({ PL_Cat_ID: name, PL_Cat_Name: name, Sort_Weight: i*10 }));
+    const subSeen = new Map();
+    catNames.forEach(cat => {
+      (PL_CATEGORIES[cat]||[]).forEach(sub => {
+        const key = cat+'||'+sub;
+        if (!subSeen.has(key)) subSeen.set(key, { PL_Subcat_ID: sub, PL_Subcat_Name: sub, Sort_Weight: subSeen.size*10, PL_Cat_ID: cat });
+      });
+    });
+    currentItems.forEach(i => {
+      if (!i.category || !i.subCategory) return;
+      const key = i.category+'||'+i.subCategory;
+      if (!subSeen.has(key)) subSeen.set(key, { PL_Subcat_ID: i.subCategory, PL_Subcat_Name: i.subCategory, Sort_Weight: subSeen.size*10, PL_Cat_ID: i.category });
+    });
+    return { cats, subcats: [...subSeen.values()] };
   }
 
   function _bindPriceList(widgetId) {
@@ -1575,6 +1625,7 @@ const Estimating = (function () {
     const formBody  = el.querySelector('.pl-form-body');
     const widgetEl  = el.querySelector('.pl-widget');
     const ctxMenu   = el.querySelector('.pl-ctx-menu');
+    const treeEl    = el.querySelector('.pl-edit-tree');
 
     // Column widths — CSS custom properties on .pl-widget
     // Version-stamped: stale saved widths are discarded when PL_COL_VER changes
@@ -1798,6 +1849,253 @@ const Estimating = (function () {
     _refreshItems();
     render();
 
+    // ── Edit Layout Mode ─────────────────────────────────────
+    const plTipEl = document.createElement('div');
+    plTipEl.className = 'cb-tip';
+    document.body.appendChild(plTipEl);
+    let plTipTimer = null, plTipTarget = null, plTipX = 0, plTipY = 0;
+    function _plShowTip() {
+      if (!plTipTarget) return;
+      plTipEl.textContent   = plTipTarget.dataset.tip;
+      plTipEl.style.display = 'block';
+      plTipEl.style.left    = (plTipX + 12) + 'px';
+      plTipEl.style.top     = (plTipY - plTipEl.offsetHeight - 8) + 'px';
+    }
+    function _plHideTip() {
+      clearTimeout(plTipTimer); plTipTimer = null; plTipTarget = null;
+      plTipEl.style.display = 'none';
+    }
+    treeEl.addEventListener('mousemove', function (e) {
+      plTipX = e.clientX; plTipY = e.clientY;
+      const t = e.target.closest('[data-tip]');
+      if (!t) { _plHideTip(); return; }
+      if (plTipEl.style.display === 'block') {
+        plTipEl.style.left = (plTipX + 12) + 'px';
+        plTipEl.style.top  = (plTipY - plTipEl.offsetHeight - 8) + 'px';
+      }
+      if (t === plTipTarget) return;
+      clearTimeout(plTipTimer);
+      plTipEl.style.display = 'none';
+      plTipTarget = t;
+      plTipTimer = setTimeout(_plShowTip, 500);
+    });
+    treeEl.addEventListener('mouseleave', _plHideTip);
+
+    function _plBuildTree() {
+      const { cats, subcats } = _plGetCatsAndSubs(items);
+      treeEl.innerHTML = cats.map(cat => {
+        const subs      = subcats.filter(s => s.PL_Cat_ID === cat.PL_Cat_ID);
+        const itemCount = items.filter(i => i.category === cat.PL_Cat_Name).length;
+        const subHTML   = subs.map(sub => {
+          const subItemCount = items.filter(i => i.category === cat.PL_Cat_Name && i.subCategory === sub.PL_Subcat_Name).length;
+          return `<div class="pl-er-row pl-er-sub" data-cat-id="${cat.PL_Cat_ID}" data-sub-id="${sub.PL_Subcat_ID}" draggable="true" style="display:none">
+            <span class="pl-er-drag" data-tip="Drag to reorder">&#8942;&#8942;</span>
+            <button class="pl-er-del" data-tip="Delete Sub-Category">&#10005;</button>
+            <span class="pl-er-name" data-tip="Double-click to rename">${sub.PL_Subcat_Name}</span>
+            <span class="pl-er-count">${subItemCount} item${subItemCount !== 1 ? 's' : ''}</span>
+          </div>`;
+        }).join('');
+        return `<div class="pl-er-row pl-er-cat" data-cat-id="${cat.PL_Cat_ID}" data-expanded="false" draggable="true">
+          <span class="pl-er-drag" data-tip="Drag to reorder">&#8942;&#8942;</span>
+          <button class="pl-er-del" data-tip="Delete Category">&#10005;</button>
+          <button class="pl-er-add-sub btn-secondary" data-tip="Add Sub-Category">+ Sub</button>
+          <span class="pl-er-exp">&#9654;</span>
+          <span class="pl-er-name" data-tip="Double-click to rename">${cat.PL_Cat_Name}</span>
+          <span class="pl-er-count">${subs.length} sub${subs.length !== 1 ? 's' : ''}, ${itemCount} item${itemCount !== 1 ? 's' : ''}</span>
+        </div>${subHTML}`;
+      }).join('');
+    }
+
+    function _plEnterEditMode() {
+      widgetEl.classList.add('pl-edit-mode');
+      _plBuildTree();
+      const btn = el.querySelector('[data-action="pl-edit-expand-all"]');
+      if (btn) btn.textContent = 'Expand All';
+    }
+
+    function _plExitEditMode() {
+      _plHideTip();
+      widgetEl.classList.remove('pl-edit-mode');
+      // Rebuild sidebar from current tree cat names
+      const catRows = [...treeEl.querySelectorAll('.pl-er-cat')];
+      catList.innerHTML = catRows.map(r => {
+        const name = r.querySelector('.pl-er-name').textContent.trim();
+        return `<button class="pl-nav-btn" data-cat="${name}">${name}</button>`;
+      }).join('');
+      treeEl.innerHTML = '';
+    }
+
+    function _plStartRename(nameEl) {
+      const prev = nameEl.textContent.trim();
+      nameEl.contentEditable = 'true';
+      nameEl.focus();
+      const sel = window.getSelection();
+      const range = document.createRange();
+      range.selectNodeContents(nameEl);
+      sel.removeAllRanges();
+      sel.addRange(range);
+      function finish(save) {
+        nameEl.contentEditable = 'false';
+        const val = nameEl.textContent.trim();
+        if (!save || !val) nameEl.textContent = prev;
+      }
+      nameEl.addEventListener('blur', () => finish(true), { once: true });
+      nameEl.addEventListener('keydown', function onKey(e) {
+        if (e.key === 'Enter')  { e.preventDefault(); nameEl.blur(); nameEl.removeEventListener('keydown', onKey); }
+        if (e.key === 'Escape') { finish(false); nameEl.removeEventListener('keydown', onKey); }
+      });
+    }
+
+    function _plToggleCat(catRow) {
+      const expanded = catRow.dataset.expanded === 'true';
+      const catId    = catRow.dataset.catId;
+      catRow.dataset.expanded = expanded ? 'false' : 'true';
+      catRow.querySelector('.pl-er-exp').innerHTML = expanded ? '&#9654;' : '&#9660;';
+      treeEl.querySelectorAll(`.pl-er-sub[data-cat-id="${catId}"]`).forEach(r => {
+        r.style.display = expanded ? 'none' : '';
+      });
+    }
+
+    function _plAddCat() {
+      const catId  = 'new-' + Date.now();
+      const catRow = document.createElement('div');
+      catRow.className        = 'pl-er-row pl-er-cat';
+      catRow.dataset.catId    = catId;
+      catRow.dataset.expanded = 'true';
+      catRow.setAttribute('draggable', 'true');
+      catRow.innerHTML = `
+        <span class="pl-er-drag" data-tip="Drag to reorder">&#8942;&#8942;</span>
+        <button class="pl-er-del" data-tip="Delete Category">&#10005;</button>
+        <button class="pl-er-add-sub btn-secondary" data-tip="Add Sub-Category">+ Sub</button>
+        <span class="pl-er-exp">&#9660;</span>
+        <span class="pl-er-name" data-tip="Double-click to rename">New Category</span>
+        <span class="pl-er-count">0 subs, 0 items</span>`;
+      treeEl.appendChild(catRow);
+      _plStartRename(catRow.querySelector('.pl-er-name'));
+    }
+
+    function _plAddSub(catRow) {
+      const catId  = catRow.dataset.catId;
+      const subId  = 'new-' + Date.now();
+      const subRow = document.createElement('div');
+      subRow.className     = 'pl-er-row pl-er-sub';
+      subRow.dataset.catId = catId;
+      subRow.dataset.subId = subId;
+      subRow.setAttribute('draggable', 'true');
+      subRow.innerHTML = `
+        <span class="pl-er-drag" data-tip="Drag to reorder">&#8942;&#8942;</span>
+        <button class="pl-er-del" data-tip="Delete Sub-Category">&#10005;</button>
+        <span class="pl-er-name" data-tip="Double-click to rename">New Sub-Category</span>
+        <span class="pl-er-count">0 items</span>`;
+      const subs   = [...treeEl.querySelectorAll(`.pl-er-sub[data-cat-id="${catId}"]`)];
+      const anchor = subs.length ? subs[subs.length - 1] : catRow;
+      anchor.after(subRow);
+      if (catRow.dataset.expanded !== 'true') _plToggleCat(catRow);
+      _plStartRename(subRow.querySelector('.pl-er-name'));
+    }
+
+    function _plDeleteCat(catRow) {
+      const catId     = catRow.dataset.catId;
+      const name      = catRow.querySelector('.pl-er-name').textContent.trim();
+      const subCount  = treeEl.querySelectorAll(`.pl-er-sub[data-cat-id="${catId}"]`).length;
+      const itemCount = items.filter(i => i.category === name).length;
+      let msg = `Delete category "${name}"?`;
+      if (subCount || itemCount) {
+        msg += `\n\nThis contains ${subCount} sub-categor${subCount !== 1 ? 'ies' : 'y'}`;
+        if (itemCount) msg += ` and ${itemCount} item${itemCount !== 1 ? 's' : ''}`;
+        msg += '.';
+      }
+      if (!confirm(msg)) return;
+      treeEl.querySelectorAll(`.pl-er-sub[data-cat-id="${catId}"]`).forEach(r => r.remove());
+      catRow.remove();
+    }
+
+    function _plDeleteSub(subRow) {
+      const catId  = subRow.dataset.catId;
+      const catRow = treeEl.querySelector(`.pl-er-cat[data-cat-id="${catId}"]`);
+      const catName = catRow ? catRow.querySelector('.pl-er-name').textContent.trim() : '';
+      const name    = subRow.querySelector('.pl-er-name').textContent.trim();
+      const itemCount = items.filter(i => i.category === catName && i.subCategory === name).length;
+      let msg = `Delete sub-category "${name}"?`;
+      if (itemCount) msg += `\n\nThis contains ${itemCount} item${itemCount !== 1 ? 's' : ''}.`;
+      if (!confirm(msg)) return;
+      subRow.remove();
+    }
+
+    // ── Edit tree: click (expand/del/add-sub) + dblclick (rename) ──
+    treeEl.addEventListener('click', function (e) {
+      const delBtn    = e.target.closest('.pl-er-del');
+      const addSubBtn = e.target.closest('.pl-er-add-sub');
+      const catRow    = e.target.closest('.pl-er-cat');
+      const subRow    = e.target.closest('.pl-er-sub');
+      if (delBtn) {
+        e.stopPropagation();
+        if (catRow) _plDeleteCat(catRow);
+        else if (subRow) _plDeleteSub(subRow);
+        return;
+      }
+      if (addSubBtn) {
+        e.stopPropagation();
+        if (catRow) _plAddSub(catRow);
+        return;
+      }
+      if (catRow && !e.target.closest('.pl-er-del, .pl-er-add-sub')) {
+        _plToggleCat(catRow);
+      }
+    });
+
+    treeEl.addEventListener('dblclick', function (e) {
+      const nameEl = e.target.closest('.pl-er-name');
+      if (nameEl) { e.stopPropagation(); _plStartRename(nameEl); }
+    });
+
+    // ── Edit tree: drag-to-reorder ──
+    let plDragRow = null, plDragCatId = null;
+    treeEl.addEventListener('dragstart', function (e) {
+      const row = e.target.closest('.pl-er-row');
+      if (!row) return;
+      plDragRow   = row;
+      plDragCatId = row.dataset.catId;
+      row.classList.add('pl-er-dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    treeEl.addEventListener('dragend', function () {
+      if (plDragRow) plDragRow.classList.remove('pl-er-dragging');
+      treeEl.querySelectorAll('.pl-er-drag-over').forEach(r => r.classList.remove('pl-er-drag-over'));
+      plDragRow = null; plDragCatId = null;
+    });
+    treeEl.addEventListener('dragover', function (e) {
+      if (!plDragRow) return;
+      e.preventDefault();
+      const target    = e.target.closest('.pl-er-row');
+      if (!target || target === plDragRow) return;
+      const isCatDrag = plDragRow.classList.contains('pl-er-cat');
+      const isSubDrag = plDragRow.classList.contains('pl-er-sub');
+      if (isCatDrag && !target.classList.contains('pl-er-cat')) return;
+      if (isSubDrag && (!target.classList.contains('pl-er-sub') || target.dataset.catId !== plDragCatId)) return;
+      treeEl.querySelectorAll('.pl-er-drag-over').forEach(r => r.classList.remove('pl-er-drag-over'));
+      target.classList.add('pl-er-drag-over');
+    });
+    treeEl.addEventListener('drop', function (e) {
+      e.preventDefault();
+      const target = e.target.closest('.pl-er-row');
+      treeEl.querySelectorAll('.pl-er-drag-over').forEach(r => r.classList.remove('pl-er-drag-over'));
+      if (!plDragRow || !target || target === plDragRow) return;
+      const isCatDrag = plDragRow.classList.contains('pl-er-cat');
+      const isSubDrag = plDragRow.classList.contains('pl-er-sub');
+      if (isCatDrag && !target.classList.contains('pl-er-cat')) return;
+      if (isSubDrag && (!target.classList.contains('pl-er-sub') || target.dataset.catId !== plDragCatId)) return;
+      if (isCatDrag) {
+        // Move cat + all its subs together
+        const catId = plDragRow.dataset.catId;
+        const subs  = [...treeEl.querySelectorAll(`.pl-er-sub[data-cat-id="${catId}"]`)];
+        target.after(plDragRow);
+        subs.reverse().forEach(s => plDragRow.after(s));
+      } else {
+        target.after(plDragRow);
+      }
+    });
+
     // ── Sidebar category filter ──
     el.querySelector('.pl-sidebar').addEventListener('click', function (e) {
       const btn = e.target.closest('.pl-nav-btn');
@@ -1903,6 +2201,21 @@ const Estimating = (function () {
 
     // ── Close / Form Save & Cancel ──
     el.addEventListener('click', function (e) {
+      // Edit Layout Mode toolbar actions
+      if (e.target.closest('[data-action="pl-edit-layout"]'))     { _plEnterEditMode(); return; }
+      if (e.target.closest('[data-action="pl-edit-done"]'))       { _plExitEditMode(); return; }
+      if (e.target.closest('[data-action="pl-add-cat"]'))         { _plAddCat(); return; }
+      if (e.target.closest('[data-action="pl-edit-expand-all"]')) {
+        const btn     = e.target.closest('[data-action]');
+        const allCats = [...treeEl.querySelectorAll('.pl-er-cat')];
+        const expand  = allCats.some(r => r.dataset.expanded !== 'true');
+        allCats.forEach(r => {
+          if (expand  && r.dataset.expanded !== 'true') _plToggleCat(r);
+          if (!expand && r.dataset.expanded === 'true')  _plToggleCat(r);
+        });
+        btn.textContent = expand ? 'Collapse All' : 'Expand All';
+        return;
+      }
       if (e.target.closest('[data-action="cancel"]'))    { WidgetManager.close(widgetId); return; }
       if (e.target.closest('[data-action="cancel-pf"]')) { hideForm(); return; }
       if (e.target.closest('[data-action="save-pf"]')) {
