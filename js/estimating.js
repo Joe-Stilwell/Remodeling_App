@@ -256,15 +256,23 @@ const Estimating = (function () {
 
         <div class="cb-toolbar">
           <div class="cb-toolbar-nav">
-            <button class="btn-secondary cb-btn cb-normal-ctrl" data-action="edit-structure">Edit Layout</button>
+            <button class="btn-secondary cb-btn cb-normal-ctrl" data-action="edit-structure">Edit Divisions</button>
             <button class="btn-secondary cb-btn cb-edit-ctrl" data-action="edit-done">&#9664; Done</button>
             <button class="btn-secondary cb-btn cb-edit-ctrl" data-action="edit-expand-all">Expand All</button>
             <button class="btn-primary cb-btn cb-edit-ctrl" data-action="add-div">+ Add Division</button>
+            <button class="btn-secondary cb-btn cb-items-ctrl" data-action="items-done">&#9664; Done</button>
           </div>
           <div class="cb-toolbar-main">
+            <div class="cbi-bulk-bar cb-items-ctrl">
+              <span class="cbi-sel-count"></span>
+              <button class="btn-secondary cb-btn" data-action="cbi-archive" disabled>Archive Selected</button>
+              <button class="btn-secondary cb-btn cbi-delete-btn" data-action="cbi-delete" disabled>Delete Selected</button>
+              <button class="btn-secondary cb-btn" data-action="cbi-clear" disabled>Clear Selection</button>
+            </div>
             <input class="cb-nav-search cb-normal-ctrl" type="text" placeholder="Search items..." autocomplete="off">
             <button class="btn-secondary cb-btn cb-normal-ctrl" data-action="expand-all">Expand All</button>
             <button class="btn-secondary cb-btn cb-normal-ctrl" data-action="collapse-all">Collapse All</button>
+            <button class="btn-secondary cb-btn cb-normal-ctrl" data-action="edit-items">Edit Cost Items</button>
             <span class="cb-tag-count cb-normal-ctrl" data-count="0"></span>
             <button class="btn-primary cb-btn cb-normal-ctrl" data-action="transfer" disabled>Transfer Selected</button>
           </div>
@@ -607,20 +615,40 @@ const Estimating = (function () {
     }
 
     rowsEl.addEventListener('contextmenu', function (e) {
-      const target = e.target.closest('.cb-row-sub, .cb-row-item, .cb-row-hdr');
-      if (!target) return;
+      const itemRow = e.target.closest('.cb-row-item');
+      const hdrRow  = e.target.closest('.cb-row-hdr');
+      if (!itemRow && !hdrRow) return;
       e.preventDefault();
       _closeCtx();
 
       ctxMenu = document.createElement('div');
       ctxMenu.className = 'cb-ctx-menu';
 
-      const addHdr = document.createElement('div');
-      addHdr.className = 'cb-ctx-item';
-      addHdr.textContent = '+ Add Header';
-      addHdr.addEventListener('click', () => { _closeCtx(); _addHeaderAfter(target); });
+      function _item(label, cls, fn) {
+        const d = document.createElement('div');
+        d.className = 'cb-ctx-item' + (cls ? ' ' + cls : '');
+        d.textContent = label;
+        d.addEventListener('click', () => { _closeCtx(); fn(); });
+        ctxMenu.appendChild(d);
+      }
+      function _sep() {
+        const d = document.createElement('div');
+        d.className = 'cb-ctx-sep';
+        ctxMenu.appendChild(d);
+      }
 
-      ctxMenu.appendChild(addHdr);
+      if (itemRow) {
+        const itemId = itemRow.dataset.item;
+        _item('+ Cost Item',       '',              () => openEditCostItem(null));
+        _item('+ Header',          '',              () => _addHeaderAfter(itemRow));
+        _item('Edit Cost Item',    '',              () => openEditCostItem(itemId));
+        _sep();
+        _item('Archive Cost Item', '',              () => { /* TODO */ });
+        _item('Delete Cost Item',  'cb-ctx-danger', () => { /* TODO */ });
+      } else {
+        _item('+ Add Header', '', () => _addHeaderAfter(hdrRow));
+      }
+
       document.body.appendChild(ctxMenu);
       ctxMenu.style.left = e.clientX + 'px';
       ctxMenu.style.top  = e.clientY + 'px';
@@ -665,53 +693,322 @@ const Estimating = (function () {
       inp.readOnly = true;
     });
 
-    /* --- Search: filter grid rows directly --- */
-    el.querySelector('.cb-nav-search') && el.querySelector('.cb-nav-search').addEventListener('input', function () {
-      const q = this.value.trim().toLowerCase();
-      if (!q) {
-        // Restore fully collapsed state — reset all sub/div expanded flags and arrows
-        el.querySelectorAll('.cb-row-sub').forEach(r => {
-          r.style.display = 'none';
-          r.dataset.expanded = 'false';
-          r.querySelector('.cb-expand-icon').innerHTML = '&#9654;';
-        });
-        el.querySelectorAll('.cb-row-item, .cb-row-hdr').forEach(r => r.style.display = 'none');
-        el.querySelectorAll('.cb-row-div').forEach(r => {
-          r.style.display = '';
-          r.dataset.expanded = 'false';
-          r.querySelector('.cb-expand-icon').innerHTML = '&#9654;';
-        });
-        return;
+    /* --- Search: floating results dropdown --- */
+    const searchInp = el.querySelector('.cb-nav-search');
+    let cbSearchDrop = null;
+
+    function _cbCloseDrop() {
+      if (cbSearchDrop) { cbSearchDrop.remove(); cbSearchDrop = null; }
+    }
+
+    function _cbNavigateTo(divNum, subNum, itemId) {
+      _cbCloseDrop();
+      searchInp.value = '';
+
+      // Collapse everything first for a clean reveal
+      el.querySelectorAll('.cb-row-div').forEach(r => {
+        r.dataset.expanded = 'false';
+        r.querySelector('.cb-expand-icon').innerHTML = '&#9654;';
+        r.style.display = '';
+      });
+      el.querySelectorAll('.cb-row-sub, .cb-row-item, .cb-row-hdr').forEach(r => r.style.display = 'none');
+
+      // Expand target division
+      const divRow = el.querySelector(`.cb-row-div[data-div="${divNum}"]`);
+      if (divRow) {
+        divRow.dataset.expanded = 'true';
+        divRow.querySelector('.cb-expand-icon').innerHTML = '&#9660;';
+        el.querySelectorAll(`.cb-row-sub[data-div="${divNum}"]`).forEach(r => r.style.display = '');
+        el.querySelectorAll(`.cb-row-hdr[data-div="${divNum}"]`).forEach(r => r.style.display = '');
       }
-      // Show only items matching query, expand their parents
-      el.querySelectorAll('.cb-row-div').forEach(divRow => {
-        const divNum = divRow.dataset.div;
-        let divMatch = false;
-        el.querySelectorAll(`.cb-row-item[data-div="${divNum}"]`).forEach(itemRow => {
-          const desc  = itemRow.querySelector('.cb-col-desc').textContent.toLowerCase();
-          const code  = itemRow.querySelector(':last-child').textContent.toLowerCase();
-          const match = desc.includes(q) || code.includes(q);
-          itemRow.style.display = match ? '' : 'none';
-          if (match) divMatch = true;
-        });
-        divRow.style.display = divMatch ? '' : 'none';
-        if (divMatch) {
-          divRow.dataset.expanded = 'true';
-          divRow.querySelector('.cb-expand-icon').innerHTML = '&#9660;';
-          el.querySelectorAll(`.cb-row-sub[data-div="${divNum}"]`).forEach(subRow => {
-            subRow.style.display = '';
-            subRow.dataset.expanded = 'true';
-            subRow.querySelector('.cb-expand-icon').innerHTML = '&#9660;';
-          });
-          el.querySelectorAll(`.cb-row-hdr[data-div="${divNum}"]`).forEach(r => r.style.display = '');
+
+      // Expand target sub-division (if specified)
+      if (subNum) {
+        const subRow = el.querySelector(`.cb-row-sub[data-div="${divNum}"][data-sub="${subNum}"]`);
+        if (subRow) {
+          subRow.dataset.expanded = 'true';
+          subRow.querySelector('.cb-expand-icon').innerHTML = '&#9660;';
+          el.querySelectorAll(`.cb-row-item[data-div="${divNum}"][data-sub="${subNum}"]`).forEach(r => r.style.display = '');
+          el.querySelectorAll(`.cb-row-hdr[data-div="${divNum}"][data-sub="${subNum}"]`).forEach(r => r.style.display = '');
+        }
+      }
+
+      // Scroll to and highlight target row
+      const targetSel = itemId
+        ? `.cb-row-item[data-item="${itemId}"]`
+        : subNum
+          ? `.cb-row-sub[data-div="${divNum}"][data-sub="${subNum}"]`
+          : `.cb-row-div[data-div="${divNum}"]`;
+      const targetRow = el.querySelector(targetSel);
+      if (targetRow) {
+        targetRow.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        const highlightCell = targetRow.querySelector('.cb-col-desc') || targetRow;
+        highlightCell.classList.add('cb-search-highlight');
+        setTimeout(() => highlightCell.classList.remove('cb-search-highlight'), 2000);
+      }
+
+      // Sync left nav
+      el.querySelectorAll('.cb-nav-div').forEach(n => n.classList.toggle('is-active', n.dataset.div === divNum));
+    }
+
+    let cbDropIndex = -1;
+
+    function _cbDropItems() {
+      return cbSearchDrop ? [...cbSearchDrop.querySelectorAll('.cb-search-result')] : [];
+    }
+
+    function _cbDropSetActive(index) {
+      const items = _cbDropItems();
+      items.forEach((r, i) => r.classList.toggle('is-active', i === index));
+      if (items[index]) items[index].scrollIntoView({ block: 'nearest' });
+      cbDropIndex = index;
+    }
+
+    function _cbBuildDrop(q) {
+      _cbCloseDrop();
+      cbDropIndex = -1;
+      if (!q) return;
+
+      const results = [];
+
+      // Match items by description
+      el.querySelectorAll('.cb-row-item').forEach(itemRow => {
+        const divNum  = itemRow.dataset.div;
+        const subNum  = itemRow.dataset.sub;
+        const itemId  = itemRow.dataset.item;
+        const desc    = itemRow.querySelector('.cb-col-desc').textContent;
+        const divName = el.querySelector(`.cb-row-div[data-div="${divNum}"] .cb-row-div-name`)?.textContent || '';
+        const subName = el.querySelector(`.cb-row-sub[data-div="${divNum}"][data-sub="${subNum}"] .cb-row-sub-name`)?.textContent || '';
+        if (desc.toLowerCase().includes(q)) {
+          results.push({ type: 'item', label: desc, sub: divName + ' › ' + subName, divNum, subNum, itemId });
         }
       });
-    });
 
-    /* ── Edit Structure Mode ─────────────────────────────────── */
+      if (!results.length) {
+        results.push({ type: 'empty', label: 'No results', sub: null });
+      }
+
+      // Build dropdown
+      cbSearchDrop = document.createElement('div');
+      cbSearchDrop.className = 'cb-search-drop';
+
+      results.slice(0, 30).forEach(r => {
+        if (r.type === 'empty') {
+          const row = document.createElement('div');
+          row.className = 'cb-search-empty';
+          row.textContent = r.label;
+          cbSearchDrop.appendChild(row);
+          return;
+        }
+        const row = document.createElement('div');
+        row.className = 'cb-search-result cb-search-type-' + r.type;
+        row.innerHTML = `<span class="cb-sr-label">${r.label}</span>${r.sub ? `<span class="cb-sr-path">${r.sub}</span>` : ''}`;
+        row.addEventListener('mousedown', function (e) {
+          e.preventDefault(); // keep search input focused
+          _cbNavigateTo(r.divNum, r.subNum, r.itemId);
+        });
+        cbSearchDrop.appendChild(row);
+      });
+
+      // Position below the search input
+      const rect = searchInp.getBoundingClientRect();
+      cbSearchDrop.style.top   = rect.bottom + 4 + 'px';
+      cbSearchDrop.style.left  = rect.left + 'px';
+      cbSearchDrop.style.width = Math.max(rect.width, 280) + 'px';
+      document.body.appendChild(cbSearchDrop);
+    }
+
+    if (searchInp) {
+      searchInp.addEventListener('input', function () {
+        _cbBuildDrop(this.value.trim().toLowerCase());
+      });
+      searchInp.addEventListener('blur', function () {
+        // Short delay so mousedown on a result fires first
+        setTimeout(_cbCloseDrop, 150);
+      });
+      searchInp.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') { _cbCloseDrop(); this.value = ''; return; }
+        if (!cbSearchDrop) return;
+        const items = _cbDropItems();
+        if (!items.length) return;
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          _cbDropSetActive(Math.min(cbDropIndex + 1, items.length - 1));
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          _cbDropSetActive(Math.max(cbDropIndex - 1, 0));
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          const idx = cbDropIndex >= 0 ? cbDropIndex : 0;
+          if (items[idx]) items[idx].dispatchEvent(new MouseEvent('mousedown'));
+        }
+      });
+    }
+
+    /* ── Edit Cost Items Mode ────────────────────────────────── */
 
     const widgetEl  = el.querySelector('.cb-widget');
     const navListEl = el.querySelector('.cb-nav-list');
+
+    function _enterItemsMode() {
+      if (widgetEl.classList.contains('cb-items-mode')) return;
+
+      const raw  = AppData.tables['DB_Costbook'] || [];
+      const tree = _buildTree(raw.filter(r => r.Item_Description).map(_mapRow));
+
+      const rowsHTML = tree.map(div => `
+        <div class="cbi-div-hdr" data-div="${div.divNum}">${div.divName}</div>
+        ${div.subs.map(sub => `
+          <div class="cbi-row cbi-row-sub" data-div="${div.divNum}" data-sub="${sub.subNum}" data-expanded="false">
+            <span class="cbi-drag">&#8942;&#8942;</span>
+            <span></span>
+            <button class="cbi-exp-btn">&#9654;</button>
+            <span class="cbi-sub-name">${sub.subName}</span>
+          </div>
+          ${sub.items.map(item => `
+            <div class="cbi-row cbi-row-item" data-div="${div.divNum}" data-sub="${sub.subNum}" data-item="${item.itemId}" draggable="true" style="display:none">
+              <span class="cbi-drag">&#8942;&#8942;</span>
+              <input type="checkbox" class="cbi-tag cbi-tag-item">
+              <span></span>
+              <span></span>
+              <span class="cbi-item-desc">${item.description}</span>
+            </div>
+          `).join('')}
+        `).join('')}
+      `).join('');
+
+      const panel = document.createElement('div');
+      panel.className = 'cb-items-panel';
+      panel.innerHTML = `
+        <div class="cb-items-hdr">
+          <span></span>
+          <span></span>
+          <span></span>
+          <span></span>
+          <span class="cbi-hdr-name">Item Description</span>
+        </div>
+        <div class="cb-items-rows">${rowsHTML}</div>
+      `;
+      el.querySelector('.cb-body').appendChild(panel);
+      widgetEl.classList.add('cb-items-mode');
+      _bindItemsPanel(panel);
+    }
+
+    function _exitItemsMode() {
+      widgetEl.classList.remove('cb-items-mode');
+      const panel = el.querySelector('.cb-items-panel');
+      if (panel) panel.remove();
+    }
+
+    function _bindItemsPanel(panel) {
+      const itemRowsEl = panel.querySelector('.cb-items-rows');
+      const selCount   = el.querySelector('.cbi-sel-count');
+
+      function _updateBulk() {
+        const n = panel.querySelectorAll('.cbi-tag-item:checked').length;
+        selCount.textContent = n > 0 ? `${n} item${n === 1 ? '' : 's'} selected` : '';
+        const off = n === 0;
+        el.querySelector('[data-action="cbi-archive"]').disabled = off;
+        el.querySelector('[data-action="cbi-delete"]').disabled  = off;
+        el.querySelector('[data-action="cbi-clear"]').disabled   = off;
+      }
+
+      // Expand / collapse sub rows
+      itemRowsEl.addEventListener('click', function (e) {
+        const expBtn = e.target.closest('.cbi-exp-btn');
+        const subRow = e.target.closest('.cbi-row-sub');
+        if (!expBtn || !subRow) return;
+        const divNum   = subRow.dataset.div;
+        const subNum   = subRow.dataset.sub;
+        const expanded = subRow.dataset.expanded === 'true';
+        subRow.dataset.expanded = !expanded;
+        expBtn.innerHTML = expanded ? '&#9654;' : '&#9660;';
+        itemRowsEl.querySelectorAll(`.cbi-row-item[data-div="${divNum}"][data-sub="${subNum}"]`)
+          .forEach(r => r.style.display = expanded ? 'none' : '');
+      });
+
+      // Tag checkboxes
+      panel.addEventListener('change', function (e) {
+        if (e.target.matches('.cbi-tag-item')) _updateBulk();
+      });
+
+      // Bulk actions (buttons live in toolbar, not panel)
+      el.querySelector('[data-action="cbi-clear"]').addEventListener('click', () => {
+        panel.querySelectorAll('.cbi-tag').forEach(cb => cb.checked = false);
+        _updateBulk();
+      });
+      el.querySelector('[data-action="cbi-archive"]').addEventListener('click', () => {
+        // TODO: full-stack — update isArchived flag on selected items
+        alert('Archive: wired in full-stack build.');
+      });
+      el.querySelector('[data-action="cbi-delete"]').addEventListener('click', () => {
+        const n = panel.querySelectorAll('.cbi-tag-item:checked').length;
+        if (!n) return;
+        if (!confirm(`Delete ${n} item${n === 1 ? '' : 's'}? This cannot be undone.`)) return;
+        // TODO: full-stack — delete rows from DB_Costbook
+        alert('Delete: wired in full-stack build.');
+      });
+
+      // Double-click item row → open Edit Cost Item screen
+      itemRowsEl.addEventListener('dblclick', function (e) {
+        const row = e.target.closest('.cbi-row-item');
+        if (row) openEditCostItem(row.dataset.item);
+      });
+
+      // Left nav: scroll items panel to clicked division
+      navListEl.addEventListener('click', function _navItemsMode(e) {
+        if (!widgetEl.classList.contains('cb-items-mode')) return;
+        const divItem = e.target.closest('.cb-nav-div');
+        if (!divItem) return;
+        const hdr = itemRowsEl.querySelector(`.cbi-div-hdr[data-div="${divItem.dataset.div}"]`);
+        if (hdr) itemRowsEl.scrollTop = hdr.offsetTop - itemRowsEl.offsetTop;
+      });
+
+      // Drag-reorder within the same sub-division
+      let cbiDragEl = null;
+      itemRowsEl.addEventListener('dragstart', function (e) {
+        const row = e.target.closest('.cbi-row-item');
+        if (!row || e.target.matches('input')) { e.preventDefault(); return; }
+        cbiDragEl = row;
+        row.classList.add('cb-row-dragging');
+        e.dataTransfer.effectAllowed = 'move';
+      });
+      itemRowsEl.addEventListener('dragover', function (e) {
+        if (!cbiDragEl) return;
+        const target = e.target.closest('.cbi-row-item');
+        if (!target || target === cbiDragEl) return;
+        if (target.dataset.div !== cbiDragEl.dataset.div || target.dataset.sub !== cbiDragEl.dataset.sub) return;
+        e.preventDefault();
+        itemRowsEl.querySelectorAll('.cb-drop-before, .cb-drop-after').forEach(r => r.classList.remove('cb-drop-before', 'cb-drop-after'));
+        const mid = target.getBoundingClientRect().top + target.getBoundingClientRect().height / 2;
+        target.classList.add(e.clientY < mid ? 'cb-drop-before' : 'cb-drop-after');
+      });
+      itemRowsEl.addEventListener('dragleave', function (e) {
+        if (!itemRowsEl.contains(e.relatedTarget))
+          itemRowsEl.querySelectorAll('.cb-drop-before, .cb-drop-after').forEach(r => r.classList.remove('cb-drop-before', 'cb-drop-after'));
+      });
+      itemRowsEl.addEventListener('drop', function (e) {
+        e.preventDefault();
+        if (!cbiDragEl) return;
+        const target = e.target.closest('.cbi-row-item');
+        itemRowsEl.querySelectorAll('.cb-drop-before, .cb-drop-after').forEach(r => r.classList.remove('cb-drop-before', 'cb-drop-after'));
+        if (!target || target === cbiDragEl) { cbiDragEl.classList.remove('cb-row-dragging'); cbiDragEl = null; return; }
+        const after = e.clientY > target.getBoundingClientRect().top + target.getBoundingClientRect().height / 2;
+        if (after) target.after(cbiDragEl);
+        else       target.before(cbiDragEl);
+        cbiDragEl.classList.remove('cb-row-dragging');
+        cbiDragEl = null;
+      });
+      itemRowsEl.addEventListener('dragend', function () {
+        if (cbiDragEl) { cbiDragEl.classList.remove('cb-row-dragging'); cbiDragEl = null; }
+        itemRowsEl.querySelectorAll('.cb-drop-before, .cb-drop-after').forEach(r => r.classList.remove('cb-drop-before', 'cb-drop-after'));
+      });
+    }
+
+    el.querySelector('[data-action="edit-items"]').addEventListener('click', _enterItemsMode);
+    el.querySelector('[data-action="items-done"]').addEventListener('click', _exitItemsMode);
+
+    /* ── Edit Structure Mode ─────────────────────────────────── */
 
     function _isEditMode() {
       return widgetEl.classList.contains('cb-edit-mode');
@@ -773,6 +1070,10 @@ const Estimating = (function () {
     function _enterEditMode() {
       widgetEl.classList.add('cb-edit-mode');
       el.querySelectorAll('.cb-row-div, .cb-row-sub').forEach(r => r.setAttribute('draggable', 'true'));
+      // Collapse all divisions on entry
+      el.querySelectorAll('.cb-row-div').forEach(r => {
+        if (r.dataset.expanded === 'true') _toggleDiv(r);
+      });
       const expandBtn = el.querySelector('[data-action="edit-expand-all"]');
       if (expandBtn) expandBtn.textContent = 'Expand All';
     }
@@ -1485,6 +1786,10 @@ const Estimating = (function () {
         <div class="pl-list-view">
           <div class="pl-toolbar">
             <input class="pl-search pl-normal-ctrl" type="text" placeholder="Search items..." autocomplete="off">
+            <div class="pl-undo-group pl-normal-ctrl">
+              <button class="btn-secondary cb-btn pl-undo-btn" data-action="pl-undo" disabled title="Undo last change">&#8617; Undo</button>
+              <button class="btn-secondary cb-btn pl-redo-btn" data-action="pl-redo" disabled title="Redo">Redo &#8618;</button>
+            </div>
             <button class="btn-secondary pl-edit-ctrl" data-action="pl-edit-done">&#9664; Done</button>
             <button class="btn-secondary pl-edit-ctrl" data-action="pl-edit-expand-all">Expand All</button>
             <button class="btn-primary   pl-edit-ctrl" data-action="pl-add-cat">+ Category</button>
@@ -1616,6 +1921,42 @@ const Estimating = (function () {
     let editingItem  = null;
     let pendingFocus = null; // { itemId, direction } — consumed after render()
     let ctxItemId    = null; // item id of the right-clicked row
+
+    // ── Undo / Redo command stack ──────────────────────────────
+    // Each entry: { itemId, field, oldVal, newVal }
+    // TODO (full-stack): call _plPushUndo() inside any save function before
+    // writing the new value; wire _plUndo/_plRedo to Sheets update calls.
+    const undoStack = [];
+    const redoStack = [];
+
+    function _plUpdateUndoBtns() {
+      el.querySelector('.pl-undo-btn').disabled = undoStack.length === 0;
+      el.querySelector('.pl-redo-btn').disabled = redoStack.length === 0;
+    }
+
+    function _plPushUndo(record) {
+      // record = { itemId, field, oldVal, newVal }
+      undoStack.push(record);
+      if (undoStack.length > 50) undoStack.shift(); // cap at 50 steps
+      redoStack.length = 0; // clear redo on new action
+      _plUpdateUndoBtns();
+    }
+
+    function _plUndo() {
+      if (!undoStack.length) return;
+      const record = undoStack.pop();
+      redoStack.push(record);
+      // TODO: restore record.oldVal to record.itemId[record.field] and persist
+      _plUpdateUndoBtns();
+    }
+
+    function _plRedo() {
+      if (!redoStack.length) return;
+      const record = redoStack.pop();
+      undoStack.push(record);
+      // TODO: restore record.newVal to record.itemId[record.field] and persist
+      _plUpdateUndoBtns();
+    }
 
     const listEl    = el.querySelector('.pl-list');
     const catList   = el.querySelector('.pl-cat-list');
@@ -2201,6 +2542,9 @@ const Estimating = (function () {
 
     // ── Close / Form Save & Cancel ──
     el.addEventListener('click', function (e) {
+      // Undo / Redo
+      if (e.target.closest('[data-action="pl-undo"]')) { _plUndo(); return; }
+      if (e.target.closest('[data-action="pl-redo"]')) { _plRedo(); return; }
       // Edit Layout Mode toolbar actions
       if (e.target.closest('[data-action="pl-edit-layout"]'))     { _plEnterEditMode(); return; }
       if (e.target.closest('[data-action="pl-edit-done"]'))       { _plExitEditMode(); return; }

@@ -307,6 +307,7 @@ const WIDGET_ROUTES = {
   'vendor-mgmt':    () => CRM.openVendorMgmt(),
   'costbook':       () => Estimating.openCostbook(),
   'price-list':     () => Estimating.openPriceList(),
+  'documents':      () => Documents.openDocuments(),
 };
 
 const WIDGET_CATEGORIES = {
@@ -314,6 +315,7 @@ const WIDGET_CATEGORIES = {
   'new-contact':   'contact',
   'costbook':      'estimating',
   'price-list':    'estimating',
+  'documents':     'documents',
   'vendor-mgmt':   'contact',
   'workorder':     'workorder',
   'new-workorder': 'workorder',
@@ -363,6 +365,13 @@ const SUBMENUS = {
       { title: 'New Estimate', widget: 'new-estimate' },
       { title: 'Costbook',     widget: 'costbook' },
       { title: 'Price List',   widget: 'price-list' },
+    ],
+  },
+  documents: {
+    label: 'Documents',
+    items: [
+      { title: 'Documents',     widget: 'documents' },
+      { title: 'New Document',  widget: 'new-document' },
     ],
   },
   settings: {
