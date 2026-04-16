@@ -143,6 +143,10 @@ const Estimating = (function () {
     return v === true || v === 'TRUE' || v === 'true' || v === 1 || v === '1';
   }
 
+  function _fmtDate(d) {
+    return (d.getMonth() + 1) + '/' + d.getDate() + '/' + String(d.getFullYear()).slice(2);
+  }
+
   function _fmt(n) {
     if (!n) return '';
     return n.toFixed(2);
@@ -263,18 +267,24 @@ const Estimating = (function () {
             <button class="btn-secondary cb-btn cb-items-ctrl" data-action="items-done">&#9664; Done</button>
           </div>
           <div class="cb-toolbar-main">
+            <button class="btn-secondary cb-btn cb-normal-ctrl" data-action="edit-items">Edit Cost Items</button>
+            <button class="btn-secondary cb-btn cb-normal-ctrl" data-action="expand-all">Expand All</button>
+            <button class="btn-secondary cb-btn cb-normal-ctrl" data-action="collapse-all">Collapse All</button>
+            <input class="cb-nav-search cb-normal-ctrl" type="text" placeholder="Search items..." autocomplete="off">
+            <button class="btn-primary cb-btn cb-normal-ctrl" data-action="transfer" disabled>Transfer To Estimate</button>
+            <span class="cb-tag-count cb-normal-ctrl" data-count="0"></span>
+            <div class="cbi-filter-group cb-items-ctrl">
+              <button class="cbi-filter-btn is-active" data-filter="active">Active</button>
+              <button class="cbi-filter-btn" data-filter="all">All</button>
+              <button class="cbi-filter-btn" data-filter="archived">Archived</button>
+            </div>
             <div class="cbi-bulk-bar cb-items-ctrl">
               <span class="cbi-sel-count"></span>
               <button class="btn-secondary cb-btn" data-action="cbi-archive" disabled>Archive Selected</button>
               <button class="btn-secondary cb-btn cbi-delete-btn" data-action="cbi-delete" disabled>Delete Selected</button>
               <button class="btn-secondary cb-btn" data-action="cbi-clear" disabled>Clear Selection</button>
+              <button class="btn-primary cb-btn" data-action="items-add">+ Cost Item</button>
             </div>
-            <input class="cb-nav-search cb-normal-ctrl" type="text" placeholder="Search items..." autocomplete="off">
-            <button class="btn-secondary cb-btn cb-normal-ctrl" data-action="expand-all">Expand All</button>
-            <button class="btn-secondary cb-btn cb-normal-ctrl" data-action="collapse-all">Collapse All</button>
-            <button class="btn-secondary cb-btn cb-normal-ctrl" data-action="edit-items">Edit Cost Items</button>
-            <span class="cb-tag-count cb-normal-ctrl" data-count="0"></span>
-            <button class="btn-primary cb-btn cb-normal-ctrl" data-action="transfer" disabled>Transfer Selected</button>
           </div>
         </div>
 
@@ -866,7 +876,10 @@ const Estimating = (function () {
             <span class="cbi-sub-name">${sub.subName}</span>
           </div>
           ${sub.items.map(item => `
-            <div class="cbi-row cbi-row-item" data-div="${div.divNum}" data-sub="${sub.subNum}" data-item="${item.itemId}" draggable="true" style="display:none">
+            <div class="cbi-row cbi-row-item${item.isArchived ? ' cbi-row-archived' : ''}"
+              data-div="${div.divNum}" data-sub="${sub.subNum}" data-item="${item.itemId}"
+              data-archived="${item.isArchived ? 'true' : 'false'}"
+              draggable="true" style="display:none">
               <span class="cbi-drag">&#8942;&#8942;</span>
               <input type="checkbox" class="cbi-tag cbi-tag-item">
               <span></span>
@@ -903,6 +916,40 @@ const Estimating = (function () {
     function _bindItemsPanel(panel) {
       const itemRowsEl = panel.querySelector('.cb-items-rows');
       const selCount   = el.querySelector('.cbi-sel-count');
+      let   activeFilter = 'active';
+
+      // Apply archive filter — controls which items are eligible to show when a sub expands
+      function _applyFilter(filter) {
+        activeFilter = filter;
+
+        // Update toggle button states
+        el.querySelectorAll('.cbi-filter-btn').forEach(b =>
+          b.classList.toggle('is-active', b.dataset.filter === filter)
+        );
+
+        // Show/hide items based on filter, respecting sub expansion state
+        itemRowsEl.querySelectorAll('.cbi-row-sub').forEach(subRow => {
+          const divNum   = subRow.dataset.div;
+          const subNum   = subRow.dataset.sub;
+          const expanded = subRow.dataset.expanded === 'true';
+          const items    = [...itemRowsEl.querySelectorAll(
+            `.cbi-row-item[data-div="${divNum}"][data-sub="${subNum}"]`
+          )];
+
+          let visibleCount = 0;
+          items.forEach(r => {
+            const archived = r.dataset.archived === 'true';
+            const matches  = filter === 'all'
+              || (filter === 'active'   && !archived)
+              || (filter === 'archived' &&  archived);
+            r.style.display = (expanded && matches) ? '' : 'none';
+            if (matches) visibleCount++;
+          });
+
+          // Dim sub row if it has no matching items in this filter
+          subRow.classList.toggle('cbi-sub-empty', visibleCount === 0);
+        });
+      }
 
       function _updateBulk() {
         const n = panel.querySelectorAll('.cbi-tag-item:checked').length;
@@ -912,6 +959,11 @@ const Estimating = (function () {
         el.querySelector('[data-action="cbi-delete"]').disabled  = off;
         el.querySelector('[data-action="cbi-clear"]').disabled   = off;
       }
+
+      // Filter toggle buttons
+      el.querySelectorAll('.cbi-filter-btn').forEach(btn => {
+        btn.addEventListener('click', () => _applyFilter(btn.dataset.filter));
+      });
 
       // Expand / collapse sub rows
       itemRowsEl.addEventListener('click', function (e) {
@@ -924,7 +976,13 @@ const Estimating = (function () {
         subRow.dataset.expanded = !expanded;
         expBtn.innerHTML = expanded ? '&#9654;' : '&#9660;';
         itemRowsEl.querySelectorAll(`.cbi-row-item[data-div="${divNum}"][data-sub="${subNum}"]`)
-          .forEach(r => r.style.display = expanded ? 'none' : '');
+          .forEach(r => {
+            const archived = r.dataset.archived === 'true';
+            const matches  = activeFilter === 'all'
+              || (activeFilter === 'active'   && !archived)
+              || (activeFilter === 'archived' &&  archived);
+            r.style.display = (!expanded && matches) ? '' : 'none';
+          });
       });
 
       // Tag checkboxes
@@ -1007,6 +1065,7 @@ const Estimating = (function () {
 
     el.querySelector('[data-action="edit-items"]').addEventListener('click', _enterItemsMode);
     el.querySelector('[data-action="items-done"]').addEventListener('click', _exitItemsMode);
+    el.querySelector('[data-action="items-add"]').addEventListener('click', () => openEditCostItem(null));
 
     /* ── Edit Structure Mode ─────────────────────────────────── */
 
@@ -1618,11 +1677,26 @@ const Estimating = (function () {
     const raw      = AppData.tables['DB_Costbook'] || [];
     const allItems = raw.filter(r => r.Item_Description).map(_mapRow);
 
-    /* null itemId = new blank item (TODO: full new-item form) */
-    if (!itemId) return;
-
-    let item = allItems.find(i => i.itemId === itemId);
-    if (!item) return;
+    let item;
+    if (!itemId) {
+      // New blank item
+      const today = _fmtDate(new Date());
+      item = {
+        divNum: '', divName: '', subNum: '', subName: '',
+        sortWeight: 0, itemId: '',
+        description: '', uom: 'EA',
+        labor: 0, material: 0, sub: 0, equipment: 0, other: 0,
+        laborHours: 0, masterItemId: '', specs: '',
+        adjMaterial: 0, adjLabor: 0, adjSub: 0, adjEquipment: 0, adjOther: 0,
+        allowMaterial: false, allowLabor: false, allowSub: false,
+        allowEquipment: false, allowOther: false,
+        tax: 0, vendor: '', priceLocked: false, isArchived: false,
+        entrySource: 'Manual', dateCreated: today, dateModified: today,
+      };
+    } else {
+      item = allItems.find(i => i.itemId === itemId);
+      if (!item) return;
+    }
 
     /* Resolve alias → always edit the master */
     if (item.masterItemId) {
@@ -1631,8 +1705,9 @@ const Estimating = (function () {
 
     const aliases = allItems.filter(i => i.masterItemId === item.itemId);
 
-    const wid = 'edit-cost-item';
-    if (WidgetManager.open(wid, 'Edit Cost Item', _eciHTML(item, aliases), {
+    const wid   = 'edit-cost-item';
+    const title = itemId ? 'Edit Cost Item' : 'New Cost Item';
+    if (WidgetManager.open(wid, title, _eciHTML(item, aliases), {
       width: 550, height: 650, minWidth: 550, minHeight: 500, category: 'estimating',
     }) !== false) {
       _bindECI(wid, item, allItems);
@@ -1645,8 +1720,8 @@ const Estimating = (function () {
     await AppData.ready;
     const raw  = AppData.tables['DB_Costbook'];
     const data = (raw && raw.length)
-      ? raw.filter(r => r.Item_Description).map(_mapRow)
-      : COSTBOOK_FALLBACK;
+      ? raw.filter(r => r.Item_Description && !_truthy(r.Is_Archived)).map(_mapRow)
+      : COSTBOOK_FALLBACK.filter(r => !r.isArchived);
     const id   = 'costbook';
     const tree = _buildTree(data);
     if (WidgetManager.open(id, 'Costbook', _costbookHTML(tree), {
@@ -2673,7 +2748,399 @@ const Estimating = (function () {
     }) !== false) _bindPriceList(id);
   }
 
+  /* ── Estimate Widget ─────────────────────────────────────── */
+
+  const _EST_MOCK = {
+    estimateId:   'E001',
+    clientName:   'John & Mary Smith',
+    estimateName: 'Kitchen & Bath Remodel 2026',
+    status:       'Draft',
+    phases: [
+      { phaseId: 'P1',    type: 'Phase',        name: 'Kitchen Renovation',    parentId: null, isSelected: true,  sortOrder: 10 },
+      { phaseId: 'P1-OA', type: 'Option',       name: 'Standard Cabinets',     parentId: 'P1', isSelected: true,  sortOrder: 15 },
+      { phaseId: 'P1-OB', type: 'Option',       name: 'Custom Cabinets',       parentId: 'P1', isSelected: false, sortOrder: 20 },
+      { phaseId: 'P2',    type: 'Phase',        name: 'Bathroom Renovation',   parentId: null, isSelected: true,  sortOrder: 30 },
+      { phaseId: 'CO1',   type: 'Change Order', name: 'Additional Tile Work',  parentId: null, isSelected: true,  sortOrder: 40 },
+    ],
+    items: [
+      { itemId:'EI001', phaseId:'P1',    divNum:'04', divName:'Demolition & Cleanup',    subNum:'020', subName:'Demolition',      description:'Selective Demolition',             qty:8,   uom:'HR', labor:65,   material:0,    sub:0, equipment:0, other:0,    laborMkp:35, materialMkp:20, subMkp:15, equipMkp:20, otherMkp:20, clientView:true,  sortWeight:10 },
+      { itemId:'EI002', phaseId:'P1',    divNum:'30', divName:'Drywall & Plaster',       subNum:'010', subName:'Drywall',          description:'1/2" Drywall Hung & Finished',     qty:220, uom:'SF', labor:1.85, material:0.65, sub:0, equipment:0, other:0,    laborMkp:35, materialMkp:20, subMkp:15, equipMkp:20, otherMkp:20, clientView:true,  sortWeight:10 },
+      { itemId:'EI003', phaseId:'P1-OA', divNum:'34', divName:'Cabinets & Countertops',  subNum:'010', subName:'Cabinets',         description:'Semi-Custom Cabinet Installation', qty:1,   uom:'LS', labor:850,  material:2200, sub:0, equipment:0, other:0,    laborMkp:35, materialMkp:20, subMkp:15, equipMkp:20, otherMkp:20, clientView:true,  sortWeight:10 },
+      { itemId:'EI004', phaseId:'P1-OA', divNum:'34', divName:'Cabinets & Countertops',  subNum:'020', subName:'Countertops',      description:'Quartz Countertop Installation',   qty:28,  uom:'SF', labor:12,   material:68,   sub:0, equipment:0, other:0,    laborMkp:35, materialMkp:20, subMkp:15, equipMkp:20, otherMkp:20, clientView:true,  sortWeight:10 },
+      { itemId:'EI005', phaseId:'P1-OB', divNum:'34', divName:'Cabinets & Countertops',  subNum:'010', subName:'Cabinets',         description:'Custom Cabinet Installation',       qty:1,   uom:'LS', labor:1400, material:4800, sub:0, equipment:0, other:0,    laborMkp:35, materialMkp:20, subMkp:15, equipMkp:20, otherMkp:20, clientView:true,  sortWeight:10 },
+      { itemId:'EI006', phaseId:'P1-OB', divNum:'34', divName:'Cabinets & Countertops',  subNum:'020', subName:'Countertops',      description:'Granite Countertop Installation',  qty:28,  uom:'SF', labor:14,   material:95,   sub:0, equipment:0, other:0,    laborMkp:35, materialMkp:20, subMkp:15, equipMkp:20, otherMkp:20, clientView:true,  sortWeight:10 },
+      { itemId:'EI007', phaseId:'P2',    divNum:'32', divName:'Plumbing',                subNum:'010', subName:'Rough Plumbing',   description:'Install Shower Drain',             qty:1,   uom:'EA', labor:95,   material:45,   sub:0, equipment:0, other:0,    laborMkp:35, materialMkp:20, subMkp:15, equipMkp:20, otherMkp:20, clientView:true,  sortWeight:10 },
+      { itemId:'EI008', phaseId:'P2',    divNum:'32', divName:'Plumbing',                subNum:'010', subName:'Rough Plumbing',   description:'Install Supply Lines (Hot & Cold)',qty:2,   uom:'EA', labor:65,   material:28,   sub:0, equipment:0, other:0,    laborMkp:35, materialMkp:20, subMkp:15, equipMkp:20, otherMkp:20, clientView:true,  sortWeight:20 },
+      { itemId:'EI009', phaseId:'P2',    divNum:'42', divName:'Tile Work',               subNum:'010', subName:'Floor Tile',       description:'12×24 Porcelain Floor Tile',       qty:65,  uom:'SF', labor:5.5,  material:3.8,  sub:0, equipment:0, other:0,    laborMkp:35, materialMkp:20, subMkp:15, equipMkp:20, otherMkp:20, clientView:true,  sortWeight:10 },
+      { itemId:'EI010', phaseId:'P2',    divNum:'42', divName:'Tile Work',               subNum:'010', subName:'Floor Tile',       description:'Tile Setting Materials',           qty:65,  uom:'SF', labor:0,    material:1.25, sub:0, equipment:0, other:0,    laborMkp:35, materialMkp:20, subMkp:15, equipMkp:20, otherMkp:20, clientView:false, sortWeight:20 },
+      { itemId:'EI011', phaseId:'CO1',   divNum:'42', divName:'Tile Work',               subNum:'020', subName:'Wall Tile',        description:'4×12 Subway Tile — Shower Surround',qty:45,uom:'SF', labor:7,    material:4.5,  sub:0, equipment:0, other:0,    laborMkp:35, materialMkp:20, subMkp:15, equipMkp:20, otherMkp:20, clientView:true,  sortWeight:10 },
+    ],
+  };
+
+  /* ── Estimate math helpers ────────────────────────────── */
+  function _estUnitCost(item) {
+    return item.labor + item.material + item.sub + item.equipment + item.other;
+  }
+  function _estUnitPrice(item) {
+    return item.labor     * (1 + (item.laborMkp    || 0) / 100)
+         + item.material  * (1 + (item.materialMkp || 0) / 100)
+         + item.sub       * (1 + (item.subMkp      || 0) / 100)
+         + item.equipment * (1 + (item.equipMkp    || 0) / 100)
+         + item.other     * (1 + (item.otherMkp    || 0) / 100);
+  }
+  function _estItemTotal(item) { return _estUnitCost(item)  * (item.qty || 0); }
+  function _estItemPrice(item) { return _estUnitPrice(item) * (item.qty || 0); }
+
+  function _efmt(n, alwaysShow) {
+    if (!alwaysShow && n === 0) return '—';
+    return '$' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
+
+  /* ── Estimate HTML builder ────────────────────────────── */
+  function _estHTML(est) {
+    /* Group items: phaseId → divNum → { divName, subs: subNum → { subName, items[] } } */
+    const grouped = new Map();
+    est.items.forEach(item => {
+      if (!grouped.has(item.phaseId)) grouped.set(item.phaseId, new Map());
+      const byDiv = grouped.get(item.phaseId);
+      if (!byDiv.has(item.divNum)) byDiv.set(item.divNum, { divName: item.divName, subs: new Map() });
+      const divEntry = byDiv.get(item.divNum);
+      if (!divEntry.subs.has(item.subNum)) divEntry.subs.set(item.subNum, { subName: item.subName, items: [] });
+      divEntry.subs.get(item.subNum).items.push(item);
+    });
+
+    /* 17 empty cells for non-desc columns on header/rollup rows */
+    function _emptyCols() {
+      return `<td class="est-col-qty"></td><td class="est-col-uom"></td>
+              <td class="est-col-labor"></td><td class="est-col-mat"></td>
+              <td class="est-col-sub"></td><td class="est-col-equip"></td>
+              <td class="est-col-other"></td><td class="est-col-ucost"></td>
+              <td class="est-col-utotal"></td>`;
+    }
+
+    /* Build tab panel */
+    let tabsHTML = '<div class="est-tab-spacer"></div>';
+    est.phases.forEach(phase => {
+      const offCls  = phase.isSelected ? '' : ' is-off';
+      const typeCls = phase.type === 'Option' ? ' est-subtab' : phase.type === 'Change Order' ? ' est-co-tab' : '';
+      tabsHTML += `<div class="est-tab${typeCls}${offCls}" data-phase-id="${phase.phaseId}">${phase.name}</div>`;
+    });
+    tabsHTML += '<div class="est-tab-hint">Dbl-click tab to toggle on/off</div>';
+
+    /* Build grid rows */
+    let rowsHTML = '';
+    est.phases.forEach(phase => {
+      const phaseItems = est.items.filter(i => i.phaseId === phase.phaseId);
+      const pCost  = phaseItems.reduce((s, i) => s + _estItemTotal(i), 0);
+      const pPrice = phaseItems.reduce((s, i) => s + _estItemPrice(i), 0);
+      const offCls = phase.isSelected ? '' : ' is-off';
+      const typeKey = phase.type === 'Change Order' ? 'co' : phase.type === 'Option' ? 'option' : 'phase';
+      const badge = `<span class="est-phase-badge est-badge-${typeKey}">${phase.type}</span>`;
+
+      rowsHTML += `
+        <tr class="est-phase-hdr${offCls}" id="est-sec-${phase.phaseId}" data-phase-id="${phase.phaseId}" data-expanded="true">
+          <td class="est-col-desc"><span class="est-expand-icon">&#9660;</span>${badge}${phase.name}</td>
+          ${_emptyCols()}
+          <td class="est-col-subtotal est-subtotal-cell" data-cost="${pCost}" data-price="${pPrice}">${_efmt(pCost,true)}</td>
+          <td class="est-col-cv"></td>
+          <td class="est-col-mkp"></td><td class="est-col-mkp"></td><td class="est-col-mkp"></td>
+          <td class="est-col-mkp"></td><td class="est-col-mkp"></td>
+        </tr>`;
+
+      const phaseGrouped = grouped.get(phase.phaseId) || new Map();
+      phaseGrouped.forEach((divEntry, divNum) => {
+        let dCost = 0, dPrice = 0;
+        divEntry.subs.forEach(s => s.items.forEach(i => { dCost += _estItemTotal(i); dPrice += _estItemPrice(i); }));
+
+        rowsHTML += `
+          <tr class="est-div-hdr" data-phase-id="${phase.phaseId}" data-div="${divNum}" data-expanded="true">
+            <td class="est-col-desc"><span class="est-expand-icon">&#9660;</span>${divEntry.divName}</td>
+            ${_emptyCols()}
+            <td class="est-col-subtotal est-subtotal-cell" data-cost="${dCost}" data-price="${dPrice}">${_efmt(dCost,true)}</td>
+            <td class="est-col-cv"></td>
+            <td class="est-col-mkp"></td><td class="est-col-mkp"></td><td class="est-col-mkp"></td>
+            <td class="est-col-mkp"></td><td class="est-col-mkp"></td>
+          </tr>`;
+
+        /* Items render directly under division — no sub-division rows */
+        divEntry.subs.forEach((subEntry, subNum) => {
+          subEntry.items.forEach(item => {
+            const uc = _estUnitCost(item);
+            const up = _estUnitPrice(item);
+            const ut = uc * (item.qty || 0);
+            const utp = up * (item.qty || 0);
+            const lp  = item.labor     * (1 + (item.laborMkp    || 0) / 100);
+            const mp  = item.material  * (1 + (item.materialMkp || 0) / 100);
+            const sp  = item.sub       * (1 + (item.subMkp      || 0) / 100);
+            const ep  = item.equipment * (1 + (item.equipMkp    || 0) / 100);
+            const op  = item.other     * (1 + (item.otherMkp    || 0) / 100);
+            const cvHide = item.clientView ? '' : ' est-cv-hidden';
+
+            rowsHTML += `
+              <tr class="est-item-row${cvHide}" data-phase-id="${phase.phaseId}" data-div="${divNum}" data-item="${item.itemId}" data-cv="${item.clientView?'1':'0'}">
+                <td class="est-col-desc">${item.description}</td>
+                <td class="est-col-qty"><input type="number" class="est-inp" value="${item.qty}" min="0" step="0.01"></td>
+                <td class="est-col-uom" style="text-align:center">${item.uom}</td>
+                <td class="est-col-labor  est-cost-cell" data-cost="${item.labor}"     data-price="${lp}">${_efmt(item.labor,false)}</td>
+                <td class="est-col-mat    est-cost-cell" data-cost="${item.material}"  data-price="${mp}">${_efmt(item.material,false)}</td>
+                <td class="est-col-sub    est-cost-cell" data-cost="${item.sub}"       data-price="${sp}">${_efmt(item.sub,false)}</td>
+                <td class="est-col-equip  est-cost-cell" data-cost="${item.equipment}" data-price="${ep}">${_efmt(item.equipment,false)}</td>
+                <td class="est-col-other  est-cost-cell" data-cost="${item.other}"     data-price="${op}">${_efmt(item.other,false)}</td>
+                <td class="est-col-ucost  est-cost-cell" data-cost="${uc}"             data-price="${up}">${_efmt(uc,true)}</td>
+                <td class="est-col-utotal est-cost-cell est-subtotal-cell" data-cost="${ut}" data-price="${utp}">${_efmt(ut,true)}</td>
+                <td class="est-col-subtotal"></td>
+                <td class="est-col-cv"><input type="checkbox" class="est-cv-cb"${item.clientView?' checked':''}></td>
+                <td class="est-col-mkp"><input type="number" class="est-inp" value="${item.laborMkp}"    min="0" step="0.1"></td>
+                <td class="est-col-mkp"><input type="number" class="est-inp" value="${item.materialMkp}" min="0" step="0.1"></td>
+                <td class="est-col-mkp"><input type="number" class="est-inp" value="${item.subMkp}"      min="0" step="0.1"></td>
+                <td class="est-col-mkp"><input type="number" class="est-inp" value="${item.equipMkp}"    min="0" step="0.1"></td>
+                <td class="est-col-mkp"><input type="number" class="est-inp" value="${item.otherMkp}"    min="0" step="0.1"></td>
+              </tr>`;
+          });
+        });
+      });
+    });
+
+    /* Grand totals (selected phases only) */
+    const selIds = new Set(est.phases
+      .filter(p => {
+        if (!p.isSelected) return false;
+        if (p.type === 'Option' && p.parentId) {
+          const parent = est.phases.find(x => x.phaseId === p.parentId);
+          if (parent && !parent.isSelected) return false;
+        }
+        return true;
+      }).map(p => p.phaseId));
+    const activeItems = est.items.filter(i => selIds.has(i.phaseId));
+    const gCost  = activeItems.reduce((s, i) => s + _estItemTotal(i), 0);
+    const gPrice = activeItems.reduce((s, i) => s + _estItemPrice(i), 0);
+
+    return `<div class="est-widget">
+      <div class="est-header">
+        <div class="est-client-name">${est.clientName}</div>
+        <div class="est-estimate-name">${est.estimateName}</div>
+        <div class="est-header-right">
+          <div class="est-total-box est-total-cost-box">
+            <span class="est-total-label">Total Cost</span>
+            <span class="est-total-value est-grand-cost">${_efmt(gCost,true)}</span>
+          </div>
+          <div class="est-total-box">
+            <span class="est-total-label">Total Price</span>
+            <span class="est-total-value est-grand-price">${_efmt(gPrice,true)}</span>
+          </div>
+          <button class="est-header-btn est-collapse-btn">Collapse All</button>
+          <label class="est-cm-wrap">
+            <input type="checkbox" class="est-cm-toggle"> Client Mode
+          </label>
+        </div>
+      </div>
+      <div class="est-body">
+        <div class="est-tab-panel">${tabsHTML}</div>
+        <div class="est-grid-wrap">
+          <table class="est-grid">
+            <thead><tr>
+              <th class="est-col-desc">Description</th>
+              <th class="est-col-qty">Qty</th>
+              <th class="est-col-uom">U/M</th>
+              <th class="est-col-labor">Labor</th>
+              <th class="est-col-mat">Material</th>
+              <th class="est-col-sub">Sub</th>
+              <th class="est-col-equip">Equip.</th>
+              <th class="est-col-other">Other</th>
+              <th class="est-col-ucost">Unit Cost</th>
+              <th class="est-col-utotal">Unit Total</th>
+              <th class="est-col-subtotal">Sub Total</th>
+              <th class="est-col-cv">Client<br>View</th>
+              <th class="est-col-mkp">Labor<br>Mkp%</th>
+              <th class="est-col-mkp">Mat<br>Mkp%</th>
+              <th class="est-col-mkp">Sub<br>Mkp%</th>
+              <th class="est-col-mkp">Equip<br>Mkp%</th>
+              <th class="est-col-mkp">Other<br>Mkp%</th>
+            </tr></thead>
+            <tbody>${rowsHTML}</tbody>
+          </table>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  /* ── Estimate bind ────────────────────────────────────── */
+  function _bindEstimate(wid, est) {
+    const el     = document.getElementById('wid-' + wid);
+    if (!el) return;
+    const widget = el.querySelector('.est-widget');
+    const tabs   = el.querySelector('.est-tab-panel');
+    const tbody  = el.querySelector('.est-grid tbody');
+
+    /* Mutable on/off state per phaseId */
+    const selState = new Map(est.phases.map(p => [p.phaseId, p.isSelected]));
+
+    /* Expand state keys: 'p:P1', 'd:P1:04' */
+    const expState = new Map();
+    est.phases.forEach(p => expState.set(`p:${p.phaseId}`, true));
+    est.items.forEach(item => expState.set(`d:${item.phaseId}:${item.divNum}`, true));
+
+    function _phaseOn(phaseId) {
+      if (!selState.get(phaseId)) return false;
+      const phase = est.phases.find(p => p.phaseId === phaseId);
+      if (phase && phase.type === 'Option' && phase.parentId) {
+        if (!selState.get(phase.parentId)) return false;
+      }
+      return true;
+    }
+
+    function _applyVis() {
+      tbody.querySelectorAll('tr').forEach(row => {
+        const pid = row.dataset.phaseId;
+        const div = row.dataset.div;
+
+        if (row.classList.contains('est-phase-hdr')) {
+          row.classList.toggle('is-off', !selState.get(pid));
+          return;
+        }
+        /* Phase off or collapsed → hide everything below */
+        if (!_phaseOn(pid) || !expState.get(`p:${pid}`)) {
+          row.classList.add('est-row-hidden'); return;
+        }
+        if (row.classList.contains('est-div-hdr')) {
+          row.classList.remove('est-row-hidden'); return;
+        }
+        /* Item: check division expand state */
+        if (!expState.get(`d:${pid}:${div}`)) {
+          row.classList.add('est-row-hidden'); return;
+        }
+        row.classList.remove('est-row-hidden');
+      });
+    }
+
+    function _togglePhase(phaseId) {
+      const phase = est.phases.find(p => p.phaseId === phaseId);
+      if (!phase) return;
+      const newVal = !selState.get(phaseId);
+      selState.set(phaseId, newVal);
+      /* Turning a Phase off cascades to its Options */
+      if (!newVal && phase.type === 'Phase') {
+        est.phases.filter(p => p.type === 'Option' && p.parentId === phaseId)
+          .forEach(opt => {
+            selState.set(opt.phaseId, false);
+            tabs.querySelector(`[data-phase-id="${opt.phaseId}"]`)?.classList.add('is-off');
+          });
+      }
+      tabs.querySelector(`[data-phase-id="${phaseId}"]`)?.classList.toggle('is-off', !newVal);
+      _applyVis();
+      _updateGrandTotals();
+    }
+
+    function _setIcon(row, expanded) {
+      const icon = row.querySelector('.est-expand-icon');
+      if (icon) icon.innerHTML = expanded ? '&#9660;' : '&#9654;';
+    }
+
+    /* Tab: single click → scroll to section */
+    tabs.addEventListener('click', e => {
+      const tab = e.target.closest('.est-tab');
+      if (!tab) return;
+      const target = el.querySelector(`#est-sec-${tab.dataset.phaseId}`);
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+
+    /* Tab: double-click → toggle on/off */
+    tabs.addEventListener('dblclick', e => {
+      const tab = e.target.closest('.est-tab');
+      if (tab) _togglePhase(tab.dataset.phaseId);
+    });
+
+    /* Tab: right-click → toggle on/off */
+    tabs.addEventListener('contextmenu', e => {
+      const tab = e.target.closest('.est-tab');
+      if (!tab) return;
+      e.preventDefault();
+      _togglePhase(tab.dataset.phaseId);
+    });
+
+    /* Grid click → expand / collapse */
+    tbody.addEventListener('click', e => {
+      const phaseHdr = e.target.closest('.est-phase-hdr');
+      const divHdr   = e.target.closest('.est-div-hdr');
+
+      if (phaseHdr) {
+        const pid = phaseHdr.dataset.phaseId;
+        const exp = phaseHdr.dataset.expanded !== 'false';
+        phaseHdr.dataset.expanded = exp ? 'false' : 'true';
+        expState.set(`p:${pid}`, !exp);
+        _setIcon(phaseHdr, !exp);
+        _applyVis();
+      } else if (divHdr) {
+        const pid = divHdr.dataset.phaseId;
+        const div = divHdr.dataset.div;
+        const exp = divHdr.dataset.expanded !== 'false';
+        divHdr.dataset.expanded = exp ? 'false' : 'true';
+        expState.set(`d:${pid}:${div}`, !exp);
+        _setIcon(divHdr, !exp);
+        _applyVis();
+      }
+    });
+
+    /* Collapse All / Expand All button */
+    el.querySelector('.est-collapse-btn').addEventListener('click', function () {
+      const collapsing = this.textContent === 'Collapse All';
+      tbody.querySelectorAll('.est-phase-hdr').forEach(row => {
+        row.dataset.expanded = collapsing ? 'false' : 'true';
+        expState.set(`p:${row.dataset.phaseId}`, !collapsing);
+        _setIcon(row, !collapsing);
+      });
+      this.textContent = collapsing ? 'Expand All' : 'Collapse All';
+      _applyVis();
+    });
+
+    /* Client Mode toggle */
+    el.querySelector('.est-cm-toggle').addEventListener('change', function () {
+      widget.classList.toggle('est-client-mode', this.checked);
+      _applyClientMode(this.checked);
+    });
+
+    function _applyClientMode(on) {
+      el.querySelectorAll('.est-cost-cell').forEach(cell => {
+        const val = parseFloat(on ? cell.dataset.price : cell.dataset.cost) || 0;
+        const always = cell.classList.contains('est-col-ucost') || cell.classList.contains('est-col-utotal');
+        cell.textContent = _efmt(val, always || on);
+      });
+      el.querySelectorAll('.est-subtotal-cell[data-cost]').forEach(cell => {
+        const val = parseFloat(on ? cell.dataset.price : cell.dataset.cost) || 0;
+        cell.textContent = _efmt(val, true);
+      });
+      _updateGrandTotals(on);
+    }
+
+    function _updateGrandTotals(clientMode) {
+      const on = clientMode ?? widget.classList.contains('est-client-mode');
+      const activeIds = new Set(est.phases.filter(p => _phaseOn(p.phaseId)).map(p => p.phaseId));
+      const ai = est.items.filter(i => activeIds.has(i.phaseId));
+      el.querySelector('.est-grand-cost').textContent  = _efmt(ai.reduce((s,i)=>s+_estItemTotal(i),0), true);
+      el.querySelector('.est-grand-price').textContent = _efmt(ai.reduce((s,i)=>s+_estItemPrice(i),0), true);
+    }
+
+    _applyVis();
+
+    /* Align first tab with bottom of grid column header */
+    requestAnimationFrame(() => {
+      const thead  = el.querySelector('.est-grid thead');
+      const spacer = el.querySelector('.est-tab-spacer');
+      if (thead && spacer) spacer.style.height = thead.offsetHeight + 'px';
+    });
+  }
+
+  function openEstimate(estimateId) {
+    const est = _EST_MOCK;
+    const id  = 'estimate';
+    if (WidgetManager.open(id, 'Estimate', _estHTML(est), {
+      width: 1220, height: 680, minWidth: 900, minHeight: 500, category: 'estimate',
+    }) !== false) {
+      _bindEstimate(id, est);
+    }
+  }
+
   /* ── Public API ───────────────────────────────────────────── */
-  return { openCostbook, openEditCostItem, openPriceList };
+  return { openCostbook, openEditCostItem, openPriceList, openEstimate };
 
 }());
