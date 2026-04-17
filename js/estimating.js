@@ -268,22 +268,20 @@ const Estimating = (function () {
           </div>
           <div class="cb-toolbar-main">
             <button class="btn-secondary cb-btn cb-normal-ctrl" data-action="edit-items">Edit Cost Items</button>
-            <button class="btn-secondary cb-btn cb-normal-ctrl" data-action="expand-all">Expand All</button>
-            <button class="btn-secondary cb-btn cb-normal-ctrl" data-action="collapse-all">Collapse All</button>
+            <button class="btn-secondary cb-btn cb-normal-ctrl" data-action="toggle-expand-all">Expand All</button>
             <input class="cb-nav-search cb-normal-ctrl" type="text" placeholder="Search items..." autocomplete="off">
             <button class="btn-primary cb-btn cb-normal-ctrl" data-action="transfer" disabled>Transfer To Estimate</button>
             <span class="cb-tag-count cb-normal-ctrl" data-count="0"></span>
-            <div class="cbi-filter-group cb-items-ctrl">
-              <button class="cbi-filter-btn is-active" data-filter="active">Active</button>
-              <button class="cbi-filter-btn" data-filter="all">All</button>
-              <button class="cbi-filter-btn" data-filter="archived">Archived</button>
-            </div>
+            <label class="cbi-show-archived-toggle cb-items-ctrl">
+              <input type="checkbox" class="cbi-show-archived"> Show Archived
+            </label>
+            <button class="btn-secondary cb-btn cb-items-ctrl" data-action="cbi-expand-all">Expand All</button>
+            <button class="btn-primary cb-btn cb-items-ctrl" data-action="items-add">+ Cost Item</button>
             <div class="cbi-bulk-bar cb-items-ctrl">
               <span class="cbi-sel-count"></span>
               <button class="btn-secondary cb-btn" data-action="cbi-archive" disabled>Archive Selected</button>
               <button class="btn-secondary cb-btn cbi-delete-btn" data-action="cbi-delete" disabled>Delete Selected</button>
               <button class="btn-secondary cb-btn" data-action="cbi-clear" disabled>Clear Selection</button>
-              <button class="btn-primary cb-btn" data-action="items-add">+ Cost Item</button>
             </div>
           </div>
         </div>
@@ -315,7 +313,7 @@ const Estimating = (function () {
               <span class="cb-col-unit cb-rz-hd" data-col="--cb-w-unit">Unit Cost<span class="cb-col-resize"></span></span>
               <span class="cb-col-specs cb-rz-hd" data-col="--cb-w-specs">Specifications<span class="cb-col-resize"></span></span>
             </div>
-            <div class="cb-edit-header">Edit Layout Mode</div>
+            <div class="cb-edit-header">Edit Divisions Mode</div>
             <div class="cb-rows">
               ${gridRows}
             </div>
@@ -457,31 +455,35 @@ const Estimating = (function () {
       _updateTagCount();
     });
 
-    /* --- Expand All / Collapse All --- */
-    el.querySelector('[data-action="expand-all"]').addEventListener('click', () => {
-      el.querySelectorAll('.cb-row-div').forEach(row => {
-        row.dataset.expanded = 'true';
-        row.querySelector('.cb-expand-icon').innerHTML = '&#9660;';
-      });
-      el.querySelectorAll('.cb-row-sub').forEach(row => {
-        row.style.display = '';
-        row.dataset.expanded = 'true';
-        row.querySelector('.cb-expand-icon').innerHTML = '&#9660;';
-      });
-      el.querySelectorAll('.cb-row-item, .cb-row-hdr').forEach(row => row.style.display = '');
-    });
-
-    el.querySelector('[data-action="collapse-all"]').addEventListener('click', () => {
-      el.querySelectorAll('.cb-row-div').forEach(row => {
-        row.dataset.expanded = 'false';
-        row.querySelector('.cb-expand-icon').innerHTML = '&#9654;';
-      });
-      el.querySelectorAll('.cb-row-sub').forEach(row => {
-        row.style.display = 'none';
-        row.dataset.expanded = 'false';
-        row.querySelector('.cb-expand-icon').innerHTML = '&#9654;';
-      });
-      el.querySelectorAll('.cb-row-item, .cb-row-hdr').forEach(row => row.style.display = 'none');
+    /* --- Expand All / Collapse All toggle --- */
+    el.querySelector('[data-action="toggle-expand-all"]').addEventListener('click', function () {
+      const allDivs  = [...el.querySelectorAll('.cb-row-div')];
+      const expanding = allDivs.some(r => r.dataset.expanded !== 'true');
+      if (expanding) {
+        allDivs.forEach(row => {
+          row.dataset.expanded = 'true';
+          row.querySelector('.cb-expand-icon').innerHTML = '&#9660;';
+        });
+        el.querySelectorAll('.cb-row-sub').forEach(row => {
+          row.style.display = '';
+          row.dataset.expanded = 'true';
+          row.querySelector('.cb-expand-icon').innerHTML = '&#9660;';
+        });
+        el.querySelectorAll('.cb-row-item, .cb-row-hdr').forEach(row => row.style.display = '');
+        this.textContent = 'Collapse All';
+      } else {
+        allDivs.forEach(row => {
+          row.dataset.expanded = 'false';
+          row.querySelector('.cb-expand-icon').innerHTML = '&#9654;';
+        });
+        el.querySelectorAll('.cb-row-sub').forEach(row => {
+          row.style.display = 'none';
+          row.dataset.expanded = 'false';
+          row.querySelector('.cb-expand-icon').innerHTML = '&#9654;';
+        });
+        el.querySelectorAll('.cb-row-item, .cb-row-hdr').forEach(row => row.style.display = 'none');
+        this.textContent = 'Expand All';
+      }
     });
 
     /* --- Left nav: click division → scroll grid to that division row --- */
@@ -867,10 +869,12 @@ const Estimating = (function () {
       const tree = _buildTree(raw.filter(r => r.Item_Description).map(_mapRow));
 
       const rowsHTML = tree.map(div => `
-        <div class="cbi-div-hdr" data-div="${div.divNum}">${div.divName}</div>
+        <div class="cbi-div-hdr" data-div="${div.divNum}" data-expanded="false">
+          <span class="cbi-div-exp">&#9654;</span>${div.divName}
+        </div>
         ${div.subs.map(sub => `
           <div class="cbi-row cbi-row-sub" data-div="${div.divNum}" data-sub="${sub.subNum}" data-expanded="false">
-            <span class="cbi-drag">&#8942;&#8942;</span>
+            <span></span>
             <span></span>
             <button class="cbi-exp-btn">&#9654;</button>
             <span class="cbi-sub-name">${sub.subName}</span>
@@ -893,13 +897,7 @@ const Estimating = (function () {
       const panel = document.createElement('div');
       panel.className = 'cb-items-panel';
       panel.innerHTML = `
-        <div class="cb-items-hdr">
-          <span></span>
-          <span></span>
-          <span></span>
-          <span></span>
-          <span class="cbi-hdr-name">Item Description</span>
-        </div>
+        <div class="cb-items-mode-header">Edit Cost Items Mode</div>
         <div class="cb-items-rows">${rowsHTML}</div>
       `;
       el.querySelector('.cb-body').appendChild(panel);
@@ -921,11 +919,6 @@ const Estimating = (function () {
       // Apply archive filter — controls which items are eligible to show when a sub expands
       function _applyFilter(filter) {
         activeFilter = filter;
-
-        // Update toggle button states
-        el.querySelectorAll('.cbi-filter-btn').forEach(b =>
-          b.classList.toggle('is-active', b.dataset.filter === filter)
-        );
 
         // Show/hide items based on filter, respecting sub expansion state
         itemRowsEl.querySelectorAll('.cbi-row-sub').forEach(subRow => {
@@ -960,16 +953,36 @@ const Estimating = (function () {
         el.querySelector('[data-action="cbi-clear"]').disabled   = off;
       }
 
-      // Filter toggle buttons
-      el.querySelectorAll('.cbi-filter-btn').forEach(btn => {
-        btn.addEventListener('click', () => _applyFilter(btn.dataset.filter));
-      });
+      // Show Archived toggle
+      const showArchivedCb = el.querySelector('.cbi-show-archived');
+      if (showArchivedCb) {
+        showArchivedCb.addEventListener('change', () =>
+          _applyFilter(showArchivedCb.checked ? 'all' : 'active')
+        );
+      }
 
-      // Expand / collapse sub rows
+      // Expand / collapse division headers and sub rows
       itemRowsEl.addEventListener('click', function (e) {
-        const expBtn = e.target.closest('.cbi-exp-btn');
+        const divHdr = e.target.closest('.cbi-div-hdr');
+        if (divHdr) {
+          const divNum  = divHdr.dataset.div;
+          const expanded = divHdr.dataset.expanded === 'true';
+          divHdr.dataset.expanded = !expanded;
+          divHdr.querySelector('.cbi-div-exp').innerHTML = expanded ? '&#9654;' : '&#9660;';
+          itemRowsEl.querySelectorAll(`.cbi-row-sub[data-div="${divNum}"]`).forEach(subRow => {
+            subRow.style.display = expanded ? 'none' : '';
+            if (expanded) {
+              subRow.dataset.expanded = 'false';
+              subRow.querySelector('.cbi-exp-btn').innerHTML = '&#9654;';
+              itemRowsEl.querySelectorAll(`.cbi-row-item[data-div="${divNum}"][data-sub="${subRow.dataset.sub}"]`)
+                .forEach(r => r.style.display = 'none');
+            }
+          });
+          return;
+        }
         const subRow = e.target.closest('.cbi-row-sub');
-        if (!expBtn || !subRow) return;
+        if (!subRow) return;
+        const expBtn = subRow.querySelector('.cbi-exp-btn');
         const divNum   = subRow.dataset.div;
         const subNum   = subRow.dataset.sub;
         const expanded = subRow.dataset.expanded === 'true';
@@ -1066,6 +1079,30 @@ const Estimating = (function () {
     el.querySelector('[data-action="edit-items"]').addEventListener('click', _enterItemsMode);
     el.querySelector('[data-action="items-done"]').addEventListener('click', _exitItemsMode);
     el.querySelector('[data-action="items-add"]').addEventListener('click', () => openEditCostItem(null));
+
+    el.querySelector('[data-action="cbi-expand-all"]').addEventListener('click', function () {
+      const panel = el.querySelector('.cb-items-panel');
+      if (!panel) return;
+      const rowsEl = panel.querySelector('.cb-items-rows');
+      const allDivHdrs = [...rowsEl.querySelectorAll('.cbi-div-hdr')];
+      const expanding  = allDivHdrs.some(h => h.dataset.expanded !== 'true');
+      allDivHdrs.forEach(hdr => {
+        const divNum = hdr.dataset.div;
+        hdr.dataset.expanded = expanding;
+        hdr.querySelector('.cbi-div-exp').innerHTML = expanding ? '&#9660;' : '&#9654;';
+        rowsEl.querySelectorAll(`.cbi-row-sub[data-div="${divNum}"]`).forEach(sub => {
+          sub.style.display = expanding ? '' : 'none';
+        });
+        if (!expanding) {
+          rowsEl.querySelectorAll(`.cbi-row-item[data-div="${divNum}"]`).forEach(r => r.style.display = 'none');
+          rowsEl.querySelectorAll(`.cbi-row-sub[data-div="${divNum}"]`).forEach(sub => {
+            sub.dataset.expanded = 'false';
+            sub.querySelector('.cbi-exp-btn').innerHTML = '&#9654;';
+          });
+        }
+      });
+      this.textContent = expanding ? 'Collapse All' : 'Expand All';
+    });
 
     /* ── Edit Structure Mode ─────────────────────────────────── */
 
@@ -1796,8 +1833,8 @@ const Estimating = (function () {
     return `<span class="${cls}">${sign}${d.toFixed(1)}%</span>`;
   }
 
-  const PL_COL_DEFAULTS = { cat: 100, subcat: 100, name: 150, uom: 55, cost: 60, start: 60, datemod: 60, delta: 50, master: 20 };
-  const PL_COL_VER = '4'; // bump to discard stale localStorage widths
+  const PL_COL_DEFAULTS = { name: 200, uom: 55, cost: 75, start: 75, datemod: 75, delta: 55, master: 20 };
+  const PL_COL_VER = '5'; // bump to discard stale localStorage widths
 
   function _plFmtDate(val) {
     if (!val) return '—';
@@ -1844,15 +1881,13 @@ const Estimating = (function () {
     return `<div class="pl-widget">
       <div class="pl-sidebar">
         <div class="pl-sidebar-toolbar">
-          <label class="pl-inactive-toggle">
-            <input type="checkbox" class="pl-show-inactive"> Show Inactive
-          </label>
+          <button class="btn-secondary cb-btn pl-sidebar-edit-cat-btn" data-action="pl-edit-layout">Edit Categories</button>
+          <button class="btn-secondary cb-btn pl-sidebar-items-done" data-action="pl-items-done">&#9664; Done</button>
         </div>
         <div class="pl-sidebar-hdr">
-          <button class="btn-secondary cb-btn" data-action="pl-edit-layout">Edit Layout</button>
+          <span class="pl-sidebar-hdr-title">Categories</span>
         </div>
         <div class="pl-sidebar-nav">
-          <button class="pl-nav-btn active" data-cat="">All Items</button>
           <div class="pl-cat-list"></div>
         </div>
       </div>
@@ -1860,10 +1895,21 @@ const Estimating = (function () {
       <div class="pl-main">
         <div class="pl-list-view">
           <div class="pl-toolbar">
+            <button class="btn-secondary cb-btn pl-normal-ctrl pl-edit-items-btn" data-action="pl-edit-items">Edit Price List Items</button>
+            <button class="btn-secondary cb-btn pl-normal-ctrl" data-action="pl-expand-all">Expand All</button>
             <input class="pl-search pl-normal-ctrl" type="text" placeholder="Search items..." autocomplete="off">
-            <div class="pl-undo-group pl-normal-ctrl">
-              <button class="btn-secondary cb-btn pl-undo-btn" data-action="pl-undo" disabled title="Undo last change">&#8617; Undo</button>
-              <button class="btn-secondary cb-btn pl-redo-btn" data-action="pl-redo" disabled title="Redo">Redo &#8618;</button>
+            <button class="btn-secondary cb-btn pl-undo-btn pl-normal-ctrl" data-action="pl-undo" disabled title="Undo last change">&#8617; Undo</button>
+            <button class="btn-secondary cb-btn pl-redo-btn pl-normal-ctrl" data-action="pl-redo" disabled title="Redo">Redo &#8618;</button>
+            <label class="pl-inactive-toggle pl-item-edit-ctrl">
+              <input type="checkbox" class="pl-items-show-archived"> Show Archived
+            </label>
+            <button class="btn-secondary cb-btn pl-item-edit-ctrl" data-action="pli-expand-all">Expand All</button>
+            <button class="btn-primary cb-btn pl-item-edit-ctrl" data-action="pl-items-new">+ New Price Item</button>
+            <div class="pl-items-bulk-bar pl-item-edit-ctrl">
+              <span class="pl-items-sel-count"></span>
+              <button class="btn-secondary cb-btn" data-action="pli-archive" disabled>Archive Selected</button>
+              <button class="btn-secondary cb-btn pl-items-del-btn" data-action="pli-delete" disabled>Delete Selected</button>
+              <button class="btn-secondary cb-btn" data-action="pli-clear" disabled>Clear Selection</button>
             </div>
             <button class="btn-secondary pl-edit-ctrl" data-action="pl-edit-done">&#9664; Done</button>
             <button class="btn-secondary pl-edit-ctrl" data-action="pl-edit-expand-all">Expand All</button>
@@ -1876,11 +1922,9 @@ const Estimating = (function () {
             <div class="pl-ctx-item" data-action="ctx-archive">Archive</div>
             <div class="pl-ctx-item pl-ctx-danger" data-action="ctx-delete">Delete</div>
           </div>
-          <div class="pl-edit-header">EDIT LAYOUT MODE</div>
+          <div class="pl-edit-header">Edit Categories Mode</div>
           <div class="pl-edit-tree"></div>
           <div class="pl-col-headers pl-normal-ctrl">
-            <div class="pl-col pl-col-hdr pl-col-cat">Category<span class="pl-col-handle" data-col="cat"></span></div>
-            <div class="pl-col pl-col-hdr pl-col-subcat">Sub-Category<span class="pl-col-handle" data-col="subcat"></span></div>
             <div class="pl-col pl-col-hdr pl-col-name">Item Name<span class="pl-col-handle" data-col="name"></span></div>
             <div class="pl-col pl-col-hdr pl-col-uom">U/M<span class="pl-col-handle" data-col="uom"></span></div>
             <div class="pl-col pl-col-hdr pl-col-cost">Current<br>Cost<span class="pl-col-handle" data-col="cost"></span></div>
@@ -1914,45 +1958,66 @@ const Estimating = (function () {
     const q = searchText.toLowerCase();
     let pool = items;
     if (!showInactive) pool = pool.filter(r => r.isActive);
-    if (catFilter)     pool = pool.filter(r => r.category === catFilter);
-    if (q)             pool = pool.filter(r =>
-      r.itemName.toLowerCase().includes(q) ||
-      r.subCategory.toLowerCase().includes(q)
-    );
 
-    pool = pool.slice().sort((a, b) => {
-      const ca = a.category || '', cb = b.category || '';
-      if (ca !== cb) return ca.localeCompare(cb);
-      const sa = a.subCategory || '', sb = b.subCategory || '';
-      if (sa !== sb) return sa.localeCompare(sb);
-      return (a.itemName || '').localeCompare(b.itemName || '');
+    // Build Category → Sub-Category → items hierarchy
+    const catMap = new Map();
+    pool.forEach(r => {
+      if (!catMap.has(r.category)) catMap.set(r.category, new Map());
+      const subMap = catMap.get(r.category);
+      if (!subMap.has(r.subCategory)) subMap.set(r.subCategory, []);
+      subMap.get(r.subCategory).push(r);
     });
 
-    if (!pool.length) {
-      listEl.innerHTML = '<div class="pl-empty">No items found</div>';
-      return;
-    }
+    const sortedCats = [...catMap.keys()].sort();
+    const parts = [];
 
-    let prevCat = null, prevSub = null;
-    listEl.innerHTML = pool.map(r => {
-      const showCat = r.category !== prevCat;
-      const showSub = showCat || r.subCategory !== prevSub;
-      prevCat = r.category;
-      prevSub = r.subCategory;
-      const inactive = !r.isActive ? ' pl-row-inactive' : '';
-      const master   = r.masterId ? '<span title="Linked to master price">🔗</span>' : '';
-      return `<div class="pl-row${inactive}" data-item-id="${r.itemId}">
-        <div class="pl-cell pl-col-cat">${showCat ? (r.category || '—') : ''}</div>
-        <div class="pl-cell pl-col-subcat">${showSub ? (r.subCategory || '—') : ''}</div>
-        <div class="pl-cell pl-col-name pl-name-cell">${r.itemName || '—'}</div>
-        <div class="pl-cell pl-col-uom">${r.uom || '—'}</div>
-        <div class="pl-cell pl-col-cost pl-cost-cell" data-item-id="${r.itemId}" tabindex="0">${r.currentCost.toFixed(2)}</div>
-        <div class="pl-cell pl-col-datemod">${_plFmtDate(r.dateModified)}</div>
-        <div class="pl-cell pl-col-start">${r.startingCost ? r.startingCost.toFixed(2) : '—'}</div>
-        <div class="pl-cell pl-col-delta">${_plDeltaHTML(r)}</div>
-        <div class="pl-cell pl-col-master">${master}</div>
-      </div>`;
-    }).join('');
+    sortedCats.forEach(cat => {
+      if (catFilter && cat !== catFilter) return;
+      const subMap     = catMap.get(cat);
+      const sortedSubs = [...subMap.keys()].sort();
+
+      const subsWithItems = sortedSubs.map(sub => ({
+        sub,
+        items: subMap.get(sub)
+          .filter(r => !q || r.itemName.toLowerCase().includes(q) || r.subCategory.toLowerCase().includes(q) || r.category.toLowerCase().includes(q))
+          .sort((a, b) => (a.itemName || '').localeCompare(b.itemName || ''))
+      })).filter(s => !q || s.items.length > 0);
+
+      if (!subsWithItems.length) return;
+      const totalItems = subsWithItems.reduce((n, s) => n + s.items.length, 0);
+
+      const midCells = `<div class="pl-cell pl-col-uom"></div><div class="pl-cell pl-col-cost"></div><div class="pl-cell pl-col-datemod"></div><div class="pl-cell pl-col-start"></div><div class="pl-cell pl-col-delta"></div>`;
+
+      parts.push(`<div class="pl-row pl-row-cat" data-cat="${cat}" data-expanded="false">
+        <div class="pl-cell pl-col-name"><span class="pl-expand-icon">&#9654;</span><span class="pl-row-label">${cat || '—'}</span></div>
+        ${midCells}
+        <div class="pl-cell pl-col-master pl-hier-count">${subsWithItems.length} sub${subsWithItems.length !== 1 ? 's' : ''}, ${totalItems} item${totalItems !== 1 ? 's' : ''}</div>
+      </div>`);
+
+      subsWithItems.forEach(({ sub, items: subItems }) => {
+        parts.push(`<div class="pl-row pl-row-sub" data-cat="${cat}" data-sub="${sub}" data-expanded="false" style="display:none">
+          <div class="pl-cell pl-col-name"><span class="pl-expand-icon">&#9654;</span><span class="pl-row-label">${sub || '—'}</span></div>
+          ${midCells}
+          <div class="pl-cell pl-col-master pl-hier-count">${subItems.length} item${subItems.length !== 1 ? 's' : ''}</div>
+        </div>`);
+
+        subItems.forEach(r => {
+          const inactive = !r.isActive ? ' pl-row-inactive' : '';
+          const master   = r.masterId ? '<span title="Linked to master price">🔗</span>' : '';
+          parts.push(`<div class="pl-row${inactive}" data-cat="${cat}" data-sub="${sub}" data-item-id="${r.itemId}" draggable="true" style="display:none">
+            <div class="pl-cell pl-col-name pl-name-cell"><span class="pl-item-drag">&#8942;&#8942;</span>${r.itemName || '—'}</div>
+            <div class="pl-cell pl-col-uom">${r.uom || '—'}</div>
+            <div class="pl-cell pl-col-cost pl-cost-cell" data-item-id="${r.itemId}" tabindex="0">${r.currentCost.toFixed(2)}</div>
+            <div class="pl-cell pl-col-datemod">${_plFmtDate(r.dateModified)}</div>
+            <div class="pl-cell pl-col-start">${r.startingCost ? r.startingCost.toFixed(2) : '—'}</div>
+            <div class="pl-cell pl-col-delta">${_plDeltaHTML(r)}</div>
+            <div class="pl-cell pl-col-master">${master}</div>
+          </div>`);
+        });
+      });
+    });
+
+    listEl.innerHTML = parts.length ? parts.join('') : '<div class="pl-empty">No items found</div>';
   }
 
   function _plGetCatsAndSubs(currentItems) {
@@ -2087,8 +2152,123 @@ const Estimating = (function () {
       `<button class="pl-nav-btn" data-cat="${c}">${c}</button>`
     ).join('');
 
+    // ── Expand/collapse helpers for the main item list ──────────
+    function _plToggleCatRow(catRow) {
+      const expanded = catRow.dataset.expanded === 'true';
+      const cat = catRow.dataset.cat;
+      catRow.dataset.expanded = expanded ? 'false' : 'true';
+      catRow.querySelector('.pl-expand-icon').innerHTML = expanded ? '&#9654;' : '&#9660;';
+      if (expanded) {
+        listEl.querySelectorAll('.pl-row-sub').forEach(r => {
+          if (r.dataset.cat !== cat) return;
+          r.style.display = 'none';
+          r.dataset.expanded = 'false';
+          r.querySelector('.pl-expand-icon').innerHTML = '&#9654;';
+        });
+        listEl.querySelectorAll('.pl-row:not(.pl-row-cat):not(.pl-row-sub)').forEach(r => {
+          if (r.dataset.cat === cat) r.style.display = 'none';
+        });
+      } else {
+        listEl.querySelectorAll('.pl-row-sub').forEach(r => {
+          if (r.dataset.cat === cat) r.style.display = '';
+        });
+      }
+    }
+
+    function _plToggleSubRow(subRow) {
+      const expanded = subRow.dataset.expanded === 'true';
+      const cat = subRow.dataset.cat;
+      const sub = subRow.dataset.sub;
+      subRow.dataset.expanded = expanded ? 'false' : 'true';
+      subRow.querySelector('.pl-expand-icon').innerHTML = expanded ? '&#9654;' : '&#9660;';
+      listEl.querySelectorAll('.pl-row:not(.pl-row-cat):not(.pl-row-sub)').forEach(r => {
+        if (r.dataset.cat === cat && r.dataset.sub === sub) r.style.display = expanded ? 'none' : '';
+      });
+    }
+
+    function _plEnsureVisible(cell) {
+      const itemRow = cell.closest('.pl-row');
+      if (!itemRow) return;
+      const cat = itemRow.dataset.cat;
+      const sub = itemRow.dataset.sub;
+      listEl.querySelectorAll('.pl-row-cat').forEach(r => {
+        if (r.dataset.cat === cat && r.dataset.expanded !== 'true') _plToggleCatRow(r);
+      });
+      listEl.querySelectorAll('.pl-row-sub').forEach(r => {
+        if (r.dataset.cat === cat && r.dataset.sub === sub && r.dataset.expanded !== 'true') _plToggleSubRow(r);
+      });
+    }
+
+    function _getExpandState() {
+      const cats = new Set(), subs = new Set();
+      listEl.querySelectorAll('.pl-row-cat[data-expanded="true"]').forEach(r => cats.add(r.dataset.cat));
+      listEl.querySelectorAll('.pl-row-sub[data-expanded="true"]').forEach(r => subs.add(r.dataset.cat + '||' + r.dataset.sub));
+      return { cats, subs };
+    }
+
+    function _applyExpandState(state) {
+      listEl.querySelectorAll('.pl-row-cat').forEach(catRow => {
+        if (!state.cats.has(catRow.dataset.cat)) return;
+        const cat = catRow.dataset.cat;
+        catRow.dataset.expanded = 'true';
+        catRow.querySelector('.pl-expand-icon').innerHTML = '&#9660;';
+        listEl.querySelectorAll('.pl-row-sub').forEach(subRow => {
+          if (subRow.dataset.cat !== cat) return;
+          subRow.style.display = '';
+          if (!state.subs.has(cat + '||' + subRow.dataset.sub)) return;
+          const sub = subRow.dataset.sub;
+          subRow.dataset.expanded = 'true';
+          subRow.querySelector('.pl-expand-icon').innerHTML = '&#9660;';
+          listEl.querySelectorAll('.pl-row:not(.pl-row-cat):not(.pl-row-sub)').forEach(r => {
+            if (r.dataset.cat === cat && r.dataset.sub === sub) r.style.display = '';
+          });
+        });
+      });
+    }
+
     function render() {
+      const shouldRestore = !catFilter && !searchText;
+      const state = shouldRestore ? _getExpandState() : null;
       _plRender(listEl, items, catFilter, searchText, showInactive);
+
+      if (state) {
+        _applyExpandState(state);
+      } else if (catFilter) {
+        // Expand the filtered category fully
+        listEl.querySelectorAll('.pl-row-cat').forEach(catRow => {
+          if (catRow.dataset.cat !== catFilter) return;
+          catRow.dataset.expanded = 'true';
+          catRow.querySelector('.pl-expand-icon').innerHTML = '&#9660;';
+          listEl.querySelectorAll('.pl-row-sub').forEach(subRow => {
+            if (subRow.dataset.cat !== catFilter) return;
+            subRow.style.display = '';
+            subRow.dataset.expanded = 'true';
+            subRow.querySelector('.pl-expand-icon').innerHTML = '&#9660;';
+            const sub = subRow.dataset.sub;
+            listEl.querySelectorAll('.pl-row:not(.pl-row-cat):not(.pl-row-sub)').forEach(r => {
+              if (r.dataset.cat === catFilter && r.dataset.sub === sub) r.style.display = '';
+            });
+          });
+        });
+      } else if (searchText) {
+        // Expand all cats/subs that have matching items
+        listEl.querySelectorAll('.pl-row-cat').forEach(catRow => {
+          catRow.dataset.expanded = 'true';
+          catRow.querySelector('.pl-expand-icon').innerHTML = '&#9660;';
+          const cat = catRow.dataset.cat;
+          listEl.querySelectorAll('.pl-row-sub').forEach(subRow => {
+            if (subRow.dataset.cat !== cat) return;
+            subRow.style.display = '';
+            subRow.dataset.expanded = 'true';
+            subRow.querySelector('.pl-expand-icon').innerHTML = '&#9660;';
+            const sub = subRow.dataset.sub;
+            listEl.querySelectorAll('.pl-row:not(.pl-row-cat):not(.pl-row-sub)').forEach(r => {
+              if (r.dataset.cat === cat && r.dataset.sub === sub) r.style.display = '';
+            });
+          });
+        });
+      }
+
       if (pendingFocus) {
         const { itemId, direction } = pendingFocus;
         pendingFocus = null;
@@ -2098,7 +2278,7 @@ const Estimating = (function () {
           direction === 'same' ? allCost[idx] :
           direction === 'next' ? allCost[idx + 1] :
           direction === 'prev' ? allCost[idx - 1] : null;
-        if (target) target.focus();
+        if (target) { _plEnsureVisible(target); target.focus(); }
       }
     }
 
@@ -2161,23 +2341,15 @@ const Estimating = (function () {
     function _insertNewRow(refItemId) {
       const existing = listEl.querySelector('.pl-row-new');
       if (existing) existing.remove();
-      const refItem = items.find(i => i.itemId === refItemId) || null;
-      const cat     = refItem ? refItem.category    : '';
-      const subcat  = refItem ? refItem.subCategory : '';
-      const catOpts = _plCatOptions(items).map(c => `<option value="${c}">`).join('');
-      const subOpts = _plSubOptions(cat, items).map(s => `<option value="${s}">`).join('');
-      const uomOpts = PL_UOM.map(u => `<option>${u}</option>`).join('');
-      const rowEl = document.createElement('div');
+      const refRowEl = refItemId ? listEl.querySelector(`[data-item-id="${refItemId}"]`) : null;
+      const cat      = refRowEl ? (refRowEl.dataset.cat || '') : '';
+      const subcat   = refRowEl ? (refRowEl.dataset.sub || '') : '';
+      const uomOpts  = PL_UOM.map(u => `<option>${u}</option>`).join('');
+      const rowEl    = document.createElement('div');
       rowEl.className = 'pl-row pl-row-new';
+      if (cat)    rowEl.dataset.cat = cat;
+      if (subcat) rowEl.dataset.sub = subcat;
       rowEl.innerHTML = `
-        <div class="pl-cell pl-col-cat">
-          <input class="pl-grid-inp" data-col="cat" list="plg-cat-opts" value="${cat}" autocomplete="off">
-          <datalist id="plg-cat-opts">${catOpts}</datalist>
-        </div>
-        <div class="pl-cell pl-col-subcat">
-          <input class="pl-grid-inp" data-col="subcat" list="plg-sub-opts" value="${subcat}" autocomplete="off">
-          <datalist id="plg-sub-opts">${subOpts}</datalist>
-        </div>
         <div class="pl-cell pl-col-name">
           <input class="pl-grid-inp" data-col="name" value="" placeholder="Item name" autocomplete="off">
         </div>
@@ -2191,16 +2363,8 @@ const Estimating = (function () {
         <div class="pl-cell pl-col-start">—</div>
         <div class="pl-cell pl-col-delta">—</div>
         <div class="pl-cell pl-col-master"></div>`;
-      const refRowEl = refItemId ? listEl.querySelector(`[data-item-id="${refItemId}"]`) : null;
       if (refRowEl) listEl.insertBefore(rowEl, refRowEl);
       else          listEl.appendChild(rowEl);
-      // Category → Sub-Category cascade in new row
-      const catInp  = rowEl.querySelector('[data-col="cat"]');
-      const subList = rowEl.querySelector('#plg-sub-opts');
-      catInp.addEventListener('input', function () {
-        subList.innerHTML = _plSubOptions(this.value.trim(), items).map(s => `<option value="${s}">`).join('');
-      });
-      // Focus item name
       rowEl.querySelector('[data-col="name"]').focus();
       let newRowSaved = false;
       function _saveNewRow() {
@@ -2211,8 +2375,8 @@ const Estimating = (function () {
         if (!name) { rowEl.remove(); return; }
         const pfData = {
           itemId:       'PL-' + Date.now(),
-          category:     get('cat').value.trim(),
-          subCategory:  get('subcat').value.trim(),
+          category:     cat,
+          subCategory:  subcat,
           itemName:     name,
           uom:          get('uom').value,
           currentCost:  parseFloat(get('cost').value) || 0,
@@ -2320,6 +2484,246 @@ const Estimating = (function () {
           <span class="pl-er-count">${subs.length} sub${subs.length !== 1 ? 's' : ''}, ${itemCount} item${itemCount !== 1 ? 's' : ''}</span>
         </div>${subHTML}`;
       }).join('');
+    }
+
+    /* ── Edit Price List Items Mode ──────────────────────────── */
+
+    function _plEnterItemsMode() {
+      if (widgetEl.classList.contains('pl-item-edit-mode')) return;
+
+      const catMap = new Map();
+      items.forEach(r => {
+        if (!catMap.has(r.category)) catMap.set(r.category, new Map());
+        const subMap = catMap.get(r.category);
+        if (!subMap.has(r.subCategory)) subMap.set(r.subCategory, []);
+        subMap.get(r.subCategory).push(r);
+      });
+
+      const rowsHTML = [...catMap.keys()].sort().map(cat => {
+        const subMap = catMap.get(cat);
+        return `
+          <div class="cbi-div-hdr" data-cat="${cat}" data-expanded="false">
+            <span class="cbi-div-exp">&#9654;</span>${cat}
+          </div>
+          ${[...subMap.keys()].sort().map(sub => {
+            const subItems = subMap.get(sub);
+            return `
+              <div class="cbi-row cbi-row-sub" data-cat="${cat}" data-sub="${sub}" data-expanded="false" style="display:none">
+                <span></span>
+                <span></span>
+                <button class="cbi-exp-btn">&#9654;</button>
+                <span class="cbi-sub-name">${sub}</span>
+              </div>
+              ${subItems.map(item => `
+                <div class="cbi-row cbi-row-item${item.isActive ? '' : ' cbi-row-archived'}"
+                  data-cat="${cat}" data-sub="${sub}" data-item-id="${item.itemId}"
+                  data-archived="${item.isActive ? 'false' : 'true'}"
+                  draggable="true" style="display:none">
+                  <span class="cbi-drag">&#8942;&#8942;</span>
+                  <input type="checkbox" class="cbi-tag cbi-tag-item">
+                  <span></span>
+                  <span></span>
+                  <span class="cbi-item-desc">${item.itemName}</span>
+                </div>
+              `).join('')}
+            `;
+          }).join('')}
+        `;
+      }).join('');
+
+      const panel = document.createElement('div');
+      panel.className = 'pl-items-panel';
+      panel.innerHTML = `
+        <div class="cb-items-mode-header">Edit Price List Items Mode</div>
+        <div class="cb-items-rows">${rowsHTML}</div>
+      `;
+      const footer = el.querySelector('.pl-list-view .widget-footer');
+      footer.parentNode.insertBefore(panel, footer);
+
+      widgetEl.classList.add('pl-item-edit-mode');
+      _bindPlItemsPanel(panel);
+    }
+
+    function _plExitItemsMode() {
+      widgetEl.classList.remove('pl-item-edit-mode');
+      const panel = el.querySelector('.pl-items-panel');
+      if (panel) panel.remove();
+      const archCb = el.querySelector('.pl-items-show-archived');
+      if (archCb) archCb.checked = false;
+      render();
+    }
+
+    function _bindPlItemsPanel(panel) {
+      const itemRowsEl = panel.querySelector('.cb-items-rows');
+      const selCountEl = el.querySelector('.pl-items-sel-count');
+      let activeFilter = 'active';
+
+      function _applyFilter(filter) {
+        activeFilter = filter;
+        itemRowsEl.querySelectorAll('.cbi-row-sub').forEach(subRow => {
+          const cat = subRow.dataset.cat;
+          const sub = subRow.dataset.sub;
+          const expanded = subRow.dataset.expanded === 'true';
+          const subItems = [...itemRowsEl.querySelectorAll(`.cbi-row-item[data-cat="${cat}"][data-sub="${sub}"]`)];
+          let visCount = 0;
+          subItems.forEach(r => {
+            const archived = r.dataset.archived === 'true';
+            const matches = filter === 'all' || (filter === 'active' && !archived) || (filter === 'archived' && archived);
+            r.style.display = (expanded && matches) ? '' : 'none';
+            if (matches) visCount++;
+          });
+          subRow.classList.toggle('cbi-sub-empty', visCount === 0);
+        });
+      }
+
+      function _updateBulk() {
+        const n = panel.querySelectorAll('.cbi-tag-item:checked').length;
+        selCountEl.textContent = n > 0 ? `${n} item${n === 1 ? '' : 's'} selected` : '';
+        const off = n === 0;
+        el.querySelector('[data-action="pli-archive"]').disabled = off;
+        el.querySelector('[data-action="pli-delete"]').disabled  = off;
+        el.querySelector('[data-action="pli-clear"]').disabled   = off;
+      }
+
+      // Show Archived toggle
+      const archCb = el.querySelector('.pl-items-show-archived');
+      if (archCb) archCb.addEventListener('change', () => _applyFilter(archCb.checked ? 'all' : 'active'));
+
+      // Expand All / Collapse All
+      el.querySelector('[data-action="pli-expand-all"]').addEventListener('click', function () {
+        const allCatHdrs = [...itemRowsEl.querySelectorAll('.cbi-div-hdr')];
+        const expanding  = allCatHdrs.some(h => h.dataset.expanded !== 'true');
+        allCatHdrs.forEach(hdr => {
+          const cat = hdr.dataset.cat;
+          hdr.dataset.expanded = expanding;
+          hdr.querySelector('.cbi-div-exp').innerHTML = expanding ? '&#9660;' : '&#9654;';
+          itemRowsEl.querySelectorAll(`.cbi-row-sub[data-cat="${cat}"]`).forEach(sub => {
+            sub.style.display = expanding ? '' : 'none';
+            if (!expanding) {
+              sub.dataset.expanded = 'false';
+              sub.querySelector('.cbi-exp-btn').innerHTML = '&#9654;';
+              itemRowsEl.querySelectorAll(`.cbi-row-item[data-cat="${cat}"][data-sub="${sub.dataset.sub}"]`)
+                .forEach(r => r.style.display = 'none');
+            }
+          });
+        });
+        this.textContent = expanding ? 'Collapse All' : 'Expand All';
+      });
+
+      // Bulk action buttons
+      el.querySelector('[data-action="pli-clear"]').addEventListener('click', () => {
+        panel.querySelectorAll('.cbi-tag').forEach(cb => cb.checked = false);
+        _updateBulk();
+      });
+      el.querySelector('[data-action="pli-archive"]').addEventListener('click', () => {
+        alert('Archive: wired in full-stack build.');
+      });
+      el.querySelector('[data-action="pli-delete"]').addEventListener('click', () => {
+        const checked = [...panel.querySelectorAll('.cbi-tag-item:checked')];
+        const n = checked.length;
+        if (!n) return;
+        if (!confirm(`Delete ${n} item${n === 1 ? '' : 's'}? This cannot be undone.`)) return;
+        checked.forEach(cb => {
+          const row = cb.closest('.cbi-row-item');
+          const id  = row?.dataset.itemId;
+          if (!id) return;
+          const stored = JSON.parse(localStorage.getItem('pl_price_items') || '[]');
+          localStorage.setItem('pl_price_items', JSON.stringify(stored.filter(s => s.itemId !== id)));
+          AppData.tables['DB_Price_List'] = (AppData.tables['DB_Price_List'] || []).filter(r => r.Item_ID !== id);
+          row.remove();
+        });
+        _refreshItems();
+        _updateBulk();
+      });
+
+      // Checkbox changes
+      panel.addEventListener('change', function (e) {
+        if (e.target.matches('.cbi-tag-item')) _updateBulk();
+      });
+
+      // Category header expand/collapse
+      itemRowsEl.addEventListener('click', function (e) {
+        const catHdr = e.target.closest('.cbi-div-hdr');
+        if (catHdr) {
+          const cat = catHdr.dataset.cat;
+          const expanded = catHdr.dataset.expanded === 'true';
+          catHdr.dataset.expanded = !expanded;
+          catHdr.querySelector('.cbi-div-exp').innerHTML = expanded ? '&#9654;' : '&#9660;';
+          itemRowsEl.querySelectorAll(`.cbi-row-sub[data-cat="${cat}"]`).forEach(subRow => {
+            subRow.style.display = expanded ? 'none' : '';
+            if (expanded) {
+              subRow.dataset.expanded = 'false';
+              subRow.querySelector('.cbi-exp-btn').innerHTML = '&#9654;';
+              itemRowsEl.querySelectorAll(`.cbi-row-item[data-cat="${cat}"][data-sub="${subRow.dataset.sub}"]`)
+                .forEach(r => r.style.display = 'none');
+            }
+          });
+          return;
+        }
+
+        // Sub-category expand/collapse
+        const subRow = e.target.closest('.cbi-row-sub');
+        if (subRow) {
+          const cat = subRow.dataset.cat;
+          const sub = subRow.dataset.sub;
+          const expanded = subRow.dataset.expanded === 'true';
+          subRow.dataset.expanded = !expanded;
+          subRow.querySelector('.cbi-exp-btn').innerHTML = expanded ? '&#9654;' : '&#9660;';
+          itemRowsEl.querySelectorAll(`.cbi-row-item[data-cat="${cat}"][data-sub="${sub}"]`).forEach(r => {
+            const archived = r.dataset.archived === 'true';
+            const matches = activeFilter === 'all' || (activeFilter === 'active' && !archived) || (activeFilter === 'archived' && archived);
+            r.style.display = (!expanded && matches) ? '' : 'none';
+          });
+        }
+      });
+
+      // Double-click item → open edit form
+      itemRowsEl.addEventListener('dblclick', function (e) {
+        const row = e.target.closest('.cbi-row-item');
+        if (!row) return;
+        const item = items.find(i => i.itemId === row.dataset.itemId);
+        if (item) showForm(item);
+      });
+
+      // Drag-to-reorder within same sub-category
+      let pliDragEl = null;
+      itemRowsEl.addEventListener('dragstart', function (e) {
+        const row = e.target.closest('.cbi-row-item');
+        if (!row || e.target.matches('input')) { e.preventDefault(); return; }
+        pliDragEl = row;
+        row.classList.add('cb-row-dragging');
+        e.dataTransfer.effectAllowed = 'move';
+      });
+      itemRowsEl.addEventListener('dragover', function (e) {
+        if (!pliDragEl) return;
+        const target = e.target.closest('.cbi-row-item');
+        if (!target || target === pliDragEl) return;
+        if (target.dataset.cat !== pliDragEl.dataset.cat || target.dataset.sub !== pliDragEl.dataset.sub) return;
+        e.preventDefault();
+        itemRowsEl.querySelectorAll('.cb-drop-before, .cb-drop-after').forEach(r => r.classList.remove('cb-drop-before', 'cb-drop-after'));
+        const mid = target.getBoundingClientRect().top + target.getBoundingClientRect().height / 2;
+        target.classList.add(e.clientY < mid ? 'cb-drop-before' : 'cb-drop-after');
+      });
+      itemRowsEl.addEventListener('dragleave', function (e) {
+        if (!itemRowsEl.contains(e.relatedTarget))
+          itemRowsEl.querySelectorAll('.cb-drop-before, .cb-drop-after').forEach(r => r.classList.remove('cb-drop-before', 'cb-drop-after'));
+      });
+      itemRowsEl.addEventListener('drop', function (e) {
+        e.preventDefault();
+        if (!pliDragEl) return;
+        const target = e.target.closest('.cbi-row-item');
+        itemRowsEl.querySelectorAll('.cb-drop-before, .cb-drop-after').forEach(r => r.classList.remove('cb-drop-before', 'cb-drop-after'));
+        if (!target || target === pliDragEl) { pliDragEl.classList.remove('cb-row-dragging'); pliDragEl = null; return; }
+        const after = e.clientY > target.getBoundingClientRect().top + target.getBoundingClientRect().height / 2;
+        if (after) target.after(pliDragEl);
+        else       target.before(pliDragEl);
+        pliDragEl.classList.remove('cb-row-dragging');
+        pliDragEl = null;
+      });
+      itemRowsEl.addEventListener('dragend', function () {
+        if (pliDragEl) { pliDragEl.classList.remove('cb-row-dragging'); pliDragEl = null; }
+        itemRowsEl.querySelectorAll('.cb-drop-before, .cb-drop-after').forEach(r => r.classList.remove('cb-drop-before', 'cb-drop-after'));
+      });
     }
 
     function _plEnterEditMode() {
@@ -2516,13 +2920,14 @@ const Estimating = (function () {
     el.querySelector('.pl-sidebar').addEventListener('click', function (e) {
       const btn = e.target.closest('.pl-nav-btn');
       if (!btn) return;
-      catFilter = btn.dataset.cat;
-      el.querySelectorAll('.pl-nav-btn').forEach(b => b.classList.toggle('active', b === btn));
+      catFilter = btn.classList.contains('active') ? '' : btn.dataset.cat;
+      el.querySelectorAll('.pl-nav-btn').forEach(b => b.classList.toggle('active', b === btn && catFilter !== ''));
       render();
     });
 
-    // ── Show inactive toggle ──
-    el.querySelector('.pl-show-inactive').addEventListener('change', function () {
+    // ── Show inactive toggle (main list — no longer in toolbar; kept for safety) ──
+    const showInactiveCb = el.querySelector('.pl-show-inactive');
+    if (showInactiveCb) showInactiveCb.addEventListener('change', function () {
       showInactive = this.checked;
       render();
     });
@@ -2540,9 +2945,13 @@ const Estimating = (function () {
       if (cell) _activateCostCell(cell);
     });
 
-    // ── Cost cell: click activates it; name cell opens Edit form ──
+    // ── Row clicks: expand/collapse cat/sub; name cell opens Edit form ──
     listEl.addEventListener('click', function (e) {
       if (e.target.closest('.pl-cost-cell')) return; // handled by focusin
+      const catRow = e.target.closest('.pl-row-cat');
+      if (catRow) { _plToggleCatRow(catRow); return; }
+      const subRow = e.target.closest('.pl-row-sub');
+      if (subRow) { _plToggleSubRow(subRow); return; }
       const nameCell = e.target.closest('.pl-name-cell');
       if (nameCell) {
         const id   = nameCell.closest('.pl-row').dataset.itemId;
@@ -2551,10 +2960,50 @@ const Estimating = (function () {
       }
     });
 
+    // ── Main list drag-to-reorder within same sub-category ──
+    let plMainDragEl = null;
+    listEl.addEventListener('dragstart', function (e) {
+      const row = e.target.closest('.pl-row:not(.pl-row-cat):not(.pl-row-sub)');
+      if (!row || e.target.matches('input')) { e.preventDefault(); return; }
+      plMainDragEl = row;
+      row.classList.add('cb-row-dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    listEl.addEventListener('dragover', function (e) {
+      if (!plMainDragEl) return;
+      const target = e.target.closest('.pl-row:not(.pl-row-cat):not(.pl-row-sub)');
+      if (!target || target === plMainDragEl) return;
+      if (target.dataset.cat !== plMainDragEl.dataset.cat || target.dataset.sub !== plMainDragEl.dataset.sub) return;
+      e.preventDefault();
+      listEl.querySelectorAll('.cb-drop-before, .cb-drop-after').forEach(r => r.classList.remove('cb-drop-before', 'cb-drop-after'));
+      const mid = target.getBoundingClientRect().top + target.getBoundingClientRect().height / 2;
+      target.classList.add(e.clientY < mid ? 'cb-drop-before' : 'cb-drop-after');
+    });
+    listEl.addEventListener('dragleave', function (e) {
+      if (!listEl.contains(e.relatedTarget))
+        listEl.querySelectorAll('.cb-drop-before, .cb-drop-after').forEach(r => r.classList.remove('cb-drop-before', 'cb-drop-after'));
+    });
+    listEl.addEventListener('drop', function (e) {
+      e.preventDefault();
+      if (!plMainDragEl) return;
+      const target = e.target.closest('.pl-row:not(.pl-row-cat):not(.pl-row-sub)');
+      listEl.querySelectorAll('.cb-drop-before, .cb-drop-after').forEach(r => r.classList.remove('cb-drop-before', 'cb-drop-after'));
+      if (!target || target === plMainDragEl) { plMainDragEl.classList.remove('cb-row-dragging'); plMainDragEl = null; return; }
+      const after = e.clientY > target.getBoundingClientRect().top + target.getBoundingClientRect().height / 2;
+      if (after) target.after(plMainDragEl);
+      else       target.before(plMainDragEl);
+      plMainDragEl.classList.remove('cb-row-dragging');
+      plMainDragEl = null;
+    });
+    listEl.addEventListener('dragend', function () {
+      if (plMainDragEl) { plMainDragEl.classList.remove('cb-row-dragging'); plMainDragEl = null; }
+      listEl.querySelectorAll('.cb-drop-before, .cb-drop-after').forEach(r => r.classList.remove('cb-drop-before', 'cb-drop-after'));
+    });
+
     // ── Right-click context menu ──
     listEl.addEventListener('contextmenu', function (e) {
       e.preventDefault();
-      const row = e.target.closest('.pl-row:not(.pl-row-new)');
+      const row = e.target.closest('.pl-row:not(.pl-row-new):not(.pl-row-cat):not(.pl-row-sub)');
       if (!row) return;
       ctxItemId = row.dataset.itemId;
       const item = items.find(i => i.itemId === ctxItemId);
@@ -2620,6 +3069,26 @@ const Estimating = (function () {
       // Undo / Redo
       if (e.target.closest('[data-action="pl-undo"]')) { _plUndo(); return; }
       if (e.target.closest('[data-action="pl-redo"]')) { _plRedo(); return; }
+      // Expand All / Collapse All (main list)
+      if (e.target.closest('[data-action="pl-expand-all"]')) {
+        const btn  = e.target.closest('[data-action]');
+        const expanding = btn.textContent.trim() === 'Expand All';
+        listEl.querySelectorAll('.pl-row-cat').forEach(catRow => {
+          if (expanding && catRow.dataset.expanded !== 'true') _plToggleCatRow(catRow);
+          if (!expanding && catRow.dataset.expanded === 'true') _plToggleCatRow(catRow);
+        });
+        if (expanding) {
+          listEl.querySelectorAll('.pl-row-sub').forEach(subRow => {
+            if (subRow.dataset.expanded !== 'true') _plToggleSubRow(subRow);
+          });
+        }
+        btn.textContent = expanding ? 'Collapse All' : 'Expand All';
+        return;
+      }
+      // Edit Items Mode
+      if (e.target.closest('[data-action="pl-edit-items"]')) { _plEnterItemsMode(); return; }
+      if (e.target.closest('[data-action="pl-items-done"]')) { _plExitItemsMode(); return; }
+      if (e.target.closest('[data-action="pl-items-new"]')) { showForm(null); return; }
       // Edit Layout Mode toolbar actions
       if (e.target.closest('[data-action="pl-edit-layout"]'))     { _plEnterEditMode(); return; }
       if (e.target.closest('[data-action="pl-edit-done"]'))       { _plExitEditMode(); return; }

@@ -17,7 +17,7 @@ const WidgetManager = (function () {
   function open(id, title, contentHTML = '', options = {}) {
     if (state[id]) {
       restore(id);
-      return;
+      return false;
     }
 
     const w          = options.width  || 320;
@@ -324,7 +324,7 @@ const WidgetManager = (function () {
       titleEl.textContent = text || title;
       titleEl.title       = text || title;
     };
-    DOCK().appendChild(wrapper);
+    DOCK().prepend(wrapper);
     _initDockDrag(wrapper);
     return wrapper;
   }
