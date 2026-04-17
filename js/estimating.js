@@ -873,7 +873,7 @@ const Estimating = (function () {
           <span class="cbi-div-exp">&#9654;</span>${div.divName}
         </div>
         ${div.subs.map(sub => `
-          <div class="cbi-row cbi-row-sub" data-div="${div.divNum}" data-sub="${sub.subNum}" data-expanded="false">
+          <div class="cbi-row cbi-row-sub" data-div="${div.divNum}" data-sub="${sub.subNum}" data-expanded="false" style="display:none">
             <span></span>
             <span></span>
             <button class="cbi-exp-btn">&#9654;</button>
@@ -1086,21 +1086,34 @@ const Estimating = (function () {
       const rowsEl = panel.querySelector('.cb-items-rows');
       const allDivHdrs = [...rowsEl.querySelectorAll('.cbi-div-hdr')];
       const expanding  = allDivHdrs.some(h => h.dataset.expanded !== 'true');
-      allDivHdrs.forEach(hdr => {
-        const divNum = hdr.dataset.div;
-        hdr.dataset.expanded = expanding;
-        hdr.querySelector('.cbi-div-exp').innerHTML = expanding ? '&#9660;' : '&#9654;';
-        rowsEl.querySelectorAll(`.cbi-row-sub[data-div="${divNum}"]`).forEach(sub => {
-          sub.style.display = expanding ? '' : 'none';
-        });
-        if (!expanding) {
-          rowsEl.querySelectorAll(`.cbi-row-item[data-div="${divNum}"]`).forEach(r => r.style.display = 'none');
-          rowsEl.querySelectorAll(`.cbi-row-sub[data-div="${divNum}"]`).forEach(sub => {
-            sub.dataset.expanded = 'false';
-            sub.querySelector('.cbi-exp-btn').innerHTML = '&#9654;';
+      const showArchived = el.querySelector('.cbi-show-archived')?.checked;
+      const activeFilter = showArchived ? 'all' : 'active';
+      if (expanding) {
+        allDivHdrs.forEach(hdr => {
+          hdr.dataset.expanded = 'true';
+          hdr.querySelector('.cbi-div-exp').innerHTML = '&#9660;';
+          rowsEl.querySelectorAll(`.cbi-row-sub[data-div="${hdr.dataset.div}"]`).forEach(sub => {
+            sub.style.display = '';
+            sub.dataset.expanded = 'true';
+            sub.querySelector('.cbi-exp-btn').innerHTML = '&#9660;';
+            rowsEl.querySelectorAll(`.cbi-row-item[data-div="${hdr.dataset.div}"][data-sub="${sub.dataset.sub}"]`).forEach(r => {
+              const archived = r.dataset.archived === 'true';
+              r.style.display = (activeFilter === 'all' || !archived) ? '' : 'none';
+            });
           });
-        }
-      });
+        });
+      } else {
+        rowsEl.querySelectorAll('.cbi-row-item').forEach(r => r.style.display = 'none');
+        rowsEl.querySelectorAll('.cbi-row-sub').forEach(sub => {
+          sub.style.display = 'none';
+          sub.dataset.expanded = 'false';
+          sub.querySelector('.cbi-exp-btn').innerHTML = '&#9654;';
+        });
+        allDivHdrs.forEach(hdr => {
+          hdr.dataset.expanded = 'false';
+          hdr.querySelector('.cbi-div-exp').innerHTML = '&#9654;';
+        });
+      }
       this.textContent = expanding ? 'Collapse All' : 'Expand All';
     });
 
@@ -1937,7 +1950,6 @@ const Estimating = (function () {
             <div class="pl-list"></div>
           </div>
           <div class="widget-footer">
-            <button class="btn-secondary" data-action="cancel">Close</button>
           </div>
         </div>
         <div class="pl-form-view" style="display:none">
@@ -2590,26 +2602,6 @@ const Estimating = (function () {
       if (archCb) archCb.addEventListener('change', () => _applyFilter(archCb.checked ? 'all' : 'active'));
 
       // Expand All / Collapse All
-      el.querySelector('[data-action="pli-expand-all"]').addEventListener('click', function () {
-        const allCatHdrs = [...itemRowsEl.querySelectorAll('.cbi-div-hdr')];
-        const expanding  = allCatHdrs.some(h => h.dataset.expanded !== 'true');
-        allCatHdrs.forEach(hdr => {
-          const cat = hdr.dataset.cat;
-          hdr.dataset.expanded = expanding;
-          hdr.querySelector('.cbi-div-exp').innerHTML = expanding ? '&#9660;' : '&#9654;';
-          itemRowsEl.querySelectorAll(`.cbi-row-sub[data-cat="${cat}"]`).forEach(sub => {
-            sub.style.display = expanding ? '' : 'none';
-            if (!expanding) {
-              sub.dataset.expanded = 'false';
-              sub.querySelector('.cbi-exp-btn').innerHTML = '&#9654;';
-              itemRowsEl.querySelectorAll(`.cbi-row-item[data-cat="${cat}"][data-sub="${sub.dataset.sub}"]`)
-                .forEach(r => r.style.display = 'none');
-            }
-          });
-        });
-        this.textContent = expanding ? 'Collapse All' : 'Expand All';
-      });
-
       // Bulk action buttons
       el.querySelector('[data-action="pli-clear"]').addEventListener('click', () => {
         panel.querySelectorAll('.cbi-tag').forEach(cb => cb.checked = false);
@@ -3089,6 +3081,43 @@ const Estimating = (function () {
       if (e.target.closest('[data-action="pl-edit-items"]')) { _plEnterItemsMode(); return; }
       if (e.target.closest('[data-action="pl-items-done"]')) { _plExitItemsMode(); return; }
       if (e.target.closest('[data-action="pl-items-new"]')) { showForm(null); return; }
+      if (e.target.closest('[data-action="pli-expand-all"]')) {
+        const btn = e.target.closest('[data-action]');
+        const itemRowsEl = el.querySelector('.pl-items-panel .cb-items-rows');
+        if (!itemRowsEl) return;
+        const allCatHdrs = [...itemRowsEl.querySelectorAll('.cbi-div-hdr')];
+        const expanding  = allCatHdrs.some(h => h.dataset.expanded !== 'true');
+        const showArchivedPli = el.querySelector('.pl-items-show-archived')?.checked;
+        const pliFilter = showArchivedPli ? 'all' : 'active';
+        if (expanding) {
+          allCatHdrs.forEach(hdr => {
+            hdr.dataset.expanded = 'true';
+            hdr.querySelector('.cbi-div-exp').innerHTML = '&#9660;';
+            itemRowsEl.querySelectorAll(`.cbi-row-sub[data-cat="${hdr.dataset.cat}"]`).forEach(sub => {
+              sub.style.display = '';
+              sub.dataset.expanded = 'true';
+              sub.querySelector('.cbi-exp-btn').innerHTML = '&#9660;';
+              itemRowsEl.querySelectorAll(`.cbi-row-item[data-cat="${hdr.dataset.cat}"][data-sub="${sub.dataset.sub}"]`).forEach(r => {
+                const archived = r.dataset.archived === 'true';
+                r.style.display = (pliFilter === 'all' || !archived) ? '' : 'none';
+              });
+            });
+          });
+        } else {
+          itemRowsEl.querySelectorAll('.cbi-row-item').forEach(r => r.style.display = 'none');
+          itemRowsEl.querySelectorAll('.cbi-row-sub').forEach(sub => {
+            sub.style.display = 'none';
+            sub.dataset.expanded = 'false';
+            sub.querySelector('.cbi-exp-btn').innerHTML = '&#9654;';
+          });
+          allCatHdrs.forEach(hdr => {
+            hdr.dataset.expanded = 'false';
+            hdr.querySelector('.cbi-div-exp').innerHTML = '&#9654;';
+          });
+        }
+        btn.textContent = expanding ? 'Collapse All' : 'Expand All';
+        return;
+      }
       // Edit Layout Mode toolbar actions
       if (e.target.closest('[data-action="pl-edit-layout"]'))     { _plEnterEditMode(); return; }
       if (e.target.closest('[data-action="pl-edit-done"]'))       { _plExitEditMode(); return; }
@@ -3104,7 +3133,7 @@ const Estimating = (function () {
         btn.textContent = expand ? 'Collapse All' : 'Expand All';
         return;
       }
-      if (e.target.closest('[data-action="cancel"]'))    { WidgetManager.close(widgetId); return; }
+
       if (e.target.closest('[data-action="cancel-pf"]')) { hideForm(); return; }
       if (e.target.closest('[data-action="save-pf"]')) {
         const f = name => formBody.querySelector(`[data-pf="${name}"]`);
@@ -3385,26 +3414,28 @@ const Estimating = (function () {
     const gPrice = activeItems.reduce((s, i) => s + _estItemPrice(i), 0);
 
     return `<div class="est-widget">
-      <div class="est-header">
-        <div class="est-client-name">${est.clientName}</div>
-        <div class="est-estimate-name">${est.estimateName}</div>
-        <div class="est-header-right">
-          <div class="est-total-box est-total-cost-box">
-            <span class="est-total-label">Total Cost</span>
-            <span class="est-total-value est-grand-cost">${_efmt(gCost,true)}</span>
-          </div>
-          <div class="est-total-box">
-            <span class="est-total-label">Total Price</span>
-            <span class="est-total-value est-grand-price">${_efmt(gPrice,true)}</span>
-          </div>
-          <button class="est-header-btn est-collapse-btn">Collapse All</button>
-          <label class="est-cm-wrap">
-            <input type="checkbox" class="est-cm-toggle"> Client Mode
-          </label>
+      <div class="est-toolbar">
+        <button class="btn-secondary cb-btn est-undo-btn" data-action="est-undo" disabled>&#8617; Undo</button>
+        <button class="btn-secondary cb-btn est-redo-btn" data-action="est-redo" disabled>Redo &#8618;</button>
+        <button class="btn-secondary cb-btn" data-action="est-setup">Estimate Setup</button>
+        <button class="btn-secondary cb-btn" data-action="est-duplicate">Duplicate</button>
+        <div class="est-toolbar-spacer"></div>
+        <div class="est-total-box est-total-cost-box">
+          <span class="est-total-label">Total Cost</span>
+          <span class="est-total-value est-grand-cost">${_efmt(gCost,true)}</span>
         </div>
+        <div class="est-total-box">
+          <span class="est-total-label">Total Price</span>
+          <span class="est-total-value est-grand-price">${_efmt(gPrice,true)}</span>
+        </div>
+        <button class="est-header-btn est-collapse-btn">Collapse All</button>
+        <label class="est-cm-wrap">
+          <input type="checkbox" class="est-cm-toggle"> Client Mode
+        </label>
       </div>
       <div class="est-body">
         <div class="est-tab-panel">${tabsHTML}</div>
+        <div class="est-panel-divider"></div>
         <div class="est-grid-wrap">
           <table class="est-grid">
             <thead><tr>
@@ -3435,11 +3466,20 @@ const Estimating = (function () {
 
   /* ── Estimate bind ────────────────────────────────────── */
   function _bindEstimate(wid, est) {
-    const el     = document.getElementById('wid-' + wid);
+    const el     = document.getElementById('widget-' + wid);
     if (!el) return;
     const widget = el.querySelector('.est-widget');
     const tabs   = el.querySelector('.est-tab-panel');
     const tbody  = el.querySelector('.est-grid tbody');
+
+    /* Inject client + estimate names into the widget title bar */
+    const widgetHeader = el.querySelector('.widget-header');
+    if (widgetHeader) {
+      const namesSpan = document.createElement('span');
+      namesSpan.className = 'est-wh-names';
+      namesSpan.textContent = `${est.clientName}  —  ${est.estimateName}`;
+      widgetHeader.insertBefore(namesSpan, widgetHeader.querySelector('.widget-controls'));
+    }
 
     /* Mutable on/off state per phaseId */
     const selState = new Map(est.phases.map(p => [p.phaseId, p.isSelected]));
@@ -3550,6 +3590,20 @@ const Estimating = (function () {
       }
     });
 
+    /* Toolbar actions */
+    el.querySelector('[data-action="est-undo"]').addEventListener('click', () => {
+      // TODO: undo stack — wired in full-stack build
+    });
+    el.querySelector('[data-action="est-redo"]').addEventListener('click', () => {
+      // TODO: redo stack — wired in full-stack build
+    });
+    el.querySelector('[data-action="est-setup"]').addEventListener('click', () => {
+      alert('Estimate Setup: wired in full-stack build.');
+    });
+    el.querySelector('[data-action="est-duplicate"]').addEventListener('click', () => {
+      alert('Duplicate: wired in full-stack build.');
+    });
+
     /* Collapse All / Expand All button */
     el.querySelector('.est-collapse-btn').addEventListener('click', function () {
       const collapsing = this.textContent === 'Collapse All';
@@ -3590,6 +3644,26 @@ const Estimating = (function () {
     }
 
     _applyVis();
+
+    /* Draggable panel divider */
+    const divider  = el.querySelector('.est-panel-divider');
+    const tabPanel = el.querySelector('.est-tab-panel');
+    divider.addEventListener('mousedown', function (e) {
+      e.preventDefault();
+      const startX     = e.clientX;
+      const startWidth = tabPanel.offsetWidth;
+      function onMove(e) {
+        const newWidth = Math.max(100, Math.min(400, startWidth + e.clientX - startX));
+        tabPanel.style.width    = newWidth + 'px';
+        tabPanel.style.minWidth = newWidth + 'px';
+      }
+      function onUp() {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      }
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
 
     /* Align first tab with bottom of grid column header */
     requestAnimationFrame(() => {
