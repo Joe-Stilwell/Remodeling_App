@@ -186,25 +186,25 @@ const Estimating = (function () {
 
   /* ── Costbook HTML ────────────────────────────────────────── */
 
-  function _costbookHTML(tree) {
-    // Nav: division names only, no number
-    const navDivs = tree.map(div => `
+  function _cbNavHTML(tree) {
+    return tree.map(div => `
       <div class="cb-nav-div" data-div="${div.divNum}">
         <span class="cb-nav-div-name">${div.divName}</span>
       </div>
     `).join('');
+  }
 
-    const gridRows = tree.map(div => {
+  function _cbRowsHTML(tree) {
+    return tree.map(div => {
       const divSubCount  = div.subs.length;
       const divItemCount = div.subs.reduce((n, s) => n + s.items.length, 0);
       return `
-      <div class="cb-row cb-row-div" data-div="${div.divNum}" data-expanded="false">
+      <div class="cgrid-row cgrid-t1 cb-row cb-row-div" data-div="${div.divNum}" data-expanded="false">
         <span class="cb-drag-handle" data-tip="Drag to reorder">&#8942;&#8942;</span>
         <button class="cb-edit-del" data-tip="Delete Division">&#10005;</button>
         <button class="cb-edit-add-sub btn-secondary" data-tip="Add Sub-Division">+ Sub</button>
         <span class="cb-tag-slot"></span>
-        <span class="cb-expand-icon">&#9654;</span>
-        <span class="cb-row-div-name" data-tip="Double-click to rename">${div.divName}</span>
+        <span class="cb-row-div-name cgrid-col-name" data-tip="Double-click to rename"><span class="cgrid-expand">&#9654;</span><span class="cgrid-cell-text">${div.divName}</span></span>
         <span class="cb-col-uom"></span>
         <span class="cb-col-labor"></span>
         <span class="cb-col-mat"></span>
@@ -218,12 +218,11 @@ const Estimating = (function () {
       ${div.subs.map(sub => {
         const subItemCount = sub.items.length;
         return `
-        <div class="cb-row cb-row-sub" data-div="${div.divNum}" data-sub="${sub.subNum}" data-expanded="false" style="display:none">
+        <div class="cgrid-row cgrid-t2 cb-row cb-row-sub" data-div="${div.divNum}" data-sub="${sub.subNum}" data-expanded="false" style="display:none">
           <span class="cb-drag-handle" data-tip="Drag to reorder">&#8942;&#8942;</span>
           <button class="cb-edit-del" data-tip="Delete Sub-Division">&#10005;</button>
           <span class="cb-tag-slot"></span>
-          <span class="cb-expand-icon">&#9654;</span>
-          <span class="cb-row-sub-name" data-tip="Double-click to rename">${sub.subName}</span>
+          <span class="cb-row-sub-name cgrid-col-name" data-tip="Double-click to rename"><span class="cgrid-expand">&#9654;</span><span class="cgrid-cell-text">${sub.subName}</span></span>
           <span class="cb-col-uom"></span>
           <span class="cb-col-labor"></span>
           <span class="cb-col-mat"></span>
@@ -237,11 +236,10 @@ const Estimating = (function () {
         ${sub.items.map(item => {
           const uc = _unitCost(item);
           return `
-          <div class="cb-row cb-row-item" data-div="${div.divNum}" data-sub="${sub.subNum}" data-item="${item.itemId}" draggable="true" style="display:none">
+          <div class="cgrid-row cgrid-t3 cb-row cb-row-item" data-div="${div.divNum}" data-sub="${sub.subNum}" data-item="${item.itemId}" draggable="true" style="display:none">
             <span class="cb-drag-handle" data-tip="Drag to reorder">&#8942;&#8942;</span>
             <input type="checkbox" class="cb-tag cb-tag-item" data-item="${item.itemId}" data-div="${div.divNum}" data-sub="${sub.subNum}">
-            <span class="cb-expand-icon"></span>
-            <span class="cb-col-desc">${item.description}</span>
+            <span class="cb-col-desc cgrid-col-name"><span class="cgrid-cell-text">${item.description}</span></span>
             <span class="cb-col-uom">${item.uom}</span>
             <span class="cb-col-labor">${_fmt(item.labor)}</span>
             <span class="cb-col-mat">${_fmt(item.material)}</span>
@@ -254,64 +252,55 @@ const Estimating = (function () {
         }).join('')}
       `; }).join('')}
     `; }).join('');
+  }
+
+  function _costbookHTML(tree) {
+    const navDivs  = _cbNavHTML(tree);
+    const gridRows = _cbRowsHTML(tree);
 
     return `
-      <div class="cb-widget">
+      <div class="sp-widget cb-widget">
 
-        <div class="cb-toolbar">
-          <div class="cb-toolbar-nav">
-            <button class="btn-secondary cb-btn cb-normal-ctrl" data-action="edit-structure">Edit Divisions</button>
-            <button class="btn-secondary cb-btn cb-edit-ctrl" data-action="edit-done">&#9664; Done</button>
-            <button class="btn-secondary cb-btn cb-edit-ctrl" data-action="edit-expand-all">Expand All</button>
-            <button class="btn-primary cb-btn cb-edit-ctrl" data-action="add-div">+ Add Division</button>
-            <button class="btn-secondary cb-btn cb-items-ctrl" data-action="items-done">&#9664; Done</button>
-          </div>
-          <div class="cb-toolbar-main">
-            <button class="btn-secondary cb-btn cb-normal-ctrl" data-action="edit-items">Edit Cost Items</button>
-            <button class="btn-secondary cb-btn cb-normal-ctrl" data-action="toggle-expand-all">Expand All</button>
-            <input class="cb-nav-search cb-normal-ctrl" type="text" placeholder="Search items..." autocomplete="off">
-            <button class="btn-primary cb-btn cb-normal-ctrl" data-action="transfer" disabled>Transfer To Estimate</button>
-            <span class="cb-tag-count cb-normal-ctrl" data-count="0"></span>
-            <label class="cbi-show-archived-toggle cb-items-ctrl">
-              <input type="checkbox" class="cbi-show-archived"> Show Archived
-            </label>
-            <button class="btn-secondary cb-btn cb-items-ctrl" data-action="cbi-expand-all">Expand All</button>
-            <button class="btn-primary cb-btn cb-items-ctrl" data-action="items-add">+ Cost Item</button>
-            <div class="cbi-bulk-bar cb-items-ctrl">
-              <span class="cbi-sel-count"></span>
-              <button class="btn-secondary cb-btn" data-action="cbi-archive" disabled>Archive Selected</button>
-              <button class="btn-secondary cb-btn cbi-delete-btn" data-action="cbi-delete" disabled>Delete Selected</button>
-              <button class="btn-secondary cb-btn" data-action="cbi-clear" disabled>Clear Selection</button>
-            </div>
-          </div>
+        <div class="sp-toolbar cb-toolbar">
+          <button class="btn-secondary sp-btn sp-normal-ctrl" data-action="edit-structure">Edit Divisions</button>
+          <button class="btn-secondary sp-btn sp-edit-ctrl" data-action="edit-done">&#9664; Done</button>
+          <button class="btn-secondary sp-btn sp-edit-ctrl" data-action="edit-expand-all">Expand All</button>
+          <button class="btn-primary sp-btn sp-edit-ctrl" data-action="add-div">+ Add Division</button>
+          <button class="btn-secondary sp-btn sp-normal-ctrl" data-action="toggle-expand-all">Expand All</button>
+          <input class="cb-nav-search sp-normal-ctrl" type="text" placeholder="Search items..." autocomplete="off">
+          <button class="btn-secondary sp-btn sp-btn-icon cb-undo-btn sp-normal-ctrl" data-action="cb-undo" disabled title="Undo">&#8617;</button>
+          <button class="btn-secondary sp-btn sp-btn-icon cb-redo-btn sp-normal-ctrl" data-action="cb-redo" disabled title="Redo">&#8618;</button>
+          <button class="btn-secondary sp-btn sp-btn-icon sp-normal-ctrl" data-action="cb-print" title="Print">&#9113;</button>
+          <button class="btn-secondary sp-btn sp-btn-icon sp-normal-ctrl" data-action="cb-refresh" title="Refresh">&#8635;</button>
+          <button class="btn-primary sp-btn sp-normal-ctrl" data-action="transfer" disabled>Transfer</button>
+          <span class="cb-tag-count sp-normal-ctrl" data-count="0"></span>
         </div>
 
-        <div class="cb-body">
+        <div class="sp-body cb-body">
 
           <!-- Left: Division navigator -->
-          <div class="cb-nav">
+          <div class="sp-nav cb-nav">
             <div class="cb-nav-header">Divisions</div>
             <div class="cb-nav-list">${navDivs}</div>
           </div>
 
           <!-- Resizable divider -->
-          <div class="cb-panel-resize"></div>
+          <div class="sp-divider cb-panel-resize"></div>
 
           <!-- Right: Grid -->
-          <div class="cb-main">
+          <div class="sp-main cb-main">
             <div class="cb-header">
               <span class="cb-header-grip"></span>
               <span class="cb-header-tag">Tag</span>
-              <span class="cb-header-expand"></span>
-              <span class="cb-col-desc cb-rz-hd" data-col="--cb-w-desc">Description<span class="cb-col-resize"></span></span>
-              <span class="cb-col-uom cb-rz-hd" data-col="--cb-w-uom">U/M<span class="cb-col-resize"></span></span>
-              <span class="cb-col-labor cb-rz-hd" data-col="--cb-w-labor">Labor<span class="cb-col-resize"></span></span>
-              <span class="cb-col-mat cb-rz-hd" data-col="--cb-w-mat">Material<span class="cb-col-resize"></span></span>
-              <span class="cb-col-subc cb-rz-hd" data-col="--cb-w-subc">Sub<span class="cb-col-resize"></span></span>
-              <span class="cb-col-equip cb-rz-hd" data-col="--cb-w-equip">Equip<span class="cb-col-resize"></span></span>
-              <span class="cb-col-other cb-rz-hd" data-col="--cb-w-other">Other<span class="cb-col-resize"></span></span>
-              <span class="cb-col-unit cb-rz-hd" data-col="--cb-w-unit">Unit Cost<span class="cb-col-resize"></span></span>
-              <span class="cb-col-specs cb-rz-hd" data-col="--cb-w-specs">Specifications<span class="cb-col-resize"></span></span>
+              <span class="cb-col-desc cb-rz-hd" data-col="--cb-w-desc"><span class="cb-hdr-label">Description</span><span class="cb-col-resize"></span></span>
+              <span class="cb-col-uom cb-rz-hd" data-col="--cb-w-uom"><span class="cb-hdr-label">U/M</span><span class="cb-col-resize"></span></span>
+              <span class="cb-col-labor cb-rz-hd" data-col="--cb-w-labor"><span class="cb-hdr-label">Labor</span><span class="cb-col-resize"></span></span>
+              <span class="cb-col-mat cb-rz-hd" data-col="--cb-w-mat"><span class="cb-hdr-label">Material</span><span class="cb-col-resize"></span></span>
+              <span class="cb-col-subc cb-rz-hd" data-col="--cb-w-subc"><span class="cb-hdr-label">Sub</span><span class="cb-col-resize"></span></span>
+              <span class="cb-col-equip cb-rz-hd" data-col="--cb-w-equip"><span class="cb-hdr-label">Equip</span><span class="cb-col-resize"></span></span>
+              <span class="cb-col-other cb-rz-hd" data-col="--cb-w-other"><span class="cb-hdr-label">Other</span><span class="cb-col-resize"></span></span>
+              <span class="cb-col-unit cb-rz-hd" data-col="--cb-w-unit"><span class="cb-hdr-label">Unit Cost</span><span class="cb-col-resize"></span></span>
+              <span class="cb-col-specs cb-rz-hd" data-col="--cb-w-specs"><span class="cb-hdr-label">Specifications</span><span class="cb-col-resize"></span></span>
             </div>
             <div class="cb-edit-header">Edit Divisions Mode</div>
             <div class="cb-rows">
@@ -334,26 +323,9 @@ const Estimating = (function () {
     const transferBtn = el.querySelector('[data-action="transfer"]');
 
     /* --- Panel resize handle --- */
-    const navEl    = el.querySelector('.cb-nav');
-    const resizeEl = el.querySelector('.cb-panel-resize');
-    resizeEl.addEventListener('mousedown', function (e) {
-      e.preventDefault();
-      const startX = e.clientX;
-      const startW = navEl.offsetWidth;
-      document.body.classList.add('is-dragging');
-      const toolbarNavEl = el.querySelector('.cb-toolbar-nav');
-      function onMove(e) {
-        const w = Math.max(80, Math.min(340, startW + (e.clientX - startX)));
-        navEl.style.width = w + 'px';
-        if (toolbarNavEl) toolbarNavEl.style.width = (w + 5) + 'px'; // nav + resize handle
-      }
-      function onUp() {
-        document.body.classList.remove('is-dragging');
-        document.removeEventListener('mousemove', onMove);
-        document.removeEventListener('mouseup', onUp);
-      }
-      document.addEventListener('mousemove', onMove);
-      document.addEventListener('mouseup', onUp);
+    SplitPanel.bindDivider(el.querySelector('.cb-panel-resize'), {
+      navEl: el.querySelector('.cb-nav'),
+      min: 80, max: 340,
     });
 
     /* --- Tag count (items only, not div/sub header checkboxes) --- */
@@ -414,14 +386,14 @@ const Estimating = (function () {
       const divNum   = divRow.dataset.div;
       const expanded = divRow.dataset.expanded === 'true';
       divRow.dataset.expanded = !expanded;
-      divRow.querySelector('.cb-expand-icon').innerHTML = expanded ? '&#9654;' : '&#9660;';
+      divRow.querySelector('.cgrid-expand').classList.toggle('is-open', !expanded);
       // Show/hide all sub rows for this div
       el.querySelectorAll(`.cb-row-sub[data-div="${divNum}"]`).forEach(sub => {
         sub.style.display = expanded ? 'none' : '';
         // Collapse sub when div collapses
         if (expanded) {
           sub.dataset.expanded = 'false';
-          sub.querySelector('.cb-expand-icon').innerHTML = '&#9654;';
+          sub.querySelector('.cgrid-expand').classList.remove('is-open');
           const s = sub.dataset.sub;
           el.querySelectorAll(`.cb-row-item[data-div="${divNum}"][data-sub="${s}"], .cb-row-hdr[data-div="${divNum}"][data-sub="${s}"]`)
             .forEach(item => item.style.display = 'none');
@@ -435,7 +407,7 @@ const Estimating = (function () {
       const subNum   = subRow.dataset.sub;
       const expanded = subRow.dataset.expanded === 'true';
       subRow.dataset.expanded = !expanded;
-      subRow.querySelector('.cb-expand-icon').innerHTML = expanded ? '&#9654;' : '&#9660;';
+      subRow.querySelector('.cgrid-expand').classList.toggle('is-open', !expanded);
       el.querySelectorAll(`.cb-row-item[data-div="${divNum}"][data-sub="${subNum}"], .cb-row-hdr[data-div="${divNum}"][data-sub="${subNum}"]`)
         .forEach(item => item.style.display = expanded ? 'none' : '');
     }
@@ -462,24 +434,24 @@ const Estimating = (function () {
       if (expanding) {
         allDivs.forEach(row => {
           row.dataset.expanded = 'true';
-          row.querySelector('.cb-expand-icon').innerHTML = '&#9660;';
+          row.querySelector('.cgrid-expand').classList.add('is-open');
         });
         el.querySelectorAll('.cb-row-sub').forEach(row => {
           row.style.display = '';
           row.dataset.expanded = 'true';
-          row.querySelector('.cb-expand-icon').innerHTML = '&#9660;';
+          row.querySelector('.cgrid-expand').classList.add('is-open');
         });
         el.querySelectorAll('.cb-row-item, .cb-row-hdr').forEach(row => row.style.display = '');
         this.textContent = 'Collapse All';
       } else {
         allDivs.forEach(row => {
           row.dataset.expanded = 'false';
-          row.querySelector('.cb-expand-icon').innerHTML = '&#9654;';
+          row.querySelector('.cgrid-expand').classList.remove('is-open');
         });
         el.querySelectorAll('.cb-row-sub').forEach(row => {
           row.style.display = 'none';
           row.dataset.expanded = 'false';
-          row.querySelector('.cb-expand-icon').innerHTML = '&#9654;';
+          row.querySelector('.cgrid-expand').classList.remove('is-open');
         });
         el.querySelectorAll('.cb-row-item, .cb-row-hdr').forEach(row => row.style.display = 'none');
         this.textContent = 'Expand All';
@@ -597,8 +569,7 @@ const Estimating = (function () {
       hdrRow.innerHTML = `
         <span class="cb-drag-handle">&#8942;&#8942;</span>
         <input type="checkbox" class="cb-tag cb-tag-item" data-item="${hdrId}" data-div="${divNum}" data-sub="${subNum}">
-        <span class="cb-expand-icon"></span>
-        <div class="cb-col-desc"><input class="cb-hdr-input" type="text" placeholder="Header label..."></div>
+        <div class="cb-col-desc cgrid-col-name"><input class="cb-hdr-input" type="text" placeholder="Header label..."></div>
         <span class="cb-col-uom"></span>
         <span class="cb-col-labor"></span>
         <span class="cb-col-mat"></span>
@@ -720,7 +691,7 @@ const Estimating = (function () {
       // Collapse everything first for a clean reveal
       el.querySelectorAll('.cb-row-div').forEach(r => {
         r.dataset.expanded = 'false';
-        r.querySelector('.cb-expand-icon').innerHTML = '&#9654;';
+        r.querySelector('.cgrid-expand').classList.remove('is-open');
         r.style.display = '';
       });
       el.querySelectorAll('.cb-row-sub, .cb-row-item, .cb-row-hdr').forEach(r => r.style.display = 'none');
@@ -729,7 +700,7 @@ const Estimating = (function () {
       const divRow = el.querySelector(`.cb-row-div[data-div="${divNum}"]`);
       if (divRow) {
         divRow.dataset.expanded = 'true';
-        divRow.querySelector('.cb-expand-icon').innerHTML = '&#9660;';
+        divRow.querySelector('.cgrid-expand').classList.add('is-open');
         el.querySelectorAll(`.cb-row-sub[data-div="${divNum}"]`).forEach(r => r.style.display = '');
         el.querySelectorAll(`.cb-row-hdr[data-div="${divNum}"]`).forEach(r => r.style.display = '');
       }
@@ -739,7 +710,7 @@ const Estimating = (function () {
         const subRow = el.querySelector(`.cb-row-sub[data-div="${divNum}"][data-sub="${subNum}"]`);
         if (subRow) {
           subRow.dataset.expanded = 'true';
-          subRow.querySelector('.cb-expand-icon').innerHTML = '&#9660;';
+          subRow.querySelector('.cgrid-expand').classList.add('is-open');
           el.querySelectorAll(`.cb-row-item[data-div="${divNum}"][data-sub="${subNum}"]`).forEach(r => r.style.display = '');
           el.querySelectorAll(`.cb-row-hdr[data-div="${divNum}"][data-sub="${subNum}"]`).forEach(r => r.style.display = '');
         }
@@ -862,260 +833,6 @@ const Estimating = (function () {
     const widgetEl  = el.querySelector('.cb-widget');
     const navListEl = el.querySelector('.cb-nav-list');
 
-    function _enterItemsMode() {
-      if (widgetEl.classList.contains('cb-items-mode')) return;
-
-      const raw  = AppData.tables['DB_Costbook'] || [];
-      const tree = _buildTree(raw.filter(r => r.Item_Description).map(_mapRow));
-
-      const rowsHTML = tree.map(div => `
-        <div class="cbi-div-hdr" data-div="${div.divNum}" data-expanded="false">
-          <span class="cbi-div-exp">&#9654;</span>${div.divName}
-        </div>
-        ${div.subs.map(sub => `
-          <div class="cbi-row cbi-row-sub" data-div="${div.divNum}" data-sub="${sub.subNum}" data-expanded="false" style="display:none">
-            <span></span>
-            <span></span>
-            <button class="cbi-exp-btn">&#9654;</button>
-            <span class="cbi-sub-name">${sub.subName}</span>
-          </div>
-          ${sub.items.map(item => `
-            <div class="cbi-row cbi-row-item${item.isArchived ? ' cbi-row-archived' : ''}"
-              data-div="${div.divNum}" data-sub="${sub.subNum}" data-item="${item.itemId}"
-              data-archived="${item.isArchived ? 'true' : 'false'}"
-              draggable="true" style="display:none">
-              <span class="cbi-drag">&#8942;&#8942;</span>
-              <input type="checkbox" class="cbi-tag cbi-tag-item">
-              <span></span>
-              <span></span>
-              <span class="cbi-item-desc">${item.description}</span>
-            </div>
-          `).join('')}
-        `).join('')}
-      `).join('');
-
-      const panel = document.createElement('div');
-      panel.className = 'cb-items-panel';
-      panel.innerHTML = `
-        <div class="cb-items-mode-header">Edit Cost Items Mode</div>
-        <div class="cb-items-rows">${rowsHTML}</div>
-      `;
-      el.querySelector('.cb-body').appendChild(panel);
-      widgetEl.classList.add('cb-items-mode');
-      _bindItemsPanel(panel);
-    }
-
-    function _exitItemsMode() {
-      widgetEl.classList.remove('cb-items-mode');
-      const panel = el.querySelector('.cb-items-panel');
-      if (panel) panel.remove();
-    }
-
-    function _bindItemsPanel(panel) {
-      const itemRowsEl = panel.querySelector('.cb-items-rows');
-      const selCount   = el.querySelector('.cbi-sel-count');
-      let   activeFilter = 'active';
-
-      // Apply archive filter — controls which items are eligible to show when a sub expands
-      function _applyFilter(filter) {
-        activeFilter = filter;
-
-        // Show/hide items based on filter, respecting sub expansion state
-        itemRowsEl.querySelectorAll('.cbi-row-sub').forEach(subRow => {
-          const divNum   = subRow.dataset.div;
-          const subNum   = subRow.dataset.sub;
-          const expanded = subRow.dataset.expanded === 'true';
-          const items    = [...itemRowsEl.querySelectorAll(
-            `.cbi-row-item[data-div="${divNum}"][data-sub="${subNum}"]`
-          )];
-
-          let visibleCount = 0;
-          items.forEach(r => {
-            const archived = r.dataset.archived === 'true';
-            const matches  = filter === 'all'
-              || (filter === 'active'   && !archived)
-              || (filter === 'archived' &&  archived);
-            r.style.display = (expanded && matches) ? '' : 'none';
-            if (matches) visibleCount++;
-          });
-
-          // Dim sub row if it has no matching items in this filter
-          subRow.classList.toggle('cbi-sub-empty', visibleCount === 0);
-        });
-      }
-
-      function _updateBulk() {
-        const n = panel.querySelectorAll('.cbi-tag-item:checked').length;
-        selCount.textContent = n > 0 ? `${n} item${n === 1 ? '' : 's'} selected` : '';
-        const off = n === 0;
-        el.querySelector('[data-action="cbi-archive"]').disabled = off;
-        el.querySelector('[data-action="cbi-delete"]').disabled  = off;
-        el.querySelector('[data-action="cbi-clear"]').disabled   = off;
-      }
-
-      // Show Archived toggle
-      const showArchivedCb = el.querySelector('.cbi-show-archived');
-      if (showArchivedCb) {
-        showArchivedCb.addEventListener('change', () =>
-          _applyFilter(showArchivedCb.checked ? 'all' : 'active')
-        );
-      }
-
-      // Expand / collapse division headers and sub rows
-      itemRowsEl.addEventListener('click', function (e) {
-        const divHdr = e.target.closest('.cbi-div-hdr');
-        if (divHdr) {
-          const divNum  = divHdr.dataset.div;
-          const expanded = divHdr.dataset.expanded === 'true';
-          divHdr.dataset.expanded = !expanded;
-          divHdr.querySelector('.cbi-div-exp').innerHTML = expanded ? '&#9654;' : '&#9660;';
-          itemRowsEl.querySelectorAll(`.cbi-row-sub[data-div="${divNum}"]`).forEach(subRow => {
-            subRow.style.display = expanded ? 'none' : '';
-            if (expanded) {
-              subRow.dataset.expanded = 'false';
-              subRow.querySelector('.cbi-exp-btn').innerHTML = '&#9654;';
-              itemRowsEl.querySelectorAll(`.cbi-row-item[data-div="${divNum}"][data-sub="${subRow.dataset.sub}"]`)
-                .forEach(r => r.style.display = 'none');
-            }
-          });
-          return;
-        }
-        const subRow = e.target.closest('.cbi-row-sub');
-        if (!subRow) return;
-        const expBtn = subRow.querySelector('.cbi-exp-btn');
-        const divNum   = subRow.dataset.div;
-        const subNum   = subRow.dataset.sub;
-        const expanded = subRow.dataset.expanded === 'true';
-        subRow.dataset.expanded = !expanded;
-        expBtn.innerHTML = expanded ? '&#9654;' : '&#9660;';
-        itemRowsEl.querySelectorAll(`.cbi-row-item[data-div="${divNum}"][data-sub="${subNum}"]`)
-          .forEach(r => {
-            const archived = r.dataset.archived === 'true';
-            const matches  = activeFilter === 'all'
-              || (activeFilter === 'active'   && !archived)
-              || (activeFilter === 'archived' &&  archived);
-            r.style.display = (!expanded && matches) ? '' : 'none';
-          });
-      });
-
-      // Tag checkboxes
-      panel.addEventListener('change', function (e) {
-        if (e.target.matches('.cbi-tag-item')) _updateBulk();
-      });
-
-      // Bulk actions (buttons live in toolbar, not panel)
-      el.querySelector('[data-action="cbi-clear"]').addEventListener('click', () => {
-        panel.querySelectorAll('.cbi-tag').forEach(cb => cb.checked = false);
-        _updateBulk();
-      });
-      el.querySelector('[data-action="cbi-archive"]').addEventListener('click', () => {
-        // TODO: full-stack — update isArchived flag on selected items
-        alert('Archive: wired in full-stack build.');
-      });
-      el.querySelector('[data-action="cbi-delete"]').addEventListener('click', () => {
-        const n = panel.querySelectorAll('.cbi-tag-item:checked').length;
-        if (!n) return;
-        if (!confirm(`Delete ${n} item${n === 1 ? '' : 's'}? This cannot be undone.`)) return;
-        // TODO: full-stack — delete rows from DB_Costbook
-        alert('Delete: wired in full-stack build.');
-      });
-
-      // Double-click item row → open Edit Cost Item screen
-      itemRowsEl.addEventListener('dblclick', function (e) {
-        const row = e.target.closest('.cbi-row-item');
-        if (row) openEditCostItem(row.dataset.item);
-      });
-
-      // Left nav: scroll items panel to clicked division
-      navListEl.addEventListener('click', function _navItemsMode(e) {
-        if (!widgetEl.classList.contains('cb-items-mode')) return;
-        const divItem = e.target.closest('.cb-nav-div');
-        if (!divItem) return;
-        const hdr = itemRowsEl.querySelector(`.cbi-div-hdr[data-div="${divItem.dataset.div}"]`);
-        if (hdr) itemRowsEl.scrollTop = hdr.offsetTop - itemRowsEl.offsetTop;
-      });
-
-      // Drag-reorder within the same sub-division
-      let cbiDragEl = null;
-      itemRowsEl.addEventListener('dragstart', function (e) {
-        const row = e.target.closest('.cbi-row-item');
-        if (!row || e.target.matches('input')) { e.preventDefault(); return; }
-        cbiDragEl = row;
-        row.classList.add('cb-row-dragging');
-        e.dataTransfer.effectAllowed = 'move';
-      });
-      itemRowsEl.addEventListener('dragover', function (e) {
-        if (!cbiDragEl) return;
-        const target = e.target.closest('.cbi-row-item');
-        if (!target || target === cbiDragEl) return;
-        if (target.dataset.div !== cbiDragEl.dataset.div || target.dataset.sub !== cbiDragEl.dataset.sub) return;
-        e.preventDefault();
-        itemRowsEl.querySelectorAll('.cb-drop-before, .cb-drop-after').forEach(r => r.classList.remove('cb-drop-before', 'cb-drop-after'));
-        const mid = target.getBoundingClientRect().top + target.getBoundingClientRect().height / 2;
-        target.classList.add(e.clientY < mid ? 'cb-drop-before' : 'cb-drop-after');
-      });
-      itemRowsEl.addEventListener('dragleave', function (e) {
-        if (!itemRowsEl.contains(e.relatedTarget))
-          itemRowsEl.querySelectorAll('.cb-drop-before, .cb-drop-after').forEach(r => r.classList.remove('cb-drop-before', 'cb-drop-after'));
-      });
-      itemRowsEl.addEventListener('drop', function (e) {
-        e.preventDefault();
-        if (!cbiDragEl) return;
-        const target = e.target.closest('.cbi-row-item');
-        itemRowsEl.querySelectorAll('.cb-drop-before, .cb-drop-after').forEach(r => r.classList.remove('cb-drop-before', 'cb-drop-after'));
-        if (!target || target === cbiDragEl) { cbiDragEl.classList.remove('cb-row-dragging'); cbiDragEl = null; return; }
-        const after = e.clientY > target.getBoundingClientRect().top + target.getBoundingClientRect().height / 2;
-        if (after) target.after(cbiDragEl);
-        else       target.before(cbiDragEl);
-        cbiDragEl.classList.remove('cb-row-dragging');
-        cbiDragEl = null;
-      });
-      itemRowsEl.addEventListener('dragend', function () {
-        if (cbiDragEl) { cbiDragEl.classList.remove('cb-row-dragging'); cbiDragEl = null; }
-        itemRowsEl.querySelectorAll('.cb-drop-before, .cb-drop-after').forEach(r => r.classList.remove('cb-drop-before', 'cb-drop-after'));
-      });
-    }
-
-    el.querySelector('[data-action="edit-items"]').addEventListener('click', _enterItemsMode);
-    el.querySelector('[data-action="items-done"]').addEventListener('click', _exitItemsMode);
-    el.querySelector('[data-action="items-add"]').addEventListener('click', () => openEditCostItem(null));
-
-    el.querySelector('[data-action="cbi-expand-all"]').addEventListener('click', function () {
-      const panel = el.querySelector('.cb-items-panel');
-      if (!panel) return;
-      const rowsEl = panel.querySelector('.cb-items-rows');
-      const allDivHdrs = [...rowsEl.querySelectorAll('.cbi-div-hdr')];
-      const expanding  = allDivHdrs.some(h => h.dataset.expanded !== 'true');
-      const showArchived = el.querySelector('.cbi-show-archived')?.checked;
-      const activeFilter = showArchived ? 'all' : 'active';
-      if (expanding) {
-        allDivHdrs.forEach(hdr => {
-          hdr.dataset.expanded = 'true';
-          hdr.querySelector('.cbi-div-exp').innerHTML = '&#9660;';
-          rowsEl.querySelectorAll(`.cbi-row-sub[data-div="${hdr.dataset.div}"]`).forEach(sub => {
-            sub.style.display = '';
-            sub.dataset.expanded = 'true';
-            sub.querySelector('.cbi-exp-btn').innerHTML = '&#9660;';
-            rowsEl.querySelectorAll(`.cbi-row-item[data-div="${hdr.dataset.div}"][data-sub="${sub.dataset.sub}"]`).forEach(r => {
-              const archived = r.dataset.archived === 'true';
-              r.style.display = (activeFilter === 'all' || !archived) ? '' : 'none';
-            });
-          });
-        });
-      } else {
-        rowsEl.querySelectorAll('.cbi-row-item').forEach(r => r.style.display = 'none');
-        rowsEl.querySelectorAll('.cbi-row-sub').forEach(sub => {
-          sub.style.display = 'none';
-          sub.dataset.expanded = 'false';
-          sub.querySelector('.cbi-exp-btn').innerHTML = '&#9654;';
-        });
-        allDivHdrs.forEach(hdr => {
-          hdr.dataset.expanded = 'false';
-          hdr.querySelector('.cbi-div-exp').innerHTML = '&#9654;';
-        });
-      }
-      this.textContent = expanding ? 'Collapse All' : 'Expand All';
-    });
 
     /* ── Edit Structure Mode ─────────────────────────────────── */
 
@@ -1200,12 +917,12 @@ const Estimating = (function () {
       // Collapse all to default state
       el.querySelectorAll('.cb-row-div').forEach(r => {
         r.dataset.expanded = 'false';
-        r.querySelector('.cb-expand-icon').innerHTML = '&#9654;';
+        r.querySelector('.cgrid-expand').classList.remove('is-open');
       });
       el.querySelectorAll('.cb-row-sub').forEach(r => {
         r.style.display = 'none';
         r.dataset.expanded = 'false';
-        r.querySelector('.cb-expand-icon').innerHTML = '&#9654;';
+        r.querySelector('.cgrid-expand').classList.remove('is-open');
       });
       el.querySelectorAll('.cb-row-item, .cb-row-hdr').forEach(r => r.style.display = 'none');
     }
@@ -1225,6 +942,22 @@ const Estimating = (function () {
           if (!expand && r.dataset.expanded === 'true')  _toggleDiv(r);
         });
         btn.textContent = expand ? 'Collapse All' : 'Expand All';
+        return;
+      }
+      if (action === 'cb-refresh') {
+        const btn = e.target.closest('[data-action]');
+        btn.disabled = true;
+        AppData.refresh(['DB_Costbook']).then(() => {
+          const raw  = AppData.tables['DB_Costbook'];
+          const data = (raw && raw.length)
+            ? raw.filter(r => r.Item_Description && !_truthy(r.Is_Archived)).map(_mapRow)
+            : COSTBOOK_FALLBACK.filter(r => !r.isArchived);
+          const tree = _buildTree(data);
+          rowsEl.innerHTML  = _cbRowsHTML(tree);
+          navListEl.innerHTML = _cbNavHTML(tree);
+          _updateTagCount();
+          btn.disabled = false;
+        }).catch(() => { btn.disabled = false; });
         return;
       }
     });
@@ -1262,7 +995,7 @@ const Estimating = (function () {
     function _addDivision() {
       const divId  = 'new-' + Date.now();
       const divRow = document.createElement('div');
-      divRow.className        = 'cb-row cb-row-div';
+      divRow.className        = 'cgrid-row cgrid-t1 cb-row cb-row-div';
       divRow.dataset.div      = divId;
       divRow.dataset.expanded = 'true';
       divRow.setAttribute('draggable', 'true');
@@ -1271,8 +1004,8 @@ const Estimating = (function () {
         <button class="cb-edit-del" data-tip="Delete Division">&#10005;</button>
         <button class="cb-edit-add-sub btn-secondary" data-tip="Add Sub-Division">+ Sub</button>
         <span class="cb-tag-slot"></span>
-        <span class="cb-expand-icon">&#9660;</span>
-        <span class="cb-row-div-name" data-tip="Double-click to rename">New Division</span>
+        <span class="cgrid-expand is-open">&#9654;</span>
+        <span class="cb-row-div-name cgrid-col-name cgrid-cell-text" data-tip="Double-click to rename">New Division</span>
         <span class="cb-col-uom"></span><span class="cb-col-labor"></span><span class="cb-col-mat"></span>
         <span class="cb-col-subc"></span><span class="cb-col-equip"></span><span class="cb-col-other"></span>
         <span class="cb-col-unit"></span><span class="cb-col-specs"></span>
@@ -1286,7 +1019,7 @@ const Estimating = (function () {
       const divId  = divRow.dataset.div;
       const subId  = 'new-' + Date.now();
       const subRow = document.createElement('div');
-      subRow.className        = 'cb-row cb-row-sub';
+      subRow.className        = 'cgrid-row cgrid-t2 cb-row cb-row-sub';
       subRow.dataset.div      = divId;
       subRow.dataset.sub      = subId;
       subRow.dataset.expanded = 'true';
@@ -1295,8 +1028,8 @@ const Estimating = (function () {
         <span class="cb-drag-handle" data-tip="Drag to reorder">&#8942;&#8942;</span>
         <button class="cb-edit-del" data-tip="Delete Sub-Division">&#10005;</button>
         <span class="cb-tag-slot"></span>
-        <span class="cb-expand-icon"></span>
-        <span class="cb-row-sub-name" data-tip="Double-click to rename">New Sub-Division</span>
+        <span class="cgrid-expand">&#9654;</span>
+        <span class="cb-row-sub-name cgrid-col-name cgrid-cell-text" data-tip="Double-click to rename">New Sub-Division</span>
         <span class="cb-col-uom"></span><span class="cb-col-labor"></span><span class="cb-col-mat"></span>
         <span class="cb-col-subc"></span><span class="cb-col-equip"></span><span class="cb-col-other"></span>
         <span class="cb-col-unit"></span><span class="cb-col-specs"></span>
@@ -1433,7 +1166,7 @@ const Estimating = (function () {
           data-field="${adjField}" value="${nv(item[adjField])}" placeholder="">
         <input type="checkbox" class="eci-allow-cb" data-field="${allowField}"${cb(item[allowField])}>
         ${hasFormula
-          ? `<button class="btn-secondary cb-btn eci-formula-btn" title="Formula builder (coming soon)">ƒ</button>`
+          ? `<button class="btn-secondary sp-btn eci-formula-btn" title="Formula builder (coming soon)">ƒ</button>`
           : '<span></span>'}`;
     }
 
@@ -1442,15 +1175,15 @@ const Estimating = (function () {
 
         <!-- Toolbar: Add New | Copy | Save & New | Archive — Prev Item | Next Item (locked right) -->
         <div class="eci-toolbar">
-          <button class="btn-secondary cb-btn eci-new-btn">Add New</button>
-          <button class="btn-secondary cb-btn eci-copy-btn">Copy</button>
-          <button class="btn-primary cb-btn eci-save-new-btn">Save &amp; New</button>
+          <button class="btn-secondary sp-btn eci-new-btn">Add New</button>
+          <button class="btn-secondary sp-btn eci-copy-btn">Copy</button>
+          <button class="btn-primary sp-btn eci-save-new-btn">Save &amp; New</button>
           <label class="eci-archive-label">
             Archive <input type="checkbox" class="eci-active-cb" data-field="isArchived"${cb(item.isArchived)}>
           </label>
           <div class="eci-tb-right">
-            <button class="btn-secondary cb-btn eci-prev-btn">&#8249; Prev Item</button>
-            <button class="btn-secondary cb-btn eci-next-btn">Next Item &#8250;</button>
+            <button class="btn-secondary sp-btn eci-prev-btn">&#8249; Prev Item</button>
+            <button class="btn-secondary sp-btn eci-next-btn">Next Item &#8250;</button>
           </div>
         </div>
 
@@ -1563,15 +1296,15 @@ const Estimating = (function () {
               </div>
             </div>
             <div class="eci-add-alias-btn-row">
-              <button class="btn-secondary cb-btn eci-add-alias-btn">+ Add Alias</button>
-              <button class="btn-primary cb-btn eci-confirm-alias-btn" style="display:none">Add</button>
-              <button class="btn-secondary cb-btn eci-cancel-alias-btn" style="display:none">Cancel</button>
+              <button class="btn-secondary sp-btn eci-add-alias-btn">+ Add Alias</button>
+              <button class="btn-primary sp-btn eci-confirm-alias-btn" style="display:none">Add</button>
+              <button class="btn-secondary sp-btn eci-cancel-alias-btn" style="display:none">Cancel</button>
             </div>
           </div>
 
           <!-- Formula placeholder -->
           <div class="eci-formula-bar">
-            <button class="btn-secondary cb-btn" disabled title="Formula builder — coming in a future update">ƒ Formula</button>
+            <button class="btn-secondary sp-btn" disabled title="Formula builder — coming in a future update">ƒ Formula</button>
             <span class="eci-formula-placeholder">Formula builder — coming soon</span>
           </div>
 
@@ -1579,10 +1312,10 @@ const Estimating = (function () {
 
         <!-- Footer: Delete (left) | Cancel | Save & Close (locked right) -->
         <div class="eci-footer">
-          <button class="btn-secondary cb-btn eci-delete-btn">Delete</button>
+          <button class="btn-secondary sp-btn eci-delete-btn">Delete</button>
           <div class="eci-footer-right">
-            <button class="btn-secondary cb-btn eci-cancel-btn">Cancel</button>
-            <button class="btn-primary cb-btn eci-save-close-btn">Save &amp; Close</button>
+            <button class="btn-secondary sp-btn eci-cancel-btn">Cancel</button>
+            <button class="btn-primary sp-btn eci-save-close-btn">Save &amp; Close</button>
           </div>
         </div>
 
@@ -1891,43 +1624,31 @@ const Estimating = (function () {
   }
 
   function _priceListHTML() {
-    return `<div class="pl-widget">
-      <div class="pl-sidebar">
-        <div class="pl-sidebar-toolbar">
-          <button class="btn-secondary cb-btn pl-sidebar-edit-cat-btn" data-action="pl-edit-layout">Edit Categories</button>
-          <button class="btn-secondary cb-btn pl-sidebar-items-done" data-action="pl-items-done">&#9664; Done</button>
-        </div>
-        <div class="pl-sidebar-hdr">
-          <span class="pl-sidebar-hdr-title">Categories</span>
-        </div>
-        <div class="pl-sidebar-nav">
-          <div class="pl-cat-list"></div>
-        </div>
+    return `<div class="sp-widget pl-widget">
+      <div class="sp-toolbar pl-toolbar">
+        <button class="btn-secondary sp-btn pl-sidebar-edit-cat-btn" data-action="pl-edit-layout">Edit Categories</button>
+        <button class="btn-secondary sp-btn sp-edit-ctrl" data-action="pl-edit-done">&#9664; Done</button>
+        <button class="btn-secondary sp-btn sp-edit-ctrl" data-action="pl-edit-expand-all">Expand All</button>
+        <button class="btn-primary sp-btn sp-edit-ctrl" data-action="pl-add-cat">+ Category</button>
+        <button class="btn-secondary sp-btn sp-normal-ctrl" data-action="pl-expand-all">Expand All</button>
+        <input class="pl-search sp-normal-ctrl" type="text" placeholder="Search items..." autocomplete="off">
+        <button class="btn-secondary sp-btn sp-btn-icon pl-undo-btn sp-normal-ctrl" data-action="pl-undo" disabled title="Undo">&#8617;</button>
+        <button class="btn-secondary sp-btn sp-btn-icon pl-redo-btn sp-normal-ctrl" data-action="pl-redo" disabled title="Redo">&#8618;</button>
+        <button class="btn-secondary sp-btn sp-btn-icon sp-normal-ctrl" data-action="pl-print" title="Print">&#9113;</button>
+        <button class="btn-secondary sp-btn sp-btn-icon sp-normal-ctrl" data-action="pl-refresh" title="Refresh">&#8635;</button>
       </div>
-      <div class="pl-panel-divider"></div>
-      <div class="pl-main">
-        <div class="pl-list-view">
-          <div class="pl-toolbar">
-            <button class="btn-secondary cb-btn pl-normal-ctrl pl-edit-items-btn" data-action="pl-edit-items">Edit Price List Items</button>
-            <button class="btn-secondary cb-btn pl-normal-ctrl" data-action="pl-expand-all">Expand All</button>
-            <input class="pl-search pl-normal-ctrl" type="text" placeholder="Search items..." autocomplete="off">
-            <button class="btn-secondary cb-btn pl-undo-btn pl-normal-ctrl" data-action="pl-undo" disabled title="Undo last change">&#8617; Undo</button>
-            <button class="btn-secondary cb-btn pl-redo-btn pl-normal-ctrl" data-action="pl-redo" disabled title="Redo">Redo &#8618;</button>
-            <label class="pl-inactive-toggle pl-item-edit-ctrl">
-              <input type="checkbox" class="pl-items-show-archived"> Show Archived
-            </label>
-            <button class="btn-secondary cb-btn pl-item-edit-ctrl" data-action="pli-expand-all">Expand All</button>
-            <button class="btn-primary cb-btn pl-item-edit-ctrl" data-action="pl-items-new">+ New Price Item</button>
-            <div class="pl-items-bulk-bar pl-item-edit-ctrl">
-              <span class="pl-items-sel-count"></span>
-              <button class="btn-secondary cb-btn" data-action="pli-archive" disabled>Archive Selected</button>
-              <button class="btn-secondary cb-btn pl-items-del-btn" data-action="pli-delete" disabled>Delete Selected</button>
-              <button class="btn-secondary cb-btn" data-action="pli-clear" disabled>Clear Selection</button>
-            </div>
-            <button class="btn-secondary pl-edit-ctrl" data-action="pl-edit-done">&#9664; Done</button>
-            <button class="btn-secondary pl-edit-ctrl" data-action="pl-edit-expand-all">Expand All</button>
-            <button class="btn-primary   pl-edit-ctrl" data-action="pl-add-cat">+ Category</button>
+      <div class="sp-body">
+        <div class="sp-nav pl-sidebar">
+          <div class="pl-sidebar-hdr">
+            <span class="pl-sidebar-hdr-title">Categories</span>
           </div>
+          <div class="pl-sidebar-nav">
+            <div class="pl-cat-list"></div>
+          </div>
+        </div>
+        <div class="sp-divider pl-panel-divider"></div>
+        <div class="sp-main pl-main">
+          <div class="pl-list-view">
           <div class="pl-ctx-menu" style="display:none">
             <div class="pl-ctx-item" data-action="ctx-new">New Item Above</div>
             <div class="pl-ctx-item" data-action="ctx-edit">Edit Item</div>
@@ -1935,18 +1656,18 @@ const Estimating = (function () {
             <div class="pl-ctx-item" data-action="ctx-archive">Archive</div>
             <div class="pl-ctx-item pl-ctx-danger" data-action="ctx-delete">Delete</div>
           </div>
-          <div class="pl-edit-header">Edit Categories Mode</div>
           <div class="pl-edit-tree"></div>
-          <div class="pl-col-headers pl-normal-ctrl">
-            <div class="pl-col pl-col-hdr pl-col-name">Item Name<span class="pl-col-handle" data-col="name"></span></div>
-            <div class="pl-col pl-col-hdr pl-col-uom">U/M<span class="pl-col-handle" data-col="uom"></span></div>
-            <div class="pl-col pl-col-hdr pl-col-cost">Current<br>Cost<span class="pl-col-handle" data-col="cost"></span></div>
-            <div class="pl-col pl-col-hdr pl-col-datemod">Date<br>Modified<span class="pl-col-handle" data-col="datemod"></span></div>
-            <div class="pl-col pl-col-hdr pl-col-start">Starting<br>Cost<span class="pl-col-handle" data-col="start"></span></div>
-            <div class="pl-col pl-col-hdr pl-col-delta">Δ %<span class="pl-col-handle" data-col="delta"></span></div>
+          <div class="pl-col-headers sp-normal-ctrl">
+            <span class="pl-drag-cell"></span>
+            <div class="pl-col pl-col-hdr pl-col-name"><span class="pl-hdr-label">Item Name</span><span class="pl-col-handle" data-col="name"></span></div>
+            <div class="pl-col pl-col-hdr pl-col-uom"><span class="pl-hdr-label">U/M</span><span class="pl-col-handle" data-col="uom"></span></div>
+            <div class="pl-col pl-col-hdr pl-col-cost"><span class="pl-hdr-label">Current Cost</span><span class="pl-col-handle" data-col="cost"></span></div>
+            <div class="pl-col pl-col-hdr pl-col-datemod"><span class="pl-hdr-label">Date Modified</span><span class="pl-col-handle" data-col="datemod"></span></div>
+            <div class="pl-col pl-col-hdr pl-col-start"><span class="pl-hdr-label">Starting Cost</span><span class="pl-col-handle" data-col="start"></span></div>
+            <div class="pl-col pl-col-hdr pl-col-delta"><span class="pl-hdr-label">Δ %</span><span class="pl-col-handle" data-col="delta"></span></div>
             <div class="pl-col pl-col-hdr pl-col-master" title="Linked to master price">🔗</div>
           </div>
-          <div class="pl-list-wrap pl-normal-ctrl">
+          <div class="pl-list-wrap sp-normal-ctrl">
             <div class="pl-list"></div>
           </div>
           <div class="widget-footer">
@@ -1962,11 +1683,12 @@ const Estimating = (function () {
             <button class="btn-primary"   data-action="save-pf">Save</button>
           </div>
         </div>
+        </div>
       </div>
     </div>`;
   }
 
-  function _plRender(listEl, items, catFilter, searchText, showInactive) {
+  function _plRender(listEl, items, searchText, showInactive) {
     const q = searchText.toLowerCase();
     let pool = items;
     if (!showInactive) pool = pool.filter(r => r.isActive);
@@ -1984,7 +1706,6 @@ const Estimating = (function () {
     const parts = [];
 
     sortedCats.forEach(cat => {
-      if (catFilter && cat !== catFilter) return;
       const subMap     = catMap.get(cat);
       const sortedSubs = [...subMap.keys()].sort();
 
@@ -2000,15 +1721,17 @@ const Estimating = (function () {
 
       const midCells = `<div class="pl-cell pl-col-uom"></div><div class="pl-cell pl-col-cost"></div><div class="pl-cell pl-col-datemod"></div><div class="pl-cell pl-col-start"></div><div class="pl-cell pl-col-delta"></div>`;
 
-      parts.push(`<div class="pl-row pl-row-cat" data-cat="${cat}" data-expanded="false">
-        <div class="pl-cell pl-col-name"><span class="pl-expand-icon">&#9654;</span><span class="pl-row-label">${cat || '—'}</span></div>
+      parts.push(`<div class="cgrid-row cgrid-t1 pl-row pl-row-cat" data-cat="${cat}" data-expanded="false">
+        <span class="pl-drag-cell"></span>
+        <div class="pl-cell pl-col-name cgrid-col-name"><span class="cgrid-expand">&#9654;</span><span class="cgrid-cell-text">${cat || '—'}</span></div>
         ${midCells}
         <div class="pl-cell pl-col-master pl-hier-count">${subsWithItems.length} sub${subsWithItems.length !== 1 ? 's' : ''}, ${totalItems} item${totalItems !== 1 ? 's' : ''}</div>
       </div>`);
 
       subsWithItems.forEach(({ sub, items: subItems }) => {
-        parts.push(`<div class="pl-row pl-row-sub" data-cat="${cat}" data-sub="${sub}" data-expanded="false" style="display:none">
-          <div class="pl-cell pl-col-name"><span class="pl-expand-icon">&#9654;</span><span class="pl-row-label">${sub || '—'}</span></div>
+        parts.push(`<div class="cgrid-row cgrid-t2 pl-row pl-row-sub" data-cat="${cat}" data-sub="${sub}" data-expanded="false" style="display:none">
+          <span class="pl-drag-cell"></span>
+          <div class="pl-cell pl-col-name cgrid-col-name"><span class="cgrid-expand">&#9654;</span><span class="cgrid-cell-text">${sub || '—'}</span></div>
           ${midCells}
           <div class="pl-cell pl-col-master pl-hier-count">${subItems.length} item${subItems.length !== 1 ? 's' : ''}</div>
         </div>`);
@@ -2016,8 +1739,9 @@ const Estimating = (function () {
         subItems.forEach(r => {
           const inactive = !r.isActive ? ' pl-row-inactive' : '';
           const master   = r.masterId ? '<span title="Linked to master price">🔗</span>' : '';
-          parts.push(`<div class="pl-row${inactive}" data-cat="${cat}" data-sub="${sub}" data-item-id="${r.itemId}" draggable="true" style="display:none">
-            <div class="pl-cell pl-col-name pl-name-cell"><span class="pl-item-drag">&#8942;&#8942;</span>${r.itemName || '—'}</div>
+          parts.push(`<div class="cgrid-row cgrid-t3 pl-row${inactive}" data-cat="${cat}" data-sub="${sub}" data-item-id="${r.itemId}" draggable="true" style="display:none">
+            <span class="pl-drag-cell"><span class="pl-item-drag">&#8942;&#8942;</span></span>
+            <div class="pl-cell pl-col-name pl-name-cell cgrid-col-name"><span class="cgrid-cell-text">${r.itemName || '—'}</span></div>
             <div class="pl-cell pl-col-uom">${r.uom || '—'}</div>
             <div class="pl-cell pl-col-cost pl-cost-cell" data-item-id="${r.itemId}" tabindex="0">${r.currentCost.toFixed(2)}</div>
             <div class="pl-cell pl-col-datemod">${_plFmtDate(r.dateModified)}</div>
@@ -2066,7 +1790,6 @@ const Estimating = (function () {
     const raw   = AppData.tables['DB_Price_List'] || [];
     let items   = raw.filter(r => r.Item_Name).map(_mapPriceRow);
 
-    let catFilter    = '';
     let searchText   = '';
     let showInactive = false;
     let searchTimer  = null;
@@ -2111,6 +1834,7 @@ const Estimating = (function () {
     }
 
     const listEl    = el.querySelector('.pl-list');
+    const listWrap  = el.querySelector('.pl-list-wrap');
     const catList   = el.querySelector('.pl-cat-list');
     const listView  = el.querySelector('.pl-list-view');
     const formView  = el.querySelector('.pl-form-view');
@@ -2169,13 +1893,13 @@ const Estimating = (function () {
       const expanded = catRow.dataset.expanded === 'true';
       const cat = catRow.dataset.cat;
       catRow.dataset.expanded = expanded ? 'false' : 'true';
-      catRow.querySelector('.pl-expand-icon').innerHTML = expanded ? '&#9654;' : '&#9660;';
+      catRow.querySelector('.cgrid-expand').classList.toggle('is-open', !expanded);
       if (expanded) {
         listEl.querySelectorAll('.pl-row-sub').forEach(r => {
           if (r.dataset.cat !== cat) return;
           r.style.display = 'none';
           r.dataset.expanded = 'false';
-          r.querySelector('.pl-expand-icon').innerHTML = '&#9654;';
+          r.querySelector('.cgrid-expand').classList.remove('is-open');
         });
         listEl.querySelectorAll('.pl-row:not(.pl-row-cat):not(.pl-row-sub)').forEach(r => {
           if (r.dataset.cat === cat) r.style.display = 'none';
@@ -2192,7 +1916,7 @@ const Estimating = (function () {
       const cat = subRow.dataset.cat;
       const sub = subRow.dataset.sub;
       subRow.dataset.expanded = expanded ? 'false' : 'true';
-      subRow.querySelector('.pl-expand-icon').innerHTML = expanded ? '&#9654;' : '&#9660;';
+      subRow.querySelector('.cgrid-expand').classList.toggle('is-open', !expanded);
       listEl.querySelectorAll('.pl-row:not(.pl-row-cat):not(.pl-row-sub)').forEach(r => {
         if (r.dataset.cat === cat && r.dataset.sub === sub) r.style.display = expanded ? 'none' : '';
       });
@@ -2223,14 +1947,14 @@ const Estimating = (function () {
         if (!state.cats.has(catRow.dataset.cat)) return;
         const cat = catRow.dataset.cat;
         catRow.dataset.expanded = 'true';
-        catRow.querySelector('.pl-expand-icon').innerHTML = '&#9660;';
+        catRow.querySelector('.cgrid-expand').classList.add('is-open');
         listEl.querySelectorAll('.pl-row-sub').forEach(subRow => {
           if (subRow.dataset.cat !== cat) return;
           subRow.style.display = '';
           if (!state.subs.has(cat + '||' + subRow.dataset.sub)) return;
           const sub = subRow.dataset.sub;
           subRow.dataset.expanded = 'true';
-          subRow.querySelector('.pl-expand-icon').innerHTML = '&#9660;';
+          subRow.querySelector('.cgrid-expand').classList.add('is-open');
           listEl.querySelectorAll('.pl-row:not(.pl-row-cat):not(.pl-row-sub)').forEach(r => {
             if (r.dataset.cat === cat && r.dataset.sub === sub) r.style.display = '';
           });
@@ -2239,40 +1963,23 @@ const Estimating = (function () {
     }
 
     function render() {
-      const shouldRestore = !catFilter && !searchText;
+      const shouldRestore = !searchText;
       const state = shouldRestore ? _getExpandState() : null;
-      _plRender(listEl, items, catFilter, searchText, showInactive);
+      _plRender(listEl, items, searchText, showInactive);
 
       if (state) {
         _applyExpandState(state);
-      } else if (catFilter) {
-        // Expand the filtered category fully
-        listEl.querySelectorAll('.pl-row-cat').forEach(catRow => {
-          if (catRow.dataset.cat !== catFilter) return;
-          catRow.dataset.expanded = 'true';
-          catRow.querySelector('.pl-expand-icon').innerHTML = '&#9660;';
-          listEl.querySelectorAll('.pl-row-sub').forEach(subRow => {
-            if (subRow.dataset.cat !== catFilter) return;
-            subRow.style.display = '';
-            subRow.dataset.expanded = 'true';
-            subRow.querySelector('.pl-expand-icon').innerHTML = '&#9660;';
-            const sub = subRow.dataset.sub;
-            listEl.querySelectorAll('.pl-row:not(.pl-row-cat):not(.pl-row-sub)').forEach(r => {
-              if (r.dataset.cat === catFilter && r.dataset.sub === sub) r.style.display = '';
-            });
-          });
-        });
       } else if (searchText) {
         // Expand all cats/subs that have matching items
         listEl.querySelectorAll('.pl-row-cat').forEach(catRow => {
           catRow.dataset.expanded = 'true';
-          catRow.querySelector('.pl-expand-icon').innerHTML = '&#9660;';
+          catRow.querySelector('.cgrid-expand').classList.add('is-open');
           const cat = catRow.dataset.cat;
           listEl.querySelectorAll('.pl-row-sub').forEach(subRow => {
             if (subRow.dataset.cat !== cat) return;
             subRow.style.display = '';
             subRow.dataset.expanded = 'true';
-            subRow.querySelector('.pl-expand-icon').innerHTML = '&#9660;';
+            subRow.querySelector('.cgrid-expand').classList.add('is-open');
             const sub = subRow.dataset.sub;
             listEl.querySelectorAll('.pl-row:not(.pl-row-cat):not(.pl-row-sub)').forEach(r => {
               if (r.dataset.cat === cat && r.dataset.sub === sub) r.style.display = '';
@@ -2358,7 +2065,7 @@ const Estimating = (function () {
       const subcat   = refRowEl ? (refRowEl.dataset.sub || '') : '';
       const uomOpts  = PL_UOM.map(u => `<option>${u}</option>`).join('');
       const rowEl    = document.createElement('div');
-      rowEl.className = 'pl-row pl-row-new';
+      rowEl.className = 'cgrid-row cgrid-t3 pl-row pl-row-new';
       if (cat)    rowEl.dataset.cat = cat;
       if (subcat) rowEl.dataset.sub = subcat;
       rowEl.innerHTML = `
@@ -2498,225 +2205,6 @@ const Estimating = (function () {
       }).join('');
     }
 
-    /* ── Edit Price List Items Mode ──────────────────────────── */
-
-    function _plEnterItemsMode() {
-      if (widgetEl.classList.contains('pl-item-edit-mode')) return;
-
-      const catMap = new Map();
-      items.forEach(r => {
-        if (!catMap.has(r.category)) catMap.set(r.category, new Map());
-        const subMap = catMap.get(r.category);
-        if (!subMap.has(r.subCategory)) subMap.set(r.subCategory, []);
-        subMap.get(r.subCategory).push(r);
-      });
-
-      const rowsHTML = [...catMap.keys()].sort().map(cat => {
-        const subMap = catMap.get(cat);
-        return `
-          <div class="cbi-div-hdr" data-cat="${cat}" data-expanded="false">
-            <span class="cbi-div-exp">&#9654;</span>${cat}
-          </div>
-          ${[...subMap.keys()].sort().map(sub => {
-            const subItems = subMap.get(sub);
-            return `
-              <div class="cbi-row cbi-row-sub" data-cat="${cat}" data-sub="${sub}" data-expanded="false" style="display:none">
-                <span></span>
-                <span></span>
-                <button class="cbi-exp-btn">&#9654;</button>
-                <span class="cbi-sub-name">${sub}</span>
-              </div>
-              ${subItems.map(item => `
-                <div class="cbi-row cbi-row-item${item.isActive ? '' : ' cbi-row-archived'}"
-                  data-cat="${cat}" data-sub="${sub}" data-item-id="${item.itemId}"
-                  data-archived="${item.isActive ? 'false' : 'true'}"
-                  draggable="true" style="display:none">
-                  <span class="cbi-drag">&#8942;&#8942;</span>
-                  <input type="checkbox" class="cbi-tag cbi-tag-item">
-                  <span></span>
-                  <span></span>
-                  <span class="cbi-item-desc">${item.itemName}</span>
-                </div>
-              `).join('')}
-            `;
-          }).join('')}
-        `;
-      }).join('');
-
-      const panel = document.createElement('div');
-      panel.className = 'pl-items-panel';
-      panel.innerHTML = `
-        <div class="cb-items-mode-header">Edit Price List Items Mode</div>
-        <div class="cb-items-rows">${rowsHTML}</div>
-      `;
-      const footer = el.querySelector('.pl-list-view .widget-footer');
-      footer.parentNode.insertBefore(panel, footer);
-
-      widgetEl.classList.add('pl-item-edit-mode');
-      _bindPlItemsPanel(panel);
-    }
-
-    function _plExitItemsMode() {
-      widgetEl.classList.remove('pl-item-edit-mode');
-      const panel = el.querySelector('.pl-items-panel');
-      if (panel) panel.remove();
-      const archCb = el.querySelector('.pl-items-show-archived');
-      if (archCb) archCb.checked = false;
-      render();
-    }
-
-    function _bindPlItemsPanel(panel) {
-      const itemRowsEl = panel.querySelector('.cb-items-rows');
-      const selCountEl = el.querySelector('.pl-items-sel-count');
-      let activeFilter = 'active';
-
-      function _applyFilter(filter) {
-        activeFilter = filter;
-        itemRowsEl.querySelectorAll('.cbi-row-sub').forEach(subRow => {
-          const cat = subRow.dataset.cat;
-          const sub = subRow.dataset.sub;
-          const expanded = subRow.dataset.expanded === 'true';
-          const subItems = [...itemRowsEl.querySelectorAll(`.cbi-row-item[data-cat="${cat}"][data-sub="${sub}"]`)];
-          let visCount = 0;
-          subItems.forEach(r => {
-            const archived = r.dataset.archived === 'true';
-            const matches = filter === 'all' || (filter === 'active' && !archived) || (filter === 'archived' && archived);
-            r.style.display = (expanded && matches) ? '' : 'none';
-            if (matches) visCount++;
-          });
-          subRow.classList.toggle('cbi-sub-empty', visCount === 0);
-        });
-      }
-
-      function _updateBulk() {
-        const n = panel.querySelectorAll('.cbi-tag-item:checked').length;
-        selCountEl.textContent = n > 0 ? `${n} item${n === 1 ? '' : 's'} selected` : '';
-        const off = n === 0;
-        el.querySelector('[data-action="pli-archive"]').disabled = off;
-        el.querySelector('[data-action="pli-delete"]').disabled  = off;
-        el.querySelector('[data-action="pli-clear"]').disabled   = off;
-      }
-
-      // Show Archived toggle
-      const archCb = el.querySelector('.pl-items-show-archived');
-      if (archCb) archCb.addEventListener('change', () => _applyFilter(archCb.checked ? 'all' : 'active'));
-
-      // Expand All / Collapse All
-      // Bulk action buttons
-      el.querySelector('[data-action="pli-clear"]').addEventListener('click', () => {
-        panel.querySelectorAll('.cbi-tag').forEach(cb => cb.checked = false);
-        _updateBulk();
-      });
-      el.querySelector('[data-action="pli-archive"]').addEventListener('click', () => {
-        alert('Archive: wired in full-stack build.');
-      });
-      el.querySelector('[data-action="pli-delete"]').addEventListener('click', () => {
-        const checked = [...panel.querySelectorAll('.cbi-tag-item:checked')];
-        const n = checked.length;
-        if (!n) return;
-        if (!confirm(`Delete ${n} item${n === 1 ? '' : 's'}? This cannot be undone.`)) return;
-        checked.forEach(cb => {
-          const row = cb.closest('.cbi-row-item');
-          const id  = row?.dataset.itemId;
-          if (!id) return;
-          const stored = JSON.parse(localStorage.getItem('pl_price_items') || '[]');
-          localStorage.setItem('pl_price_items', JSON.stringify(stored.filter(s => s.itemId !== id)));
-          AppData.tables['DB_Price_List'] = (AppData.tables['DB_Price_List'] || []).filter(r => r.Item_ID !== id);
-          row.remove();
-        });
-        _refreshItems();
-        _updateBulk();
-      });
-
-      // Checkbox changes
-      panel.addEventListener('change', function (e) {
-        if (e.target.matches('.cbi-tag-item')) _updateBulk();
-      });
-
-      // Category header expand/collapse
-      itemRowsEl.addEventListener('click', function (e) {
-        const catHdr = e.target.closest('.cbi-div-hdr');
-        if (catHdr) {
-          const cat = catHdr.dataset.cat;
-          const expanded = catHdr.dataset.expanded === 'true';
-          catHdr.dataset.expanded = !expanded;
-          catHdr.querySelector('.cbi-div-exp').innerHTML = expanded ? '&#9654;' : '&#9660;';
-          itemRowsEl.querySelectorAll(`.cbi-row-sub[data-cat="${cat}"]`).forEach(subRow => {
-            subRow.style.display = expanded ? 'none' : '';
-            if (expanded) {
-              subRow.dataset.expanded = 'false';
-              subRow.querySelector('.cbi-exp-btn').innerHTML = '&#9654;';
-              itemRowsEl.querySelectorAll(`.cbi-row-item[data-cat="${cat}"][data-sub="${subRow.dataset.sub}"]`)
-                .forEach(r => r.style.display = 'none');
-            }
-          });
-          return;
-        }
-
-        // Sub-category expand/collapse
-        const subRow = e.target.closest('.cbi-row-sub');
-        if (subRow) {
-          const cat = subRow.dataset.cat;
-          const sub = subRow.dataset.sub;
-          const expanded = subRow.dataset.expanded === 'true';
-          subRow.dataset.expanded = !expanded;
-          subRow.querySelector('.cbi-exp-btn').innerHTML = expanded ? '&#9654;' : '&#9660;';
-          itemRowsEl.querySelectorAll(`.cbi-row-item[data-cat="${cat}"][data-sub="${sub}"]`).forEach(r => {
-            const archived = r.dataset.archived === 'true';
-            const matches = activeFilter === 'all' || (activeFilter === 'active' && !archived) || (activeFilter === 'archived' && archived);
-            r.style.display = (!expanded && matches) ? '' : 'none';
-          });
-        }
-      });
-
-      // Double-click item → open edit form
-      itemRowsEl.addEventListener('dblclick', function (e) {
-        const row = e.target.closest('.cbi-row-item');
-        if (!row) return;
-        const item = items.find(i => i.itemId === row.dataset.itemId);
-        if (item) showForm(item);
-      });
-
-      // Drag-to-reorder within same sub-category
-      let pliDragEl = null;
-      itemRowsEl.addEventListener('dragstart', function (e) {
-        const row = e.target.closest('.cbi-row-item');
-        if (!row || e.target.matches('input')) { e.preventDefault(); return; }
-        pliDragEl = row;
-        row.classList.add('cb-row-dragging');
-        e.dataTransfer.effectAllowed = 'move';
-      });
-      itemRowsEl.addEventListener('dragover', function (e) {
-        if (!pliDragEl) return;
-        const target = e.target.closest('.cbi-row-item');
-        if (!target || target === pliDragEl) return;
-        if (target.dataset.cat !== pliDragEl.dataset.cat || target.dataset.sub !== pliDragEl.dataset.sub) return;
-        e.preventDefault();
-        itemRowsEl.querySelectorAll('.cb-drop-before, .cb-drop-after').forEach(r => r.classList.remove('cb-drop-before', 'cb-drop-after'));
-        const mid = target.getBoundingClientRect().top + target.getBoundingClientRect().height / 2;
-        target.classList.add(e.clientY < mid ? 'cb-drop-before' : 'cb-drop-after');
-      });
-      itemRowsEl.addEventListener('dragleave', function (e) {
-        if (!itemRowsEl.contains(e.relatedTarget))
-          itemRowsEl.querySelectorAll('.cb-drop-before, .cb-drop-after').forEach(r => r.classList.remove('cb-drop-before', 'cb-drop-after'));
-      });
-      itemRowsEl.addEventListener('drop', function (e) {
-        e.preventDefault();
-        if (!pliDragEl) return;
-        const target = e.target.closest('.cbi-row-item');
-        itemRowsEl.querySelectorAll('.cb-drop-before, .cb-drop-after').forEach(r => r.classList.remove('cb-drop-before', 'cb-drop-after'));
-        if (!target || target === pliDragEl) { pliDragEl.classList.remove('cb-row-dragging'); pliDragEl = null; return; }
-        const after = e.clientY > target.getBoundingClientRect().top + target.getBoundingClientRect().height / 2;
-        if (after) target.after(pliDragEl);
-        else       target.before(pliDragEl);
-        pliDragEl.classList.remove('cb-row-dragging');
-        pliDragEl = null;
-      });
-      itemRowsEl.addEventListener('dragend', function () {
-        if (pliDragEl) { pliDragEl.classList.remove('cb-row-dragging'); pliDragEl = null; }
-        itemRowsEl.querySelectorAll('.cb-drop-before, .cb-drop-after').forEach(r => r.classList.remove('cb-drop-before', 'cb-drop-after'));
-      });
-    }
 
     function _plEnterEditMode() {
       widgetEl.classList.add('pl-edit-mode');
@@ -2762,7 +2250,7 @@ const Estimating = (function () {
       const expanded = catRow.dataset.expanded === 'true';
       const catId    = catRow.dataset.catId;
       catRow.dataset.expanded = expanded ? 'false' : 'true';
-      catRow.querySelector('.pl-er-exp').innerHTML = expanded ? '&#9654;' : '&#9660;';
+      catRow.querySelector('.pl-er-exp').classList.toggle('is-open', !expanded);
       treeEl.querySelectorAll(`.pl-er-sub[data-cat-id="${catId}"]`).forEach(r => {
         r.style.display = expanded ? 'none' : '';
       });
@@ -2779,7 +2267,7 @@ const Estimating = (function () {
         <span class="pl-er-drag" data-tip="Drag to reorder">&#8942;&#8942;</span>
         <button class="pl-er-del" data-tip="Delete Category">&#10005;</button>
         <button class="pl-er-add-sub btn-secondary" data-tip="Add Sub-Category">+ Sub</button>
-        <span class="pl-er-exp">&#9660;</span>
+        <span class="pl-er-exp is-open">&#9654;</span>
         <span class="pl-er-name" data-tip="Double-click to rename">New Category</span>
         <span class="pl-er-count">0 subs, 0 items</span>`;
       treeEl.appendChild(catRow);
@@ -2908,13 +2396,15 @@ const Estimating = (function () {
       }
     });
 
-    // ── Sidebar category filter ──
+    // ── Sidebar category nav (scroll-to, no filter) ──
     el.querySelector('.pl-sidebar').addEventListener('click', function (e) {
       const btn = e.target.closest('.pl-nav-btn');
       if (!btn) return;
-      catFilter = btn.classList.contains('active') ? '' : btn.dataset.cat;
-      el.querySelectorAll('.pl-nav-btn').forEach(b => b.classList.toggle('active', b === btn && catFilter !== ''));
-      render();
+      const cat    = btn.dataset.cat;
+      const catRow = listEl.querySelector(`.pl-row-cat[data-cat="${cat}"]`);
+      if (!catRow) return;
+      if (catRow.dataset.expanded !== 'true') _plToggleCatRow(catRow);
+      listWrap.scrollTop = catRow.offsetTop - listWrap.offsetTop;
     });
 
     // ── Show inactive toggle (main list — no longer in toolbar; kept for safety) ──
@@ -3039,25 +2529,25 @@ const Estimating = (function () {
     });
 
     // ── Panel divider drag ──
-    const sidebar = el.querySelector('.pl-sidebar');
-    el.querySelector('.pl-panel-divider').addEventListener('mousedown', function (e) {
-      e.preventDefault();
-      e.stopPropagation();
-      const startX = e.clientX;
-      const startW = sidebar.offsetWidth;
-      function onMove(e) { sidebar.style.width = Math.max(100, Math.min(240, startW + e.clientX - startX)) + 'px'; }
-      document.body.classList.add('is-dragging');
-      function onUp() {
-        document.body.classList.remove('is-dragging');
-        document.removeEventListener('mousemove', onMove);
-        document.removeEventListener('mouseup', onUp);
-      }
-      document.addEventListener('mousemove', onMove);
-      document.addEventListener('mouseup', onUp);
+    SplitPanel.bindDivider(el.querySelector('.pl-panel-divider'), {
+      navEl: el.querySelector('.pl-sidebar'),
+      min: 100, max: 240,
     });
 
     // ── Close / Form Save & Cancel ──
     el.addEventListener('click', function (e) {
+      // Refresh
+      if (e.target.closest('[data-action="pl-refresh"]')) {
+        const btn = e.target.closest('[data-action]');
+        btn.disabled = true;
+        AppData.refresh(['DB_Price_List', 'DB_PL_Categories', 'DB_PL_Subcategories']).then(() => {
+          const raw = AppData.tables['DB_Price_List'] || [];
+          items = raw.filter(r => r.Item_Name).map(_mapPriceRow);
+          render();
+          btn.disabled = false;
+        }).catch(() => { btn.disabled = false; });
+        return;
+      }
       // Undo / Redo
       if (e.target.closest('[data-action="pl-undo"]')) { _plUndo(); return; }
       if (e.target.closest('[data-action="pl-redo"]')) { _plRedo(); return; }
@@ -3072,47 +2562,6 @@ const Estimating = (function () {
         if (expanding) {
           listEl.querySelectorAll('.pl-row-sub').forEach(subRow => {
             if (subRow.dataset.expanded !== 'true') _plToggleSubRow(subRow);
-          });
-        }
-        btn.textContent = expanding ? 'Collapse All' : 'Expand All';
-        return;
-      }
-      // Edit Items Mode
-      if (e.target.closest('[data-action="pl-edit-items"]')) { _plEnterItemsMode(); return; }
-      if (e.target.closest('[data-action="pl-items-done"]')) { _plExitItemsMode(); return; }
-      if (e.target.closest('[data-action="pl-items-new"]')) { showForm(null); return; }
-      if (e.target.closest('[data-action="pli-expand-all"]')) {
-        const btn = e.target.closest('[data-action]');
-        const itemRowsEl = el.querySelector('.pl-items-panel .cb-items-rows');
-        if (!itemRowsEl) return;
-        const allCatHdrs = [...itemRowsEl.querySelectorAll('.cbi-div-hdr')];
-        const expanding  = allCatHdrs.some(h => h.dataset.expanded !== 'true');
-        const showArchivedPli = el.querySelector('.pl-items-show-archived')?.checked;
-        const pliFilter = showArchivedPli ? 'all' : 'active';
-        if (expanding) {
-          allCatHdrs.forEach(hdr => {
-            hdr.dataset.expanded = 'true';
-            hdr.querySelector('.cbi-div-exp').innerHTML = '&#9660;';
-            itemRowsEl.querySelectorAll(`.cbi-row-sub[data-cat="${hdr.dataset.cat}"]`).forEach(sub => {
-              sub.style.display = '';
-              sub.dataset.expanded = 'true';
-              sub.querySelector('.cbi-exp-btn').innerHTML = '&#9660;';
-              itemRowsEl.querySelectorAll(`.cbi-row-item[data-cat="${hdr.dataset.cat}"][data-sub="${sub.dataset.sub}"]`).forEach(r => {
-                const archived = r.dataset.archived === 'true';
-                r.style.display = (pliFilter === 'all' || !archived) ? '' : 'none';
-              });
-            });
-          });
-        } else {
-          itemRowsEl.querySelectorAll('.cbi-row-item').forEach(r => r.style.display = 'none');
-          itemRowsEl.querySelectorAll('.cbi-row-sub').forEach(sub => {
-            sub.style.display = 'none';
-            sub.dataset.expanded = 'false';
-            sub.querySelector('.cbi-exp-btn').innerHTML = '&#9654;';
-          });
-          allCatHdrs.forEach(hdr => {
-            hdr.dataset.expanded = 'false';
-            hdr.querySelector('.cbi-div-exp').innerHTML = '&#9654;';
           });
         }
         btn.textContent = expanding ? 'Collapse All' : 'Expand All';
@@ -3294,6 +2743,27 @@ const Estimating = (function () {
     return '$' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   }
 
+  /* ── Estimate grid column definitions ────────────────── */
+  const EST_GRID_COLS = [
+    { key: 'desc',     label: 'Description', width: 220, minWidth: 80,  align: 'left',   sticky: true  },
+    { key: 'qty',      label: 'Qty',          width:  54, minWidth: 30,  align: 'right'  },
+    { key: 'uom',      label: 'U/M',          width:  44, minWidth: 30,  align: 'center' },
+    { key: 'labor',    label: 'Labor',        width:  68, minWidth: 40,  align: 'right'  },
+    { key: 'mat',      label: 'Material',     width:  68, minWidth: 40,  align: 'right'  },
+    { key: 'sub',      label: 'Sub',          width:  68, minWidth: 40,  align: 'right'  },
+    { key: 'equip',    label: 'Equip.',        width:  68, minWidth: 40,  align: 'right'  },
+    { key: 'other',    label: 'Other',        width:  68, minWidth: 40,  align: 'right'  },
+    { key: 'ucost',    label: 'Unit Cost',    width:  76, minWidth: 40,  align: 'right'  },
+    { key: 'utotal',   label: 'Unit Total',   width:  76, minWidth: 40,  align: 'right'  },
+    { key: 'subtotal', label: 'Sub Total',    width:  82, minWidth: 40,  align: 'right'  },
+    { key: 'cv',       label: 'Client View',  width:  52, minWidth: 30,  align: 'center', hideable: true },
+    { key: 'lmkp',    label: 'Labor Mkp%',   width:  62, minWidth: 40,  align: 'right',  hideable: true },
+    { key: 'mmkp',    label: 'Mat Mkp%',     width:  62, minWidth: 40,  align: 'right',  hideable: true },
+    { key: 'smkp',    label: 'Sub Mkp%',     width:  62, minWidth: 40,  align: 'right',  hideable: true },
+    { key: 'emkp',    label: 'Equip Mkp%',   width:  62, minWidth: 40,  align: 'right',  hideable: true },
+    { key: 'omkp',    label: 'Other Mkp%',   width:  62, minWidth: 40,  align: 'right',  hideable: true, resize: false },
+  ];
+
   /* ── Estimate HTML builder ────────────────────────────── */
   function _estHTML(est) {
     /* Group items: phaseId → divNum → { divName, subs: subNum → { subName, items[] } } */
@@ -3307,17 +2777,17 @@ const Estimating = (function () {
       divEntry.subs.get(item.subNum).items.push(item);
     });
 
-    /* 17 empty cells for non-desc columns on header/rollup rows */
+    /* 9 empty cells for non-desc rollup columns */
     function _emptyCols() {
-      return `<td class="est-col-qty"></td><td class="est-col-uom"></td>
-              <td class="est-col-labor"></td><td class="est-col-mat"></td>
-              <td class="est-col-sub"></td><td class="est-col-equip"></td>
-              <td class="est-col-other"></td><td class="est-col-ucost"></td>
-              <td class="est-col-utotal"></td>`;
+      return `<span class="cgrid-cell est-col-qty"></span><span class="cgrid-cell est-col-uom"></span>
+              <span class="cgrid-cell est-col-labor"></span><span class="cgrid-cell est-col-mat"></span>
+              <span class="cgrid-cell est-col-sub"></span><span class="cgrid-cell est-col-equip"></span>
+              <span class="cgrid-cell est-col-other"></span><span class="cgrid-cell est-col-ucost"></span>
+              <span class="cgrid-cell est-col-utotal"></span>`;
     }
 
     /* Build tab panel */
-    let tabsHTML = '<div class="est-tab-spacer"></div>';
+    let tabsHTML = '';
     est.phases.forEach(phase => {
       const offCls  = phase.isSelected ? '' : ' is-off';
       const typeCls = phase.type === 'Option' ? ' est-subtab' : phase.type === 'Change Order' ? ' est-co-tab' : '';
@@ -3336,14 +2806,14 @@ const Estimating = (function () {
       const badge = `<span class="est-phase-badge est-badge-${typeKey}">${phase.type}</span>`;
 
       rowsHTML += `
-        <tr class="est-phase-hdr${offCls}" id="est-sec-${phase.phaseId}" data-phase-id="${phase.phaseId}" data-expanded="true">
-          <td class="est-col-desc"><span class="est-expand-icon">&#9660;</span>${badge}${phase.name}</td>
+        <div class="cgrid-row est-phase-hdr${offCls}" id="est-sec-${phase.phaseId}" data-phase-id="${phase.phaseId}" data-expanded="true">
+          <span class="cgrid-cell est-col-desc cgrid-col-name"><span class="cgrid-expand is-open">&#9654;</span><span class="cgrid-cell-text">${badge}${phase.name}</span></span>
           ${_emptyCols()}
-          <td class="est-col-subtotal est-subtotal-cell" data-cost="${pCost}" data-price="${pPrice}">${_efmt(pCost,true)}</td>
-          <td class="est-col-cv"></td>
-          <td class="est-col-mkp"></td><td class="est-col-mkp"></td><td class="est-col-mkp"></td>
-          <td class="est-col-mkp"></td><td class="est-col-mkp"></td>
-        </tr>`;
+          <span class="cgrid-cell est-col-subtotal est-subtotal-cell" data-cost="${pCost}" data-price="${pPrice}">${_efmt(pCost,true)}</span>
+          <span class="cgrid-cell est-col-cv"></span>
+          <span class="cgrid-cell est-col-lmkp"></span><span class="cgrid-cell est-col-mmkp"></span><span class="cgrid-cell est-col-smkp"></span>
+          <span class="cgrid-cell est-col-emkp"></span><span class="cgrid-cell est-col-omkp"></span>
+        </div>`;
 
       const phaseGrouped = grouped.get(phase.phaseId) || new Map();
       phaseGrouped.forEach((divEntry, divNum) => {
@@ -3351,17 +2821,29 @@ const Estimating = (function () {
         divEntry.subs.forEach(s => s.items.forEach(i => { dCost += _estItemTotal(i); dPrice += _estItemPrice(i); }));
 
         rowsHTML += `
-          <tr class="est-div-hdr" data-phase-id="${phase.phaseId}" data-div="${divNum}" data-expanded="true">
-            <td class="est-col-desc"><span class="est-expand-icon">&#9660;</span>${divEntry.divName}</td>
+          <div class="cgrid-row cgrid-t1 est-div-hdr" data-phase-id="${phase.phaseId}" data-div="${divNum}" data-expanded="true">
+            <span class="cgrid-cell est-col-desc cgrid-col-name"><span class="cgrid-expand is-open">&#9654;</span><span class="cgrid-cell-text">${divEntry.divName}</span></span>
             ${_emptyCols()}
-            <td class="est-col-subtotal est-subtotal-cell" data-cost="${dCost}" data-price="${dPrice}">${_efmt(dCost,true)}</td>
-            <td class="est-col-cv"></td>
-            <td class="est-col-mkp"></td><td class="est-col-mkp"></td><td class="est-col-mkp"></td>
-            <td class="est-col-mkp"></td><td class="est-col-mkp"></td>
-          </tr>`;
+            <span class="cgrid-cell est-col-subtotal est-subtotal-cell" data-cost="${dCost}" data-price="${dPrice}">${_efmt(dCost,true)}</span>
+            <span class="cgrid-cell est-col-cv"></span>
+            <span class="cgrid-cell est-col-lmkp"></span><span class="cgrid-cell est-col-mmkp"></span><span class="cgrid-cell est-col-smkp"></span>
+            <span class="cgrid-cell est-col-emkp"></span><span class="cgrid-cell est-col-omkp"></span>
+          </div>`;
 
-        /* Items render directly under division — no sub-division rows */
         divEntry.subs.forEach((subEntry, subNum) => {
+          let sCost = 0, sPrice = 0;
+          subEntry.items.forEach(i => { sCost += _estItemTotal(i); sPrice += _estItemPrice(i); });
+
+          rowsHTML += `
+            <div class="cgrid-row cgrid-t2 est-sub-hdr" data-phase-id="${phase.phaseId}" data-div="${divNum}" data-sub="${subNum}" data-expanded="true">
+              <span class="cgrid-cell est-col-desc cgrid-col-name"><span class="cgrid-expand is-open">&#9654;</span><span class="cgrid-cell-text">${subEntry.subName}</span></span>
+              ${_emptyCols()}
+              <span class="cgrid-cell est-col-subtotal est-subtotal-cell" data-cost="${sCost}" data-price="${sPrice}">${_efmt(sCost,true)}</span>
+              <span class="cgrid-cell est-col-cv"></span>
+              <span class="cgrid-cell est-col-lmkp"></span><span class="cgrid-cell est-col-mmkp"></span><span class="cgrid-cell est-col-smkp"></span>
+              <span class="cgrid-cell est-col-emkp"></span><span class="cgrid-cell est-col-omkp"></span>
+            </div>`;
+
           subEntry.items.forEach(item => {
             const uc = _estUnitCost(item);
             const up = _estUnitPrice(item);
@@ -3375,25 +2857,25 @@ const Estimating = (function () {
             const cvHide = item.clientView ? '' : ' est-cv-hidden';
 
             rowsHTML += `
-              <tr class="est-item-row${cvHide}" data-phase-id="${phase.phaseId}" data-div="${divNum}" data-item="${item.itemId}" data-cv="${item.clientView?'1':'0'}">
-                <td class="est-col-desc">${item.description}</td>
-                <td class="est-col-qty"><input type="number" class="est-inp" value="${item.qty}" min="0" step="0.01"></td>
-                <td class="est-col-uom" style="text-align:center">${item.uom}</td>
-                <td class="est-col-labor  est-cost-cell" data-cost="${item.labor}"     data-price="${lp}">${_efmt(item.labor,false)}</td>
-                <td class="est-col-mat    est-cost-cell" data-cost="${item.material}"  data-price="${mp}">${_efmt(item.material,false)}</td>
-                <td class="est-col-sub    est-cost-cell" data-cost="${item.sub}"       data-price="${sp}">${_efmt(item.sub,false)}</td>
-                <td class="est-col-equip  est-cost-cell" data-cost="${item.equipment}" data-price="${ep}">${_efmt(item.equipment,false)}</td>
-                <td class="est-col-other  est-cost-cell" data-cost="${item.other}"     data-price="${op}">${_efmt(item.other,false)}</td>
-                <td class="est-col-ucost  est-cost-cell" data-cost="${uc}"             data-price="${up}">${_efmt(uc,true)}</td>
-                <td class="est-col-utotal est-cost-cell est-subtotal-cell" data-cost="${ut}" data-price="${utp}">${_efmt(ut,true)}</td>
-                <td class="est-col-subtotal"></td>
-                <td class="est-col-cv"><input type="checkbox" class="est-cv-cb"${item.clientView?' checked':''}></td>
-                <td class="est-col-mkp"><input type="number" class="est-inp" value="${item.laborMkp}"    min="0" step="0.1"></td>
-                <td class="est-col-mkp"><input type="number" class="est-inp" value="${item.materialMkp}" min="0" step="0.1"></td>
-                <td class="est-col-mkp"><input type="number" class="est-inp" value="${item.subMkp}"      min="0" step="0.1"></td>
-                <td class="est-col-mkp"><input type="number" class="est-inp" value="${item.equipMkp}"    min="0" step="0.1"></td>
-                <td class="est-col-mkp"><input type="number" class="est-inp" value="${item.otherMkp}"    min="0" step="0.1"></td>
-              </tr>`;
+              <div class="cgrid-row cgrid-t3 est-item-row${cvHide}" data-phase-id="${phase.phaseId}" data-div="${divNum}" data-sub="${subNum}" data-item="${item.itemId}" data-cv="${item.clientView?'1':'0'}">
+                <span class="cgrid-cell est-col-desc cgrid-col-name"><span class="cgrid-cell-text">${item.description}</span></span>
+                <span class="cgrid-cell est-col-qty"><input type="number" class="est-inp" value="${item.qty}" min="0" step="0.01"></span>
+                <span class="cgrid-cell est-col-uom">${item.uom}</span>
+                <span class="cgrid-cell est-col-labor  est-cost-cell" data-cost="${item.labor}"     data-price="${lp}">${_efmt(item.labor,false)}</span>
+                <span class="cgrid-cell est-col-mat    est-cost-cell" data-cost="${item.material}"  data-price="${mp}">${_efmt(item.material,false)}</span>
+                <span class="cgrid-cell est-col-sub    est-cost-cell" data-cost="${item.sub}"       data-price="${sp}">${_efmt(item.sub,false)}</span>
+                <span class="cgrid-cell est-col-equip  est-cost-cell" data-cost="${item.equipment}" data-price="${ep}">${_efmt(item.equipment,false)}</span>
+                <span class="cgrid-cell est-col-other  est-cost-cell" data-cost="${item.other}"     data-price="${op}">${_efmt(item.other,false)}</span>
+                <span class="cgrid-cell est-col-ucost  est-cost-cell" data-cost="${uc}"             data-price="${up}">${_efmt(uc,true)}</span>
+                <span class="cgrid-cell est-col-utotal est-cost-cell est-subtotal-cell" data-cost="${ut}" data-price="${utp}">${_efmt(ut,true)}</span>
+                <span class="cgrid-cell est-col-subtotal"></span>
+                <span class="cgrid-cell est-col-cv"><input type="checkbox" class="est-cv-cb"${item.clientView?' checked':''}></span>
+                <span class="cgrid-cell est-col-lmkp"><input type="number" class="est-inp" value="${item.laborMkp}"    min="0" step="0.1"></span>
+                <span class="cgrid-cell est-col-mmkp"><input type="number" class="est-inp" value="${item.materialMkp}" min="0" step="0.1"></span>
+                <span class="cgrid-cell est-col-smkp"><input type="number" class="est-inp" value="${item.subMkp}"      min="0" step="0.1"></span>
+                <span class="cgrid-cell est-col-emkp"><input type="number" class="est-inp" value="${item.equipMkp}"    min="0" step="0.1"></span>
+                <span class="cgrid-cell est-col-omkp"><input type="number" class="est-inp" value="${item.otherMkp}"    min="0" step="0.1"></span>
+              </div>`;
           });
         });
       });
@@ -3413,12 +2895,15 @@ const Estimating = (function () {
     const gCost  = activeItems.reduce((s, i) => s + _estItemTotal(i), 0);
     const gPrice = activeItems.reduce((s, i) => s + _estItemPrice(i), 0);
 
-    return `<div class="est-widget">
-      <div class="est-toolbar">
-        <button class="btn-secondary cb-btn est-undo-btn" data-action="est-undo" disabled>&#8617; Undo</button>
-        <button class="btn-secondary cb-btn est-redo-btn" data-action="est-redo" disabled>Redo &#8618;</button>
-        <button class="btn-secondary cb-btn" data-action="est-setup">Estimate Setup</button>
-        <button class="btn-secondary cb-btn" data-action="est-duplicate">Duplicate</button>
+    return `<div class="sp-widget est-widget">
+      <div class="sp-toolbar est-toolbar">
+        <button class="btn-secondary sp-btn" data-action="est-setup">Estimate Setup</button>
+        <button class="btn-secondary sp-btn" data-action="est-duplicate">Duplicate</button>
+        <button class="btn-secondary sp-btn est-collapse-btn">Collapse All</button>
+        <button class="btn-secondary sp-btn sp-btn-icon est-undo-btn" data-action="est-undo" disabled title="Undo">&#8617;</button>
+        <button class="btn-secondary sp-btn sp-btn-icon est-redo-btn" data-action="est-redo" disabled title="Redo">&#8618;</button>
+        <button class="btn-secondary sp-btn sp-btn-icon" data-action="est-print" title="Print">&#9113;</button>
+        <button class="btn-secondary sp-btn sp-btn-icon" data-action="est-refresh" title="Refresh">&#8635;</button>
         <div class="est-toolbar-spacer"></div>
         <div class="est-total-box est-total-cost-box">
           <span class="est-total-label">Total Cost</span>
@@ -3428,37 +2913,21 @@ const Estimating = (function () {
           <span class="est-total-label">Total Price</span>
           <span class="est-total-value est-grand-price">${_efmt(gPrice,true)}</span>
         </div>
-        <button class="est-header-btn est-collapse-btn">Collapse All</button>
         <label class="est-cm-wrap">
-          <input type="checkbox" class="est-cm-toggle"> Client Mode
+          <input type="checkbox" class="est-cm-toggle"> Client View
         </label>
       </div>
-      <div class="est-body">
-        <div class="est-tab-panel">${tabsHTML}</div>
-        <div class="est-panel-divider"></div>
-        <div class="est-grid-wrap">
-          <table class="est-grid">
-            <thead><tr>
-              <th class="est-col-desc">Description</th>
-              <th class="est-col-qty">Qty</th>
-              <th class="est-col-uom">U/M</th>
-              <th class="est-col-labor">Labor</th>
-              <th class="est-col-mat">Material</th>
-              <th class="est-col-sub">Sub</th>
-              <th class="est-col-equip">Equip.</th>
-              <th class="est-col-other">Other</th>
-              <th class="est-col-ucost">Unit Cost</th>
-              <th class="est-col-utotal">Unit Total</th>
-              <th class="est-col-subtotal">Sub Total</th>
-              <th class="est-col-cv">Client<br>View</th>
-              <th class="est-col-mkp">Labor<br>Mkp%</th>
-              <th class="est-col-mkp">Mat<br>Mkp%</th>
-              <th class="est-col-mkp">Sub<br>Mkp%</th>
-              <th class="est-col-mkp">Equip<br>Mkp%</th>
-              <th class="est-col-mkp">Other<br>Mkp%</th>
-            </tr></thead>
-            <tbody>${rowsHTML}</tbody>
-          </table>
+      <div class="sp-body est-body">
+        <div class="sp-nav est-tab-panel">
+          <div class="est-tab-hdr">Estimate Phases</div>
+          <div class="est-tab-scroll">${tabsHTML}</div>
+        </div>
+        <div class="sp-divider est-panel-divider"></div>
+        <div class="sp-main est-grid-wrap">
+          <div class="est-grid">
+            ${CostGrid.headerHTML(CostGrid.config('est', EST_GRID_COLS))}
+            <div class="est-rows">${rowsHTML}</div>
+          </div>
         </div>
       </div>
     </div>`;
@@ -3470,7 +2939,8 @@ const Estimating = (function () {
     if (!el) return;
     const widget = el.querySelector('.est-widget');
     const tabs   = el.querySelector('.est-tab-panel');
-    const tbody  = el.querySelector('.est-grid tbody');
+    const rowsEl = el.querySelector('.est-rows');
+    const gridEl = el.querySelector('.est-grid');
 
     /* Inject client + estimate names into the widget title bar */
     const widgetHeader = el.querySelector('.widget-header');
@@ -3484,10 +2954,13 @@ const Estimating = (function () {
     /* Mutable on/off state per phaseId */
     const selState = new Map(est.phases.map(p => [p.phaseId, p.isSelected]));
 
-    /* Expand state keys: 'p:P1', 'd:P1:04' */
+    /* Expand state keys: 'p:P1', 'd:P1:04', 's:P1:04:010' */
     const expState = new Map();
     est.phases.forEach(p => expState.set(`p:${p.phaseId}`, true));
-    est.items.forEach(item => expState.set(`d:${item.phaseId}:${item.divNum}`, true));
+    est.items.forEach(item => {
+      expState.set(`d:${item.phaseId}:${item.divNum}`, true);
+      expState.set(`s:${item.phaseId}:${item.divNum}:${item.subNum}`, true);
+    });
 
     function _phaseOn(phaseId) {
       if (!selState.get(phaseId)) return false;
@@ -3499,9 +2972,10 @@ const Estimating = (function () {
     }
 
     function _applyVis() {
-      tbody.querySelectorAll('tr').forEach(row => {
+      rowsEl.querySelectorAll('.cgrid-row').forEach(row => {
         const pid = row.dataset.phaseId;
         const div = row.dataset.div;
+        const sub = row.dataset.sub;
 
         if (row.classList.contains('est-phase-hdr')) {
           row.classList.toggle('is-off', !selState.get(pid));
@@ -3514,8 +2988,15 @@ const Estimating = (function () {
         if (row.classList.contains('est-div-hdr')) {
           row.classList.remove('est-row-hidden'); return;
         }
-        /* Item: check division expand state */
+        /* Division collapsed → hide sub-divisions and items */
         if (!expState.get(`d:${pid}:${div}`)) {
+          row.classList.add('est-row-hidden'); return;
+        }
+        if (row.classList.contains('est-sub-hdr')) {
+          row.classList.remove('est-row-hidden'); return;
+        }
+        /* Sub-division collapsed → hide items */
+        if (!expState.get(`s:${pid}:${div}:${sub}`)) {
           row.classList.add('est-row-hidden'); return;
         }
         row.classList.remove('est-row-hidden');
@@ -3541,8 +3022,8 @@ const Estimating = (function () {
     }
 
     function _setIcon(row, expanded) {
-      const icon = row.querySelector('.est-expand-icon');
-      if (icon) icon.innerHTML = expanded ? '&#9660;' : '&#9654;';
+      const icon = row.querySelector('.cgrid-expand');
+      if (icon) icon.classList.toggle('is-open', expanded);
     }
 
     /* Tab: single click → scroll to section */
@@ -3568,7 +3049,7 @@ const Estimating = (function () {
     });
 
     /* Grid click → expand / collapse */
-    tbody.addEventListener('click', e => {
+    rowsEl.addEventListener('click', e => {
       const phaseHdr = e.target.closest('.est-phase-hdr');
       const divHdr   = e.target.closest('.est-div-hdr');
 
@@ -3587,6 +3068,18 @@ const Estimating = (function () {
         expState.set(`d:${pid}:${div}`, !exp);
         _setIcon(divHdr, !exp);
         _applyVis();
+      } else {
+        const subHdr = e.target.closest('.est-sub-hdr');
+        if (subHdr) {
+          const pid = subHdr.dataset.phaseId;
+          const div = subHdr.dataset.div;
+          const sub = subHdr.dataset.sub;
+          const exp = subHdr.dataset.expanded !== 'false';
+          subHdr.dataset.expanded = exp ? 'false' : 'true';
+          expState.set(`s:${pid}:${div}:${sub}`, !exp);
+          _setIcon(subHdr, !exp);
+          _applyVis();
+        }
       }
     });
 
@@ -3603,13 +3096,27 @@ const Estimating = (function () {
     el.querySelector('[data-action="est-duplicate"]').addEventListener('click', () => {
       alert('Duplicate: wired in full-stack build.');
     });
+    el.querySelector('[data-action="est-refresh"]').addEventListener('click', () => {
+      // TODO: re-fetch DB_Estimates data when live DB is wired
+      alert('Refresh: wired in full-stack build.');
+    });
 
     /* Collapse All / Expand All button */
     el.querySelector('.est-collapse-btn').addEventListener('click', function () {
       const collapsing = this.textContent === 'Collapse All';
-      tbody.querySelectorAll('.est-phase-hdr').forEach(row => {
+      rowsEl.querySelectorAll('.est-phase-hdr').forEach(row => {
         row.dataset.expanded = collapsing ? 'false' : 'true';
         expState.set(`p:${row.dataset.phaseId}`, !collapsing);
+        _setIcon(row, !collapsing);
+      });
+      rowsEl.querySelectorAll('.est-div-hdr').forEach(row => {
+        row.dataset.expanded = collapsing ? 'false' : 'true';
+        expState.set(`d:${row.dataset.phaseId}:${row.dataset.div}`, !collapsing);
+        _setIcon(row, !collapsing);
+      });
+      rowsEl.querySelectorAll('.est-sub-hdr').forEach(row => {
+        row.dataset.expanded = collapsing ? 'false' : 'true';
+        expState.set(`s:${row.dataset.phaseId}:${row.dataset.div}:${row.dataset.sub}`, !collapsing);
         _setIcon(row, !collapsing);
       });
       this.textContent = collapsing ? 'Expand All' : 'Collapse All';
@@ -3632,6 +3139,8 @@ const Estimating = (function () {
         const val = parseFloat(on ? cell.dataset.price : cell.dataset.cost) || 0;
         cell.textContent = _efmt(val, true);
       });
+      ['cv','lmkp','mmkp','smkp','emkp','omkp'].forEach(k =>
+        CostGrid.setColVisible(gridEl, estCfg, k, !on));
       _updateGrandTotals(on);
     }
 
@@ -3645,39 +3154,25 @@ const Estimating = (function () {
 
     _applyVis();
 
+    /* Column resize — CostGrid module handles all resize logic */
+    const estCfg = CostGrid.config('est', EST_GRID_COLS);
+    CostGrid.init(gridEl, estCfg);
+    CostGrid.bindResize(gridEl, estCfg);
+
     /* Draggable panel divider */
-    const divider  = el.querySelector('.est-panel-divider');
-    const tabPanel = el.querySelector('.est-tab-panel');
-    divider.addEventListener('mousedown', function (e) {
-      e.preventDefault();
-      const startX     = e.clientX;
-      const startWidth = tabPanel.offsetWidth;
-      function onMove(e) {
-        const newWidth = Math.max(100, Math.min(400, startWidth + e.clientX - startX));
-        tabPanel.style.width    = newWidth + 'px';
-        tabPanel.style.minWidth = newWidth + 'px';
-      }
-      function onUp() {
-        document.removeEventListener('mousemove', onMove);
-        document.removeEventListener('mouseup', onUp);
-      }
-      document.addEventListener('mousemove', onMove);
-      document.addEventListener('mouseup', onUp);
+    SplitPanel.bindDivider(el.querySelector('.est-panel-divider'), {
+      navEl: el.querySelector('.est-tab-panel'),
+      min: 100, max: 400,
+      onMove: w => { el.querySelector('.est-tab-panel').style.minWidth = w + 'px'; },
     });
 
-    /* Align first tab with bottom of grid column header */
-    requestAnimationFrame(() => {
-      const thead  = el.querySelector('.est-grid thead');
-      const spacer = el.querySelector('.est-tab-spacer');
-      if (thead && spacer) spacer.style.height = thead.offsetHeight + 'px';
-    });
   }
 
   function openEstimate(estimateId) {
     const est = _EST_MOCK;
     const id  = 'estimate';
     if (WidgetManager.open(id, 'Estimate', _estHTML(est), {
-      width: 1220, height: 680, minWidth: 900, minHeight: 500, category: 'estimate',
+      width: 813, height: 680, minWidth: 600, minHeight: 500, category: 'estimate',
     }) !== false) {
       _bindEstimate(id, est);
     }

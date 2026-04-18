@@ -69,7 +69,14 @@ const WidgetManager = (function () {
           </div>
         </div>
         <div class="widget-body">${contentHTML}</div>
-        <div class="widget-resize-handle"></div>
+        <div class="widget-resize-handle" data-dir="n"></div>
+        <div class="widget-resize-handle" data-dir="ne"></div>
+        <div class="widget-resize-handle" data-dir="e"></div>
+        <div class="widget-resize-handle" data-dir="se"></div>
+        <div class="widget-resize-handle" data-dir="s"></div>
+        <div class="widget-resize-handle" data-dir="sw"></div>
+        <div class="widget-resize-handle" data-dir="w"></div>
+        <div class="widget-resize-handle" data-dir="nw"></div>
       `;
     }
 
@@ -556,6 +563,17 @@ const WidgetManager = (function () {
     };
   }
 
+  /* ── Private: snap a single edge to the nearest snap line ─── */
+  function _snapEdge(raw, lines) {
+    let best = SNAP_THRESHOLD;
+    let snapped = raw;
+    lines.forEach(line => {
+      const d = Math.abs(raw - line);
+      if (d < best) { best = d; snapped = line; }
+    });
+    return snapped;
+  }
+
   /* ── Private: snap size during resize ─────────────────────── */
   function _snapSize(widget, rawWidth, rawHeight) {
     const workspace = WORKSPACE();
@@ -683,49 +701,72 @@ const WidgetManager = (function () {
 
   /* ── Private: resize ──────────────────────────────────────── */
   function _initResize(widget, id) {
-    const handle = widget.querySelector('.widget-resize-handle');
+    widget.querySelectorAll('.widget-resize-handle').forEach(handle => {
+      handle.addEventListener('mousedown', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (state[id]) state[id].isResizing = true;
 
-    handle.addEventListener('mousedown', function (e) {
-      e.preventDefault();
-      e.stopPropagation();
-      if (state[id]) state[id].isResizing = true;
+        const dir         = handle.dataset.dir;
+        const startX      = e.clientX;
+        const startY      = e.clientY;
+        const startWidth  = widget.offsetWidth;
+        const startHeight = widget.offsetHeight;
+        const startLeft   = parseInt(widget.style.left) || 0;
+        const startTop    = parseInt(widget.style.top)  || 0;
 
-      const startX      = e.clientX;
-      const startY      = e.clientY;
-      const startWidth  = widget.offsetWidth;
-      const startHeight = widget.offsetHeight;
+        // Panels track the right edge when it moves
+        const panels = (state[id]?.panelIds || []).map(pid => {
+          const el = state[pid]?.el;
+          return el ? { el, startLeft: parseInt(el.style.left) || 0 } : null;
+        }).filter(Boolean);
 
-      // Capture panel start positions so they track the right edge
-      const panels = (state[id]?.panelIds || []).map(pid => {
-        const el = state[pid]?.el;
-        return el ? { el, startLeft: parseInt(el.style.left) || 0 } : null;
-      }).filter(Boolean);
+        function onMove(e) {
+          const dx        = e.clientX - startX;
+          const dy        = e.clientY - startY;
+          const workspace = WORKSPACE();
+          const minW      = parseInt(widget.style.minWidth)  || MIN_WIDTH;
+          const minH      = parseInt(widget.style.minHeight) || MIN_HEIGHT;
+          const { vLines, hLines } = _getSnapLines(widget);
 
-      function onMove(e) {
-        const rawWidth  = startWidth  + e.clientX - startX;
-        const rawHeight = startHeight + e.clientY - startY;
-        const size      = _snapSize(widget, rawWidth, rawHeight);
-        widget.style.width  = size.width  + 'px';
-        widget.style.height = size.height + 'px';
+          // Each edge is independent — snap the moving edge, fixed edge stays put
+          if (dir.includes('e')) {
+            const newRight = Math.max(startLeft + minW, Math.min(_snapEdge(startLeft + startWidth + dx, vLines), workspace.clientWidth));
+            const newWidth = newRight - startLeft;
+            widget.style.width = newWidth + 'px';
+            const dw = newWidth - startWidth;
+            panels.forEach(p => { p.el.style.left = (p.startLeft + dw) + 'px'; });
+          }
+          if (dir.includes('s')) {
+            const newBottom = Math.max(startTop + minH, Math.min(_snapEdge(startTop + startHeight + dy, hLines), workspace.clientHeight));
+            widget.style.height = (newBottom - startTop) + 'px';
+          }
+          if (dir.includes('w')) {
+            const fixedRight = startLeft + startWidth;
+            const newLeft    = Math.max(0, Math.min(_snapEdge(startLeft + dx, vLines), fixedRight - minW));
+            widget.style.left  = newLeft + 'px';
+            widget.style.width = (fixedRight - newLeft) + 'px';
+          }
+          if (dir.includes('n')) {
+            const fixedBottom = startTop + startHeight;
+            const newTop      = Math.max(0, Math.min(_snapEdge(startTop + dy, hLines), fixedBottom - minH));
+            widget.style.top    = newTop + 'px';
+            widget.style.height = (fixedBottom - newTop) + 'px';
+          }
+        }
 
-        // Shift panels by the same delta as the width change
-        const dw = size.width - startWidth;
-        panels.forEach(p => {
-          p.el.style.left = (p.startLeft + dw) + 'px';
-        });
-      }
+        document.body.classList.add('is-dragging');
 
-      document.body.classList.add('is-dragging');
+        function onUp() {
+          if (state[id]) { state[id].isResizing = false; state[id].userResized = true; }
+          document.body.classList.remove('is-dragging');
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup',   onUp);
+        }
 
-      function onUp() {
-        if (state[id]) { state[id].isResizing = false; state[id].userResized = true; }
-        document.body.classList.remove('is-dragging');
-        document.removeEventListener('mousemove', onMove);
-        document.removeEventListener('mouseup',   onUp);
-      }
-
-      document.addEventListener('mousemove', onMove);
-      document.addEventListener('mouseup',   onUp);
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup',   onUp);
+      });
     });
   }
 

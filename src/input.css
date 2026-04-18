@@ -499,6 +499,10 @@ body.is-dragging .dock-icon-title {
 .widget--workorder .widget-header { background-color: var(--color-category-pill-2); }
 .widget--estimate  .widget-header { background-color: var(--color-category-pill-3); }
 
+.widget--contact   { border-top-color: var(--color-category-pill-1); }
+.widget--workorder { border-top-color: var(--color-category-pill-2); }
+.widget--estimate  { border-top-color: var(--color-category-pill-3); }
+
 /* --- Widgets --- */
 .widget {
   position: absolute;
@@ -506,6 +510,7 @@ body.is-dragging .dock-icon-title {
   min-height: 200px;
   background-color: white;
   border: 1px solid var(--color-border-slate);
+  border-top: 3px solid var(--color-brand-primary);
   border-radius: 4px;
   display: flex;
   flex-direction: column;
@@ -1162,24 +1167,34 @@ body.using-mouse .btn-secondary:focus-visible:not(:hover) {
   outline: none;
 }
 
+/* ── Widget resize handles (8-directional) ── */
 .widget-resize-handle {
   position: absolute;
-  bottom: 0;
-  right: 0;
-  width: 16px;
-  height: 16px;
-  cursor: nwse-resize;
+  z-index: 10;
 }
 
-.widget-resize-handle::after {
+/* Edge handles */
+.widget-resize-handle[data-dir="n"]  { top: 0;    left: 10px; right: 10px; height: 5px; cursor: n-resize; }
+.widget-resize-handle[data-dir="s"]  { bottom: 0; left: 10px; right: 10px; height: 5px; cursor: s-resize; }
+.widget-resize-handle[data-dir="e"]  { top: 10px; bottom: 10px; right: 0;  width: 5px;  cursor: e-resize; }
+.widget-resize-handle[data-dir="w"]  { top: 10px; bottom: 10px; left: 0;   width: 5px;  cursor: w-resize; }
+
+/* Corner handles */
+.widget-resize-handle[data-dir="ne"] { top: 0;    right: 0;  width: 10px; height: 10px; cursor: ne-resize; }
+.widget-resize-handle[data-dir="se"] { bottom: 0; right: 0;  width: 10px; height: 10px; cursor: se-resize; }
+.widget-resize-handle[data-dir="sw"] { bottom: 0; left: 0;   width: 10px; height: 10px; cursor: sw-resize; }
+.widget-resize-handle[data-dir="nw"] { top: 0;    left: 0;   width: 10px; height: 10px; cursor: nw-resize; }
+
+/* Visual grip indicator on SE corner */
+.widget-resize-handle[data-dir="se"]::after {
   content: '';
   position: absolute;
-  bottom: 4px;
-  right: 4px;
-  width: 7px;
-  height: 7px;
-  border-bottom: 2px solid rgba(255, 255, 255, 0.5);
-  border-right: 2px solid rgba(255, 255, 255, 0.5);
+  bottom: 3px;
+  right: 3px;
+  width: 6px;
+  height: 6px;
+  border-bottom: 2px solid rgba(0, 0, 0, 0.2);
+  border-right: 2px solid rgba(0, 0, 0, 0.2);
 }
 
 /* --- Widget Toast --- */
@@ -2101,9 +2116,7 @@ body.is-dragging .widget {
 /* ─── Price List Widget ──────────────────────────────────── */
 
 .pl-widget {
-  display: flex;
-  height: 100%;
-  overflow: hidden;
+  font-size: 12px;
 }
 
 .pl-sidebar {
@@ -2116,16 +2129,9 @@ body.is-dragging .widget {
   overflow: hidden;
 }
 
-.pl-sidebar-toolbar {
-  height: 38px;
-  display: flex;
-  align-items: center;
-  padding: 0 8px;
-  flex-shrink: 0;
-}
 
 .pl-sidebar-hdr {
-  height: 34px;
+  height: 26px;
   background: var(--color-brand-primary);
   display: flex;
   align-items: center;
@@ -2150,17 +2156,6 @@ body.is-dragging .widget {
   gap: 2px;
 }
 
-.pl-panel-divider {
-  width: 5px;
-  flex-shrink: 0;
-  cursor: col-resize;
-  background: var(--color-border-slate);
-  transition: background 0.15s;
-}
-
-.pl-panel-divider:hover {
-  background: var(--color-brand-primary);
-}
 
 .pl-nav-btn {
   display: block;
@@ -2192,22 +2187,7 @@ body.is-dragging .widget {
 .pl-edit-mode .pl-sidebar,
 .pl-edit-mode .pl-panel-divider { display: none; }
 
-.pl-inactive-toggle {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 10px;
-  color: var(--color-ink-mid);
-  cursor: pointer;
-}
-
-.pl-main {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  overflow: hidden;
-}
+/* sp-main provides flex: 1, flex-direction: column, overflow: hidden */
 
 .pl-list-view,
 .pl-form-view {
@@ -2216,7 +2196,7 @@ body.is-dragging .widget {
   overflow: hidden;
 }
 
-.pl-list-view { display: flex; }
+.pl-list-view { display: flex; overflow-x: auto; overflow-y: hidden; }
 
 .pl-form-header {
   padding: 7px 12px;
@@ -2242,19 +2222,12 @@ body.is-dragging .widget {
   gap: 2px;
 }
 
-.pl-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 10px;
-  padding: 8px 10px 6px;
-}
 
 
 .pl-search {
-  width: 200px;
+  width: 110px;
   flex-shrink: 0;
-  height: 24px;
+  height: 22px;
   padding: 0 8px;
   font-size: 12px;
   border: 1px solid var(--color-border-slate);
@@ -2274,7 +2247,7 @@ body.is-dragging .widget {
   display: flex;
   align-items: center;
   padding: 0;
-  height: 34px;
+  height: 26px;
   background: var(--color-brand-primary);
   font-size: 10px;
   font-weight: 700;
@@ -2282,30 +2255,53 @@ body.is-dragging .widget {
   letter-spacing: 0.05em;
   color: var(--color-ink-light);
   flex-shrink: 0;
-  overflow: hidden;
+  min-width: fit-content;
 }
 
-.pl-col { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 5px; }
+.pl-col { overflow: hidden; padding: 0 5px; }
 
 .pl-col-hdr {
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 0 8px 0 6px;
+  border-right: 1px solid var(--color-brand-tint);
   user-select: none;
-  border-right: 1px solid var(--color-border-slate);
-  white-space: normal;
-  line-height: 1.25;
-  text-align: center !important;
+}
+
+/* Label inside Price List header cell */
+.pl-hdr-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
 }
 
 .pl-col-handle {
   position: absolute;
-  right: -2px;
+  right: -1px;
   top: 0;
   bottom: 0;
-  width: 5px;
+  width: 6px;
   cursor: col-resize;
   z-index: 1;
 }
-.pl-col-handle:hover { background: var(--color-brand-accent); opacity: 0.5; }
+
+.pl-col-handle::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: transparent;
+  transition: background 0.1s;
+}
+
+.pl-col-handle:hover::after { background: var(--color-brand-accent); }
 
 .pl-col-name    { flex: 0 0 var(--pl-col-name, 200px); }
 .pl-col-uom     { flex: 0 0 var(--pl-col-uom,      55px); text-align: center; }
@@ -2317,63 +2313,20 @@ body.is-dragging .widget {
 
 .pl-list-wrap {
   flex: 1;
-  overflow: hidden auto;
+  overflow-y: auto;
+  min-width: fit-content;
 }
 
+/* cgrid-row + cgrid-t1/t2/t3 handle height, border, bg, color, font, cursor, hover */
 .pl-row {
   display: flex;
   align-items: center;
-  padding: 0;
-  height: 22px;
-  border-bottom: 1px solid var(--color-border-slate);
-  font-size: 12px;
-  color: var(--color-ink-dark);
-  background: white;
 }
 
-.pl-row:hover { background: rgba(0, 0, 0, 0.05); }
+.pl-row-inactive { opacity: 0.45; }
 
-.pl-row-inactive {
-  opacity: 0.45;
-}
 
-.pl-row-cat {
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 400;
-}
-.pl-row-cat:hover { background: rgba(0, 0, 0, 0.04); }
-
-.pl-row-sub {
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 400;
-}
-.pl-row-sub:hover { background: rgba(0, 0, 0, 0.04); }
-
-.pl-row-cat .pl-cell.pl-col-name {
-  padding-left: 6px;
-  gap: 5px;
-}
-.pl-row-sub .pl-cell.pl-col-name {
-  padding-left: 20px;
-  gap: 5px;
-}
-
-.pl-expand-icon {
-  font-size: 9px;
-  color: var(--color-ink-mid);
-  flex-shrink: 0;
-  width: 10px;
-  text-align: center;
-}
-
-.pl-row-label {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+/* cgrid-cell-text replaces pl-row-label */
 
 .pl-hier-count {
   flex: 1 !important;
@@ -2401,7 +2354,6 @@ body.is-dragging .widget {
 .pl-cell.pl-col-cost,
 .pl-cell.pl-col-start { font-variant-numeric: tabular-nums; padding-right: 5px; }
 
-.pl-cell.pl-col-name   { padding-left: 20px; gap: 8px; }
 .pl-cell.pl-col-uom    { text-align: center; }
 
 .pl-name-cell { cursor: pointer; }
@@ -2504,84 +2456,27 @@ body.is-dragging .widget {
 }
 
 /* ── Price List Edit Layout Mode ─────────────────────────── */
-.pl-edit-ctrl { display: none; }
-.pl-edit-mode .pl-edit-ctrl { display: inline-flex; }
-.pl-edit-mode .pl-normal-ctrl { display: none !important; }
-.pl-item-edit-mode .pl-normal-ctrl { display: none !important; }
-.pl-edit-mode .pl-toolbar { justify-content: flex-start; gap: 6px; }
+/* Universal edit-mode visibility — works for any widget using sp-edit-ctrl / sp-normal-ctrl */
+.sp-edit-ctrl { display: none !important; }
+.cb-edit-mode .sp-edit-ctrl,
+.pl-edit-mode .sp-edit-ctrl { display: inline-flex !important; }
+.cb-edit-mode .sp-normal-ctrl,
+.pl-edit-mode .sp-normal-ctrl { display: none !important; }
+.pl-edit-mode .pl-sidebar-edit-cat-btn { display: none; }
 
-.pl-item-edit-ctrl { display: none; }
-.pl-item-edit-mode .pl-item-edit-ctrl:not(.pl-items-bulk-bar) { display: inline-flex; }
-.pl-item-edit-mode .pl-edit-items-btn { display: none !important; }
-.pl-item-edit-mode .pl-toolbar { justify-content: flex-start; gap: 10px; }
-.pl-item-edit-mode .pl-col-headers { display: none !important; }
 
-/* Sidebar button swap in Edit Price List Items mode */
-.pl-sidebar-items-done { display: none; }
-.pl-item-edit-mode .pl-sidebar-edit-cat-btn { display: none; }
-.pl-item-edit-mode .pl-sidebar-items-done { display: inline-flex; }
-.pl-item-edit-mode .pl-sidebar-toolbar { justify-content: center; }
-.pl-item-edit-mode .pl-search { display: none !important; }
-
-/* Price List Items panel — shown in place of list-wrap when editing items */
-.pl-items-panel {
-  display: none;
-  flex: 1;
-  flex-direction: column;
-  overflow: hidden;
-}
-.pl-item-edit-mode .pl-items-panel { display: flex; }
-.pl-item-edit-mode .pl-list-wrap   { display: none !important; }
-
-/* Bulk action bar */
-.pl-items-bulk-bar {
-  display: none;
+.pl-drag-cell {
+  flex: 0 0 22px;
+  display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
 }
-.pl-item-edit-mode .pl-items-bulk-bar { display: flex; }
-
-.pl-items-sel-count {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--color-ink-dark);
-  margin-right: 4px;
-}
-
-.pl-items-del-btn {
-  color: var(--color-danger) !important;
-  border-color: var(--color-danger) !important;
-}
-.pl-items-del-btn:hover {
-  background: var(--color-danger) !important;
-  color: white !important;
-}
-
-.pl-edit-header,
-.pl-item-edit-header {
-  display: none;
-  align-items: center;
-  height: 26px;
-  background: var(--color-ink-dark);
-  color: var(--color-ink-light);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  flex-shrink: 0;
-  padding: 0 12px;
-}
-.pl-edit-header { justify-content: flex-start; }
-.pl-item-edit-header { justify-content: flex-start; }
-.pl-edit-mode .pl-edit-header { display: flex; }
-.pl-item-edit-mode .pl-item-edit-header { display: flex; }
 
 .pl-item-drag {
   font-size: 11px;
   letter-spacing: -2px;
   color: var(--color-border-slate);
   cursor: grab;
-  flex-shrink: 0;
   user-select: none;
 }
 .pl-row:hover .pl-item-drag { color: var(--color-ink-dark); }
@@ -2651,12 +2546,6 @@ body.is-dragging .widget {
 .pl-er-cat[data-expanded="false"] .pl-er-add-sub {
   opacity: 0.35;
   pointer-events: none;
-}
-.pl-er-exp {
-  grid-column: 6;
-  font-size: 9px;
-  text-align: center;
-  color: var(--color-ink-dark);
 }
 .pl-er-name {
   grid-column: 7;
@@ -3034,8 +2923,7 @@ body.is-dragging .widget {
   align-items: center;
 }
 
-.cb-col-desc  { overflow: hidden; padding: 0 4px 0 4px; }
-.cb-row-item .cb-col-desc { padding-left: 36px; }
+.cb-col-desc  { overflow: hidden; padding: 0 4px; }
 .cb-col-uom   { justify-content: center; border-left: 1px solid var(--color-border-slate); padding: 0 4px; overflow: hidden; }
 .cb-col-labor { justify-content: flex-end; padding-right: 6px; border-left: 1px solid var(--color-border-slate); }
 .cb-col-mat   { justify-content: flex-end; padding-right: 6px; border-left: 1px solid var(--color-border-slate); }
@@ -3050,10 +2938,6 @@ body.is-dragging .widget {
   background: white;
 }
 
-/* Center column labels in the header row */
-.cb-header :is(.cb-col-labor, .cb-col-mat, .cb-col-subc, .cb-col-equip, .cb-col-other, .cb-col-unit) {
-  justify-content: center;
-}
 
 /* Inline specs input */
 .cb-specs-input {
@@ -3072,55 +2956,26 @@ body.is-dragging .widget {
 
 
 .cb-widget {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  overflow: hidden;
   font-size: 12px;
 }
 
 /* Toolbar */
-.cb-toolbar {
-  display: flex;
-  align-items: stretch;
-  background: var(--color-brand-tint);
-  border-bottom: 1px solid var(--color-border-slate);
-  flex-shrink: 0;
-}
-
-/* Mirrors the nav + resize handle width so cb-toolbar-main aligns with cb-main */
-.cb-toolbar-nav {
-  width: 165px; /* 160px nav + 5px resize handle — updated by JS on nav resize */
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 4px 8px;
-}
-
-.cb-toolbar-main {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 8px;
-}
-
-.cb-toolbar-spacer {
-  flex: 1;
-  padding: 4px 10px;
-  overflow: hidden;
-}
 
 .cb-tag-count { margin-left: auto; }
 
-.cb-btn {
+.sp-btn {
   height: 22px;
   font-size: 12px;
   font-weight: 400;
-  padding: 0 10px;
+  padding: 0 5px;
   white-space: nowrap;
   width: auto;
+}
+
+.sp-btn-icon {
+  width: 26px;
+  padding: 0;
+  font-size: 14px;
 }
 
 .cb-tag-count {
@@ -3131,21 +2986,13 @@ body.is-dragging .widget {
 }
 
 /* Body: nav + grid side by side */
-.cb-body {
-  display: flex;
-  flex: 1 1 0;
-  overflow: hidden;
-}
+/* sp-body provides display: flex, flex: 1, overflow: hidden */
 
-/* Left nav panel */
+/* Left nav panel — sp-nav provides flex-shrink: 0, flex-direction: column, overflow: hidden */
 .cb-nav {
   width: 160px;
-  flex-shrink: 0;
   border-right: 1px solid var(--color-border-slate);
   background: var(--color-surface-mid);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
 }
 
 /* "Divisions" label bar — same dark bar as cb-header, sits above the nav list */
@@ -3190,19 +3037,10 @@ body.is-dragging .widget {
 .cb-nav-div-name { line-height: 1.2; }
 
 /* Resizable divider between nav and grid */
-.cb-panel-resize {
-  width: 5px;
-  flex-shrink: 0;
-  background: var(--color-border-slate);
-  cursor: col-resize;
-  transition: background 0.15s;
-}
-
-.cb-panel-resize:hover { background: var(--color-brand-accent); }
 
 .cb-nav-search {
   height: 22px;
-  width: 160px;
+  width: 110px;
   font-size: 12px;
   padding: 0 7px;
   border: 1px solid var(--color-border-slate);
@@ -3216,30 +3054,24 @@ body.is-dragging .widget {
 .cb-nav-search:focus { border-color: var(--color-brand-accent); }
 
 /* Right: grid area */
-.cb-main {
-  flex: 1 1 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
+/* sp-main provides flex: 1, flex-direction: column, overflow: hidden */
 
-/* Shared column grid — header and every row type use the same 12-column template */
+/* Shared column grid — header and every row type use the same 11-column template */
 .cb-header,
 .cb-row {
   display: grid;
   grid-template-columns:
     22px                          /* col1:  drag handle  */
     24px                          /* col2:  tag checkbox */
-    18px                          /* col3:  expand icon  */
-    var(--cb-w-desc)              /* col4:  description  */
-    var(--cb-w-uom)               /* col5:  UofM         */
-    var(--cb-w-labor)             /* col6:  Labor        */
-    var(--cb-w-mat)               /* col7:  Material     */
-    var(--cb-w-subc)              /* col8:  Sub          */
-    var(--cb-w-equip)             /* col9:  Equipment    */
-    var(--cb-w-other)             /* col10: Other        */
-    var(--cb-w-unit)              /* col11: Unit Cost    */
-    minmax(var(--cb-w-specs), 1fr); /* col12: Specs — fills remaining space */
+    var(--cb-w-desc)              /* col3:  description (expand icon lives inside) */
+    var(--cb-w-uom)               /* col4:  UofM         */
+    var(--cb-w-labor)             /* col5:  Labor        */
+    var(--cb-w-mat)               /* col6:  Material     */
+    var(--cb-w-subc)              /* col7:  Sub          */
+    var(--cb-w-equip)             /* col8:  Equipment    */
+    var(--cb-w-other)             /* col9:  Other        */
+    var(--cb-w-unit)              /* col10: Unit Cost    */
+    minmax(var(--cb-w-specs), 1fr); /* col11: Specs — fills remaining space */
   align-items: center;
   padding: 0 0 0 8px;  /* no right padding — last column fills to edge */
   box-sizing: border-box;
@@ -3259,25 +3091,48 @@ body.is-dragging .widget {
 
 .cb-header-tag { text-align: center; }
 
-/* Resizable header cell */
+/* Resizable header cell — matches shared cgrid-hdr-cell pattern */
 .cb-rz-hd {
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
+  padding: 0 8px 0 6px;
+  border-right: 1px solid var(--color-brand-tint);
+  user-select: none;
+}
+
+/* Label inside Costbook header cell */
+.cb-hdr-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
+  max-width: 100%;
 }
 
 .cb-col-resize {
   position: absolute;
-  right: 0;
-  top: 2px;
-  bottom: 2px;
-  width: 5px;
+  right: -1px;
+  top: 0;
+  bottom: 0;
+  width: 6px;
   cursor: col-resize;
-  background: transparent;
-  border-radius: 2px;
 }
 
-.cb-col-resize:hover { background: var(--color-brand-orange); opacity: 0.8; }
+.cb-col-resize::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: transparent;
+  transition: background 0.1s;
+}
+
+.cb-col-resize:hover::after { background: var(--color-brand-accent); }
 
 /* Scrollable rows */
 .cb-rows {
@@ -3285,11 +3140,7 @@ body.is-dragging .widget {
   overflow-y: auto;
 }
 
-/* Shared row base — grid template is defined on .cb-header,.cb-row above */
-.cb-row {
-  min-height: 22px;
-  border-bottom: 1px solid var(--color-border-slate);
-}
+/* cgrid-row provides height: 22px and border-bottom */
 
 /* Drag handle — col1, shown on row hover */
 .cb-drag-handle {
@@ -3319,50 +3170,11 @@ body.is-dragging .widget {
   color: transparent;
 }
 
-/* Expand/collapse icon — col3 */
-.cb-expand-icon {
-  font-size: 10px;
-  color: var(--color-ink-dark);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-}
+/* Division rows — cgrid-t1 handles bg/color/font/cursor */
+/* Subdivision rows — cgrid-t2 handles bg/color/font/cursor */
+/* Item rows — cgrid-t3 handles bg/color/font/hover */
 
-/* Division rows */
-.cb-row-div {
-  background: white;
-  color: var(--color-ink-dark);
-  font-weight: 400;
-  font-size: 12px;
-  cursor: pointer;
-  user-select: none;
-}
-
-.cb-row-div .cb-expand-icon { color: var(--color-ink-dark); }
-.cb-row-div-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-left: 0; cursor: pointer; }
-
-/* Subdivision rows */
-.cb-row-sub {
-  background: var(--color-surface-mid);
-  color: var(--color-ink-dark);
-  font-weight: 400;
-  font-size: 12px;
-  cursor: pointer;
-  user-select: none;
-}
-
-.cb-row-sub .cb-expand-icon { color: var(--color-ink-dark); justify-content: flex-end; transform: translateX(8px); }
-.cb-row-sub-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-left: 16px; }
-
-/* Item rows */
-.cb-row-item {
-  background: white;
-  font-size: 12px;
-  color: var(--color-ink-dark);
-}
-
-.cb-row-item:nth-child(even) { background: var(--color-brand-tint); }
-.cb-row-item:hover { background: #EAF4FB; }
+/* Item rows — cgrid-t3 handles bg/color/font/hover */
 
 /* Header rows (section separators within a subdivision) */
 .cb-row-hdr {
@@ -3439,13 +3251,8 @@ body.is-dragging .widget {
 
 /* ── Costbook Edit Structure Mode ───────────────────────────── */
 
-/* Show/hide toolbar controls based on mode */
-.cb-edit-ctrl                 { display: none !important; }
-.cb-edit-mode .cb-edit-ctrl   { display: inline-flex !important; }
-.cb-edit-mode .cb-normal-ctrl { display: none !important; }
+/* Show/hide toolbar controls based on mode — handled universally in sp-toolbar rules above */
 
-/* Toolbar-nav: shrinks to button width in edit mode (nav panel is hidden) */
-.cb-edit-mode .cb-toolbar-nav { width: auto; gap: 6px; }
 
 /* Hide nav panel and resize divider */
 .cb-edit-mode .cb-nav,
@@ -3492,10 +3299,10 @@ body.is-dragging .widget {
 .cb-edit-mode .cb-row-item,
 .cb-edit-mode .cb-row-hdr                    { display: none !important; }
 
-/* 8-col edit grid: drag | del | gap | +sub | gap | expand | name | count */
+/* 7-col edit grid: drag | del | gap | +sub | gap | name (icon inside) | count */
 .cb-edit-mode .cb-row-div,
 .cb-edit-mode .cb-row-sub {
-  grid-template-columns: 22px 26px 8px 50px 8px 18px 1fr auto;
+  grid-template-columns: 22px 26px 8px 50px 8px 1fr auto;
   cursor: default;
 }
 
@@ -3514,7 +3321,7 @@ body.is-dragging .widget {
 .cb-edit-mode .cb-tag-slot { display: none; }
 
 /* Expand icon hidden on sub rows only — divs still expand/collapse */
-.cb-edit-mode .cb-row-sub .cb-expand-icon { visibility: hidden; }
+.cb-edit-mode .cb-row-sub .cgrid-expand { visibility: hidden; }
 
 /* Show action elements in edit mode — each pinned to its grid column */
 .cb-edit-mode .cb-edit-del     { display: flex; align-items: center; justify-content: center;
@@ -3522,15 +3329,13 @@ body.is-dragging .widget {
 .cb-edit-mode .cb-edit-add-sub { display: inline-flex; align-items: center;
                                   grid-column: 4; justify-self: start; align-self: center; }
 .cb-edit-mode .cb-edit-count   { display: flex; align-items: center;
-                                  grid-column: 8; white-space: nowrap;
+                                  grid-column: 7; white-space: nowrap;
                                   font-size: 11px; color: var(--color-ink-light);
                                   padding-right: 8px; justify-content: flex-end; }
 
-/* Keep expand icon and name locked to their columns in edit mode */
-.cb-edit-mode .cb-row-div .cb-expand-icon,
-.cb-edit-mode .cb-row-sub .cb-expand-icon { grid-column: 6; }
+/* Name cell (with icon inside) pinned in edit mode */
 .cb-edit-mode .cb-row-div-name,
-.cb-edit-mode .cb-row-sub-name            { grid-column: 7; }
+.cb-edit-mode .cb-row-sub-name            { grid-column: 6; }
 
 /* +Sub inactive when its division is collapsed */
 .cb-edit-mode .cb-row-div[data-expanded="false"] .cb-edit-add-sub {
@@ -4045,210 +3850,6 @@ body.is-dragging .widget {
   flex-shrink: 0;
 }
 
-/* Show Archived toggle */
-.cbi-show-archived-toggle {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 11px;
-  color: var(--color-ink-dark);
-  cursor: pointer;
-  flex-shrink: 0;
-  user-select: none;
-}
-
-/* Archived item row styling */
-.cbi-row-archived .cbi-item-desc {
-  color: var(--color-ink-light);
-  font-style: italic;
-  text-decoration: line-through;
-}
-
-/* Sub-division row with no matching items in current filter */
-.cbi-sub-empty {
-  opacity: 0.45;
-}
-
-/* Edit Cost Items mode visibility toggles */
-.cb-items-ctrl { display: none; }
-.cb-items-mode .cb-items-ctrl { display: inline-flex; }
-.cb-items-mode .cbi-bulk-bar  { display: flex; }
-.cb-items-mode .cb-normal-ctrl { display: none; }
-.cb-items-mode .cb-main { display: none; }
-.cb-items-mode .cb-items-panel { display: flex; }
-
-/* Items panel shell */
-.cb-items-panel {
-  display: none;
-  flex: 1;
-  flex-direction: column;
-  overflow: hidden;
-  background: white;
-}
-
-/* Edit Cost Items mode banner */
-.cb-items-mode-header {
-  height: 26px;
-  background: var(--color-ink-dark);
-  color: var(--color-ink-light);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  padding: 0 12px;
-  flex-shrink: 0;
-}
-
-/* Column layout: drag | tag | exp-left | exp-right | name */
-.cbi-row {
-  display: grid;
-  grid-template-columns: 22px 26px 16px 16px 1fr;
-  align-items: center;
-}
-
-/* Expand button spans cols 3+4 on sub rows */
-.cbi-row-sub .cbi-exp-btn {
-  grid-column: 3 / 5;
-}
-
-.cb-items-rows {
-  flex: 1;
-  overflow: hidden auto;
-}
-
-/* Division / Category section header */
-.cbi-div-hdr {
-  padding: 0 10px;
-  height: 22px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-ink-dark);
-  background: var(--color-brand-tint);
-  border-bottom: 1px solid var(--color-border-slate);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  user-select: none;
-  position: sticky;
-  top: 0;
-  z-index: 1;
-}
-.cbi-div-hdr:hover { background: #e8f4fb; }
-
-.cbi-div-exp {
-  font-size: 8px;
-  color: var(--color-ink-dark);
-  flex-shrink: 0;
-}
-
-/* Sub-division rows */
-.cbi-row {
-  height: 22px;
-  border-bottom: 1px solid var(--color-border-slate);
-}
-
-.cbi-row-sub {
-  background: white;
-}
-
-.cbi-row-sub:hover {
-  background: rgba(0, 0, 0, 0.04);
-}
-
-/* Item rows */
-.cbi-row-item {
-  background: white;
-}
-
-.cbi-row-item:hover {
-  background: #EAF4FB;
-}
-
-.cbi-row-item.cb-row-dragging {
-  opacity: 0.4;
-}
-
-/* Drag handle — always visible */
-.cbi-drag {
-  font-size: 10px;
-  color: var(--color-ink-mid);
-  cursor: grab;
-  padding-left: 10px;
-  letter-spacing: -1px;
-  user-select: none;
-}
-
-/* Tag checkbox */
-.cbi-tag {
-  cursor: pointer;
-  justify-self: center;
-}
-
-/* Expand button — spans the full 3rd column (36px) */
-.cbi-exp-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 10px;
-  color: var(--color-ink-dark);
-  padding: 0;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.cbi-exp-btn:hover {
-  color: var(--color-brand-accent);
-}
-
-/* Sub name */
-.cbi-sub-name {
-  font-size: 12px;
-  font-weight: 400;
-  color: var(--color-ink-dark);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* Item description — indented */
-.cbi-item-desc {
-  font-size: 12px;
-  color: var(--color-ink-dark);
-  padding-left: 14px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* Bulk action bar — lives in toolbar, shown via cb-items-ctrl */
-.cbi-bulk-bar {
-  align-items: center;
-  gap: 8px;
-}
-
-.cbi-sel-count {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--color-ink-dark);
-  margin-right: 4px;
-}
-
-.cbi-delete-btn {
-  color: var(--color-danger) !important;
-  border-color: var(--color-danger) !important;
-}
-
-.cbi-delete-btn:hover {
-  background: var(--color-danger) !important;
-  color: white !important;
-}
 
 /* Costbook search dropdown */
 .cb-search-drop {
@@ -4702,15 +4303,215 @@ body.is-dragging .widget {
 }
 
 /* ============================================================
+   Shared SplitPanel Layout
+   ============================================================ */
+
+/* Outer widget container — flex column, fills widget body */
+.sp-widget {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Full-width toolbar row — widget-specific CSS adds height/bg/padding */
+.sp-toolbar {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  height: 34px;
+  gap: 6px;
+  padding: 0 8px;
+  background: var(--color-brand-tint);
+  border-bottom: 1px solid var(--color-border-slate);
+}
+
+/* Content row: nav + divider + main */
+.sp-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* Left navigation panel — widget CSS sets width */
+.sp-nav {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Drag handle between nav and main */
+.sp-divider {
+  width: 5px;
+  flex-shrink: 0;
+  cursor: col-resize;
+  background: var(--color-border-slate);
+  transition: background 0.15s;
+}
+.sp-divider:hover { background: var(--color-brand-accent); }
+
+/* Right main panel */
+.sp-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
+/* ============================================================
+   Shared CostGrid Module
+   ============================================================ */
+
+/* Header cell — flex, centered label, absolute resize handle */
+.cgrid-hdr-cell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 0 8px 0 6px;
+  border-right: 1px solid var(--color-brand-tint);
+  user-select: none;
+}
+
+/* Label — truncates from the right when column is too narrow */
+.cgrid-hdr-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+/* Resize handle — straddles the right border, full cell height */
+.cgrid-resize {
+  position: absolute;
+  right: -1px;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+}
+
+/* 2px accent indicator appears on hover */
+.cgrid-resize::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: transparent;
+  transition: background 0.1s;
+}
+
+.cgrid-resize:hover::after {
+  background: var(--color-brand-accent);
+}
+
+/* Sticky left column */
+.cgrid-sticky {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+}
+
+/* ── Data row base ──────────────────────────────────────── */
+.cgrid-row {
+  height: 22px;
+  border-bottom: 1px solid var(--color-border-slate);
+}
+
+/* T1 — Phase / Division / Category */
+.cgrid-t1 {
+  background: white;
+  color: var(--color-brand-dark);
+  font-weight: 400;
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+.cgrid-t1:hover { background: var(--color-brand-tint); }
+
+/* T2 — Sub-Division / Sub-Category */
+.cgrid-t2 {
+  background: var(--color-brand-tint);
+  color: var(--color-brand-dark);
+  font-weight: 400;
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+.cgrid-t2:hover { background: #d4e8f4; }
+
+/* T3 — Item */
+.cgrid-t3 {
+  background: white;
+  color: var(--color-ink-dark);
+  font-weight: 400;
+  font-size: 12px;
+}
+.cgrid-t3:nth-child(even) { background: var(--color-brand-tint); }
+.cgrid-t3:hover            { background: #EAF4FB; }
+
+/* Truncating text wrapper for description/name cells */
+.cgrid-cell-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+/* Expand/collapse icon column — separate from the name cell in all widgets */
+/* Expand icon — lives inside the name cell, indents with the hierarchy */
+.cgrid-expand {
+  flex-shrink: 0;
+  width: 12px;
+  font-size: 9px;
+  text-align: center;
+  color: var(--color-brand-primary);
+  cursor: pointer;
+  user-select: none;
+  display: inline-block;
+  transition: transform 0.15s ease;
+}
+.cgrid-expand.is-open { transform: rotate(90deg); }
+
+.pl-er-exp {
+  grid-column: 6;
+  display: inline-block;
+  font-size: 9px;
+  text-align: center;
+  color: var(--color-ink-dark);
+  flex-shrink: 0;
+  transition: transform 0.15s ease;
+}
+.pl-er-exp.is-open { transform: rotate(90deg); }
+
+/* Name/desc column — flex container so icon + text sit side by side */
+.cgrid-col-name {
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  gap: 2px;
+}
+
+/* Universal name/desc column indent per tier */
+.cgrid-t1 .cgrid-col-name { padding-left: 4px; text-transform: uppercase; font-weight: 600; }
+.cgrid-t2 .cgrid-col-name { padding-left: 24px; font-weight: 600; }
+.cgrid-t3 .cgrid-col-name { padding-left: 49px; }
+
+/* ============================================================
    Estimate Widget
    ============================================================ */
 
+/* sp-widget provides display: flex, flex-direction: column, height: 100%, overflow: hidden */
 .est-widget {
-  display: flex;
-  flex-direction: column;
   width: 100%;
-  height: 100%;
-  overflow: hidden;
   font-size: 12px;
 }
 
@@ -4729,14 +4530,7 @@ body.is-dragging .widget {
 
 /* Toolbar --------------------------------------------------- */
 .est-toolbar {
-  display: flex;
-  align-items: center;
   gap: 8px;
-  height: 50px;
-  padding: 0 14px;
-  background: white;
-  border-bottom: 1px solid var(--color-border-slate);
-  flex-shrink: 0;
 }
 
 .est-toolbar-spacer { flex: 1; }
@@ -4745,11 +4539,11 @@ body.is-dragging .widget {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  padding: 4px 12px;
+  padding: 2px 10px;
   background: var(--color-brand-tint);
   border: 1px solid var(--color-border-slate);
   border-radius: 4px;
-  min-width: 120px;
+  min-width: 110px;
   align-self: center;
 }
 
@@ -4763,26 +4557,11 @@ body.is-dragging .widget {
 }
 
 .est-total-value {
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--color-brand-dark);
-  line-height: 1.3;
-}
-
-.est-header-btn {
-  padding: 4px 10px;
-  border-radius: 4px;
-  border: 1px solid var(--color-border-slate);
-  background: white;
-  color: var(--color-brand-dark);
-  font-size: 11px;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.est-header-btn:hover {
-  background: var(--color-brand-tint);
-  border-color: var(--color-brand-primary);
+  line-height: 1;
+  margin-top: 1px;
 }
 
 .est-cm-wrap {
@@ -4797,30 +4576,37 @@ body.is-dragging .widget {
 }
 
 .est-cm-wrap input { cursor: pointer; }
-.est-header-btn { cursor: pointer; }
 
 /* Body ------------------------------------------------------ */
-.est-body {
-  display: flex;
-  flex: 1;
-  overflow: hidden;
-}
+/* sp-body provides display: flex, flex: 1, overflow: hidden */
 
 /* Tab Panel ------------------------------------------------- */
+/* sp-nav provides flex-shrink: 0, flex-direction: column, overflow: hidden */
 .est-tab-panel {
-  width: 192px;
-  min-width: 192px;
+  width: 128px;
+  min-width: 128px;
   background: var(--color-brand-tint);
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
   border-right: 2px solid var(--color-border-slate);
-  flex-shrink: 0;
-  padding: 0 0 8px 4px;
 }
 
-/* Spacer pushes first tab down to align with grid header bottom */
-.est-tab-spacer { flex-shrink: 0; }
+.est-tab-hdr {
+  background: var(--color-brand-primary);
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 5px 6px;
+  text-align: center;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.est-tab-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0 8px 4px;
+}
 
 /* Phase tabs (top-level) */
 .est-tab {
@@ -4924,143 +4710,87 @@ body.is-dragging .widget {
 }
 
 /* Panel Divider --------------------------------------------- */
-.est-panel-divider {
-  width: 4px;
-  background: var(--color-border-slate);
-  cursor: col-resize;
-  flex-shrink: 0;
-  transition: background 0.15s;
-}
-.est-panel-divider:hover { background: var(--color-brand-primary); }
-
-/* Grid Wrapper ---------------------------------------------- */
+/* Grid Wrapper (sp-main provides flex: 1, flex-direction: column, overflow: hidden) */
 .est-grid-wrap {
-  flex: 1;
   overflow: auto;
 }
 
-/* Grid Table ------------------------------------------------ */
+/* Grid (CSS Grid) ------------------------------------------- */
 .est-grid {
-  border-collapse: collapse;
-  table-layout: fixed;
-  width: max-content;
-  min-width: 100%;
+  min-width: max-content;
 }
 
-/* Vertical grid lines on all cells */
-.est-grid td  { border-right: 1px solid #cfe0ec; }
-.est-grid thead th { border-right: 1px solid rgba(255,255,255,0.2); }
+/* Every header row and data row uses the same column template */
+.est-grid .cgrid-hdr,
+.est-grid .cgrid-row {
+  display: grid;
+  grid-template-columns: var(--cg-est-tmpl);
+  align-items: stretch;
+}
 
-.est-grid thead th {
+/* Header row — sticky at top of scroll container */
+.est-grid .cgrid-hdr {
   position: sticky;
   top: 0;
-  z-index: 2;
+  z-index: 3;
+  height: 26px;
   background: var(--color-brand-primary);
   color: white;
+  flex-shrink: 0;
+}
+
+.est-grid .cgrid-hdr .cgrid-hdr-cell {
   font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  padding: 5px 6px;
-  text-align: right;
-  white-space: nowrap;
 }
 
-.est-grid thead th.est-col-desc {
-  text-align: left;
-  z-index: 4;
-}
-
-/* Sticky first column */
+/* Sticky Description column */
 .est-col-desc {
   position: sticky;
   left: 0;
   z-index: 1;
-  width: 220px;
-  min-width: 220px;
-  text-align: left !important;
 }
 
-/* Column widths */
-.est-col-qty    { width: 54px;  min-width: 54px; }
-.est-col-uom    { width: 44px;  min-width: 44px; }
-.est-col-labor,
-.est-col-mat,
-.est-col-sub,
-.est-col-equip,
-.est-col-other  { width: 68px;  min-width: 68px; }
-.est-col-ucost,
-.est-col-utotal { width: 76px;  min-width: 76px; }
-.est-col-subtotal { width: 82px; min-width: 82px; }
-.est-col-cv     { width: 52px;  min-width: 52px; text-align: center !important; }
-.est-col-mkp    { width: 62px;  min-width: 62px; }
+/* Description header sits above scrolling cells */
+.est-grid .cgrid-hdr .est-col-desc {
+  z-index: 5;
+}
 
-/* Fixed 24px row height for all data rows */
-.est-phase-hdr,
-.est-div-hdr,
-.est-item-row { height: 24px; }
-
-.est-phase-hdr td,
-.est-div-hdr td,
-.est-item-row td {
-  padding: 0 6px;
+/* All data cells */
+.est-grid .cgrid-row .cgrid-cell {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 6px;
   white-space: nowrap;
   overflow: hidden;
-  vertical-align: middle;
+  border-right: 1px solid #cfe0ec;
 }
 
-/* Phase / section header rows ------------------------------- */
-.est-phase-hdr td {
+/* Description data cells — left-aligned, sticky, inherits row bg for scroll cover */
+.est-grid .cgrid-row .est-col-desc {
+  justify-content: flex-start;
+  background: inherit;
+}
+
+/* Client View column — centered */
+.est-grid .cgrid-hdr .est-col-cv,
+.est-grid .cgrid-row .est-col-cv { justify-content: center; }
+
+/* Phase rows — widget-level style, sits above the shared tier system */
+.est-phase-hdr {
   background: white;
   color: var(--color-brand-dark);
   font-weight: 700;
-  font-size: 11.5px;
+  font-size: 12px;
   cursor: pointer;
-  border-top: 2px solid var(--color-brand-primary);
-  border-bottom: 1px solid var(--color-border-slate);
-  text-align: right;
+  user-select: none;
 }
-
-.est-phase-hdr td.est-col-desc {
-  padding-left: 10px;
-  background: white;
-}
-
-.est-phase-hdr.is-off td {
-  opacity: 0.45;
-  background: #f8f8f8;
-}
-
-/* Division header rows -------------------------------------- */
-.est-div-hdr td {
-  background: #d4e8f4;
-  color: var(--color-brand-dark);
-  font-weight: 700;
-  font-size: 11px;
-  cursor: pointer;
-  border-bottom: 1px solid rgba(0,100,150,0.18);
-  text-align: right;
-}
-
-.est-div-hdr td.est-col-desc {
-  padding-left: 22px;
-  background: #d4e8f4;
-}
-
-/* Item rows ------------------------------------------------- */
-.est-item-row td {
-  border-bottom: 1px solid #e8f0f6;
-  text-align: right;
-  color: var(--color-ink-dark);
-  background: white;
-}
-
-.est-item-row:nth-child(even) td { background: #f5fafd; }
-
-.est-item-row td.est-col-desc { padding-left: 34px; }
-
-.est-item-row:nth-child(even) td.est-col-desc { background: #f5fafd; }
-.est-item-row:nth-child(odd)  td.est-col-desc { background: white; }
+.est-phase-hdr:hover { background: var(--color-brand-tint); }
+.est-phase-hdr.is-off .cgrid-cell { opacity: 0.45; }
+.est-grid .est-phase-hdr .cgrid-col-name { padding-left: 4px; background: inherit; }
 
 /* Editable inputs inside cells */
 .est-inp {
@@ -5082,7 +4812,7 @@ body.is-dragging .widget {
   padding: 0 2px;
 }
 
-.est-item-row td.est-col-cv { text-align: center; }
+.est-item-row .est-col-cv { justify-content: center; }
 .est-cv-cb { cursor: pointer; }
 
 /* Subtotal emphasis */
@@ -5091,18 +4821,9 @@ body.is-dragging .widget {
   color: var(--color-brand-dark) !important;
 }
 
-/* Hidden rows ----------------------------------------------- */
-.est-row-hidden { display: none; }
+/* Hidden rows — !important to override display:grid from .cgrid-row rule */
+.est-row-hidden { display: none !important; }
 
-/* Expand icon */
-.est-expand-icon {
-  display: inline-block;
-  width: 12px;
-  font-size: 9px;
-  margin-right: 4px;
-  color: var(--color-brand-primary);
-  vertical-align: middle;
-}
 
 /* Phase type badge */
 .est-phase-badge {
@@ -5121,10 +4842,7 @@ body.is-dragging .widget {
 .est-badge-option { background: var(--color-brand-accent); color: var(--color-brand-dark); }
 .est-badge-co     { background: var(--color-brand-orange); color: white; }
 
-/* Client Mode ----------------------------------------------- */
-.est-client-mode .est-col-mkp,
-.est-client-mode .est-col-cv { display: none; }
-
+/* Client Mode — column hiding handled by CostGrid.setColVisible() in JS */
 .est-client-mode .est-total-cost-box { display: none; }
 
 .est-client-mode .est-cv-hidden { display: none !important; }

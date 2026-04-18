@@ -1029,11 +1029,6 @@ const CRM = (function () {
       _bindCompanySideWidget(sideId, el, addCompanyBtn, () => {});
     });
 
-    // Cancel — also closes any open panel
-    el.querySelector('[data-action="cancel"]').addEventListener('click', () => {
-      WidgetManager.close(widgetId);
-    });
-
     // Save
     el.querySelector('[data-action="save"]').addEventListener('click', () => {
       _saveNewClient(el, widgetId);
@@ -1562,7 +1557,6 @@ const CRM = (function () {
       ${linkedPeopleHTML}
       ${_profilePropertyPills(properties)}
       <div class="widget-footer">
-        <button class="btn-secondary" data-action="cancel">Close</button>
         <button class="btn-primary" data-action="edit-record"
           data-type="person" data-id="${person.People_ID}">Edit Record</button>
       </div>
@@ -1604,7 +1598,6 @@ const CRM = (function () {
       ${peoplePills}
       ${_profilePropertyPills(properties)}
       <div class="widget-footer">
-        <button class="btn-secondary" data-action="cancel">Close</button>
         <button class="btn-primary" data-action="edit-record"
           data-type="company" data-id="${company.Company_ID}">Edit Record</button>
       </div>
@@ -1670,7 +1663,6 @@ const CRM = (function () {
       ${ownerBlocksHTML}
       ${priorWorkHTML}
       <div class="widget-footer">
-        <button class="btn-secondary" data-action="cancel">Close</button>
         <button class="btn-primary" data-action="edit-record"
           data-type="property" data-id="${property.Property_ID}">Edit Record</button>
       </div>
@@ -1920,11 +1912,6 @@ const CRM = (function () {
     // Existing property summary row removes
     el.querySelectorAll('[data-existing-prop-id] .btn-remove').forEach(btn => {
       btn.addEventListener('click', () => btn.closest('[data-existing-prop-id]').remove());
-    });
-
-    // Cancel
-    el.querySelector('[data-action="cancel"]').addEventListener('click', () => {
-      WidgetManager.close(widgetId);
     });
 
     // Delete
@@ -2202,7 +2189,6 @@ const CRM = (function () {
           <div class="pb-list"></div>
         </div>
         <div class="widget-footer">
-          <button class="btn-secondary" data-action="cancel">Close</button>
         </div>
       </div>
     </div>`;
@@ -2680,7 +2666,6 @@ const CRM = (function () {
           <div class="vm-list"></div>
         </div>
         <div class="widget-footer">
-          <button class="btn-secondary" data-action="cancel">Close</button>
         </div>
       </div>
     </div>`;
@@ -2917,9 +2902,6 @@ const CRM = (function () {
         _vmRenderChips();
         render();
         return;
-      }
-      if (e.target.closest('[data-action="cancel"]')) {
-        WidgetManager.close(widgetId);
       }
     });
 

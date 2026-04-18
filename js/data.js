@@ -59,6 +59,13 @@ const AppData = (function () {
     console.error('AppData: failed to load sheet data', err);
   });
 
-  return { tables, ready };
+  async function refresh(tabs) {
+    const targets = tabs || TABS;
+    await Promise.all(targets.map(async tab => {
+      tables[tab] = await _fetchTab(tab);
+    }));
+  }
+
+  return { tables, ready, refresh };
 
 }());
