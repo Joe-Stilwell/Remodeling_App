@@ -20,12 +20,18 @@ const AppData = (function () {
     'Link_Property_People',
     'Link_Property_Company',
     'Link_People_Relationship',
-    'DB_Costbook',
+    'DB_Costbook_Items',
+    'DB_Costbooks',
     'DB_Price_List',
     'DB_Divisions',
     'DB_Subdivisions',
-    'DB_PL_Categories',
-    'DB_PL_Subcategories',
+    'DB_Price_List_Categories',
+    'DB_Price_List_Subcategories',
+    'DB_Lookup_Lists',
+    'DB_Tax_Rates',
+    'DB_Documents',
+    'DB_Price_List_Vendors',
+    'DB_Price_List_History',
   ];
 
   // Converts a sheet tab (rows of values) into an array of objects

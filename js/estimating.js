@@ -94,7 +94,7 @@ const Estimating = (function () {
     { divNum:'44', divName:'Painting',              subNum:'020', subName:'Exterior Painting',     sortWeight:20,  itemId:'44.020.0002', description:'Exterior Trim Paint',                uom:'LF', labor:0.65,  material:0.28,   sub:0, other:0      },
   ];
 
-  /* ── Map a raw DB_Costbook sheet row to the internal format ── */
+  /* ── Map a raw DB_Costbook_Items sheet row to the internal format ── */
   function _mapRow(row, index) {
     return {
       divNum:      String(row.Div_ID    || '').trim(),
@@ -128,7 +128,6 @@ const Estimating = (function () {
       // Tax % — applies to Material only
       tax: parseFloat(row.Tax_Pct) || 0,
       // Vendor, lock, archived state, dates
-      vendor:      String(row.Preferred_Vendor || '').trim(),
       priceLocked: _truthy(row.Price_Locked),
       isArchived:  _truthy(row.Is_Archived),
       entrySource: String(row.Entry_Source || '').trim(),
@@ -947,8 +946,8 @@ const Estimating = (function () {
       if (action === 'cb-refresh') {
         const btn = e.target.closest('[data-action]');
         btn.disabled = true;
-        AppData.refresh(['DB_Costbook']).then(() => {
-          const raw  = AppData.tables['DB_Costbook'];
+        AppData.refresh(['DB_Costbook_Items']).then(() => {
+          const raw  = AppData.tables['DB_Costbook_Items'];
           const data = (raw && raw.length)
             ? raw.filter(r => r.Item_Description && !_truthy(r.Is_Archived)).map(_mapRow)
             : COSTBOOK_FALLBACK.filter(r => !r.isArchived);
@@ -1099,7 +1098,7 @@ const Estimating = (function () {
   const _ECI_UOM = ['EA','SF','LF','SQ','CY','MO','DY','HR','LS','LOT','ALLOW','BF'];
 
   function _eciDivisions() {
-    const raw = AppData.tables['DB_Costbook'] || [];
+    const raw = AppData.tables['DB_Costbook_Items'] || [];
     const seen = new Map();
     raw.forEach(r => {
       const num  = String(r.Div_ID   || '').trim();
@@ -1110,7 +1109,7 @@ const Estimating = (function () {
   }
 
   function _eciSubs(divNum) {
-    const raw = AppData.tables['DB_Costbook'] || [];
+    const raw = AppData.tables['DB_Costbook_Items'] || [];
     const seen = new Map();
     raw.filter(r => String(r.Div_ID || '').trim() === divNum)
        .forEach(r => {
@@ -1173,18 +1172,17 @@ const Estimating = (function () {
     return `
       <div class="eci-widget">
 
-        <!-- Toolbar: Add New | Copy | Save & New | Archive — Prev Item | Next Item (locked right) -->
+        <!-- Toolbar: Add New | Save & New | Copy | ‹ | › | Archive — Delete (right) -->
         <div class="eci-toolbar">
           <button class="btn-secondary sp-btn eci-new-btn">Add New</button>
-          <button class="btn-secondary sp-btn eci-copy-btn">Copy</button>
           <button class="btn-primary sp-btn eci-save-new-btn">Save &amp; New</button>
+          <button class="btn-secondary sp-btn sp-btn-icon eci-copy-btn" title="Copy item">&#10697;</button>
+          <button class="btn-secondary sp-btn sp-btn-icon eci-prev-btn" title="Previous item">&#8249;</button>
+          <button class="btn-secondary sp-btn sp-btn-icon eci-next-btn" title="Next item">&#8250;</button>
           <label class="eci-archive-label">
             Archive <input type="checkbox" class="eci-active-cb" data-field="isArchived"${cb(item.isArchived)}>
           </label>
-          <div class="eci-tb-right">
-            <button class="btn-secondary sp-btn eci-prev-btn">&#8249; Prev Item</button>
-            <button class="btn-secondary sp-btn eci-next-btn">Next Item &#8250;</button>
-          </div>
+          <button class="btn-secondary sp-btn eci-delete-btn" style="margin-left:auto">Delete</button>
         </div>
 
         <div class="eci-body">
@@ -1211,11 +1209,6 @@ const Estimating = (function () {
                 <input class="eci-input eci-cost-input" type="number" min="0" step="0.01"
                   style="flex:none;width:54px"
                   data-field="laborHours" value="${nv(item.laborHours)}" placeholder="0.00">
-              </div>
-              <div class="eci-row">
-                <span class="eci-label">Pref. Vendor</span>
-                <input class="eci-input eci-vendor-inp" type="text"
-                  data-field="vendor" value="${(item.vendor || '').replace(/"/g, '&quot;')}" placeholder="Supplier...">
               </div>
               <div class="eci-row">
                 <span class="eci-label">Date Created</span>
@@ -1312,7 +1305,6 @@ const Estimating = (function () {
 
         <!-- Footer: Delete (left) | Cancel | Save & Close (locked right) -->
         <div class="eci-footer">
-          <button class="btn-secondary sp-btn eci-delete-btn">Delete</button>
           <div class="eci-footer-right">
             <button class="btn-secondary sp-btn eci-cancel-btn">Cancel</button>
             <button class="btn-primary sp-btn eci-save-close-btn">Save &amp; Close</button>
@@ -1457,7 +1449,7 @@ const Estimating = (function () {
   }
 
   function openEditCostItem(itemId) {
-    const raw      = AppData.tables['DB_Costbook'] || [];
+    const raw      = AppData.tables['DB_Costbook_Items'] || [];
     const allItems = raw.filter(r => r.Item_Description).map(_mapRow);
 
     let item;
@@ -1501,7 +1493,7 @@ const Estimating = (function () {
 
   async function openCostbook() {
     await AppData.ready;
-    const raw  = AppData.tables['DB_Costbook'];
+    const raw  = AppData.tables['DB_Costbook_Items'];
     const data = (raw && raw.length)
       ? raw.filter(r => r.Item_Description && !_truthy(r.Is_Archived)).map(_mapRow)
       : COSTBOOK_FALLBACK.filter(r => !r.isArchived);
@@ -1673,16 +1665,6 @@ const Estimating = (function () {
           <div class="widget-footer">
           </div>
         </div>
-        <div class="pl-form-view" style="display:none">
-          <div class="pl-form-header">
-            <span class="pl-form-title"></span>
-          </div>
-          <div class="pl-form-body"></div>
-          <div class="widget-footer">
-            <button class="btn-secondary" data-action="cancel-pf">Cancel</button>
-            <button class="btn-primary"   data-action="save-pf">Save</button>
-          </div>
-        </div>
         </div>
       </div>
     </div>`;
@@ -1757,8 +1739,8 @@ const Estimating = (function () {
   }
 
   function _plGetCatsAndSubs(currentItems) {
-    const dbCats    = (AppData.tables['DB_PL_Categories']    || []).filter(r => r.PL_Cat_Name);
-    const dbSubcats = (AppData.tables['DB_PL_Subcategories'] || []).filter(r => r.PL_Subcat_Name);
+    const dbCats    = (AppData.tables['DB_Price_List_Categories']    || []).filter(r => r.PL_Cat_Name);
+    const dbSubcats = (AppData.tables['DB_Price_List_Subcategories'] || []).filter(r => r.PL_Subcat_Name);
     if (dbCats.length) {
       return {
         cats:    dbCats.sort((a,b) => (+a.Sort_Weight||0) - (+b.Sort_Weight||0)),
@@ -1793,7 +1775,6 @@ const Estimating = (function () {
     let searchText   = '';
     let showInactive = false;
     let searchTimer  = null;
-    let editingItem  = null;
     let pendingFocus = null; // { itemId, direction } — consumed after render()
     let ctxItemId    = null; // item id of the right-clicked row
 
@@ -1837,9 +1818,6 @@ const Estimating = (function () {
     const listWrap  = el.querySelector('.pl-list-wrap');
     const catList   = el.querySelector('.pl-cat-list');
     const listView  = el.querySelector('.pl-list-view');
-    const formView  = el.querySelector('.pl-form-view');
-    const formTitle = el.querySelector('.pl-form-title');
-    const formBody  = el.querySelector('.pl-form-body');
     const widgetEl  = el.querySelector('.pl-widget');
     const ctxMenu   = el.querySelector('.pl-ctx-menu');
     const treeEl    = el.querySelector('.pl-edit-tree');
@@ -2126,27 +2104,14 @@ const Estimating = (function () {
       });
     }
 
-    function showForm(item) {
-      editingItem = item || null;
-      formTitle.textContent = item ? (item.itemName || 'Edit Item') : 'New Price Item';
-      formBody.innerHTML = _buildFormFields(item, items);
-      const catInp  = formBody.querySelector('[data-pf="category"]');
-      const subList = formBody.querySelector('#pf-sub-opts');
-      catInp.addEventListener('input', function () {
-        subList.innerHTML = _plSubOptions(this.value.trim(), items).map(s => `<option value="${s}">`).join('');
-      });
-      listView.style.display = 'none';
-      formView.style.display = 'flex';
-    }
-
-    function hideForm() {
-      formView.style.display = 'none';
-      listView.style.display = 'flex';
-      editingItem = null;
-    }
-
     _refreshItems();
     render();
+
+    // Re-render when Edit Price Item widget saves
+    document.addEventListener('pl-item-saved', function _onPlItemSaved() {
+      _refreshItems();
+      render();
+    });
 
     // ── Edit Layout Mode ─────────────────────────────────────
     const plTipEl = document.createElement('div');
@@ -2434,12 +2399,13 @@ const Estimating = (function () {
       if (catRow) { _plToggleCatRow(catRow); return; }
       const subRow = e.target.closest('.pl-row-sub');
       if (subRow) { _plToggleSubRow(subRow); return; }
+    });
+
+    listEl.addEventListener('dblclick', function (e) {
       const nameCell = e.target.closest('.pl-name-cell');
-      if (nameCell) {
-        const id   = nameCell.closest('.pl-row').dataset.itemId;
-        const item = items.find(i => i.itemId === id);
-        if (item) showForm(item);
-      }
+      if (!nameCell) return;
+      const id = nameCell.closest('.pl-row')?.dataset.itemId;
+      if (id) openEditPriceItem(id);
     });
 
     // ── Main list drag-to-reorder within same sub-category ──
@@ -2508,7 +2474,7 @@ const Estimating = (function () {
       if (action === 'ctx-new') {
         _insertNewRow(ctxItemId);
       } else if (action === 'ctx-edit') {
-        if (item) showForm(item);
+        if (item) openEditPriceItem(item.itemId);
       } else if (action === 'ctx-archive') {
         if (!item) return;
         item.isActive = !item.isActive;
@@ -2540,7 +2506,7 @@ const Estimating = (function () {
       if (e.target.closest('[data-action="pl-refresh"]')) {
         const btn = e.target.closest('[data-action]');
         btn.disabled = true;
-        AppData.refresh(['DB_Price_List', 'DB_PL_Categories', 'DB_PL_Subcategories']).then(() => {
+        AppData.refresh(['DB_Price_List', 'DB_Price_List_Categories', 'DB_Price_List_Subcategories']).then(() => {
           const raw = AppData.tables['DB_Price_List'] || [];
           items = raw.filter(r => r.Item_Name).map(_mapPriceRow);
           render();
@@ -2583,42 +2549,6 @@ const Estimating = (function () {
         return;
       }
 
-      if (e.target.closest('[data-action="cancel-pf"]')) { hideForm(); return; }
-      if (e.target.closest('[data-action="save-pf"]')) {
-        const f = name => formBody.querySelector(`[data-pf="${name}"]`);
-        const pfData = {
-          itemId:       editingItem?.itemId || ('PL-' + Date.now()),
-          itemName:     f('name').value.trim(),
-          category:     f('category').value.trim(),
-          subCategory:  f('sub-category').value.trim(),
-          uom:          f('uom').value.trim(),
-          currentCost:  parseFloat(f('current-cost').value) || 0,
-          startingCost: parseFloat(f('starting-cost').value) || 0,
-          masterId:     f('master-id').value,
-          isActive:     f('is-active').checked,
-          _new:         !editingItem,
-        };
-        if (!pfData.itemName) return;
-        const stored = JSON.parse(localStorage.getItem('pl_price_items') || '[]');
-        const idx    = stored.findIndex(s => s.itemId === pfData.itemId);
-        if (idx >= 0) stored[idx] = { ...stored[idx], ...pfData };
-        else          stored.push(pfData);
-        localStorage.setItem('pl_price_items', JSON.stringify(stored));
-        const tbl = AppData.tables['DB_Price_List'] || [];
-        const ri  = tbl.findIndex(r => r.Item_ID === pfData.itemId);
-        const merged = {
-          Item_ID: pfData.itemId, PL_Cat_ID: pfData.category, PL_Subcat_ID: pfData.subCategory,
-          Item_Name: pfData.itemName, Unit_Of_Measure: pfData.uom, Current_Cost: pfData.currentCost,
-          Starting_Cost: pfData.startingCost, Master_Price_ID: pfData.masterId,
-          Is_Active: pfData.isActive ? 'TRUE' : 'FALSE',
-        };
-        if (ri >= 0) tbl[ri] = merged;
-        else         tbl.push(merged);
-        AppData.tables['DB_Price_List'] = tbl;
-        hideForm();
-        _refreshItems();
-        render();
-      }
     });
   }
 
@@ -2638,12 +2568,6 @@ const Estimating = (function () {
     return `
       <div class="form-row">
         <div class="form-group f-grow">
-          <label class="form-label">Item Name</label>
-          <input class="form-input" data-pf="name" value="${v.itemName || ''}" placeholder="e.g. 2x4x8 Stud">
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group f-grow">
           <label class="form-label">Category</label>
           <input class="form-input" data-pf="category" list="pf-cat-opts" value="${v.category || ''}" placeholder="Select or type new...">
           <datalist id="pf-cat-opts">${catDatalist}</datalist>
@@ -2652,6 +2576,12 @@ const Estimating = (function () {
           <label class="form-label">Sub-Category</label>
           <input class="form-input" data-pf="sub-category" list="pf-sub-opts" value="${v.subCategory || ''}" placeholder="Select or type new...">
           <datalist id="pf-sub-opts">${subDatalist}</datalist>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group f-grow">
+          <label class="form-label">Item Name</label>
+          <input class="form-input" data-pf="name" value="${v.itemName || ''}" placeholder="e.g. 2x4x8 Stud">
         </div>
       </div>
       <div class="form-row">
@@ -2679,11 +2609,160 @@ const Estimating = (function () {
           </select>
         </div>
       </div>
-      <div class="form-row" style="align-items:center; padding-top:4px;">
-        <label class="vd-check">
-          <input type="checkbox" data-pf="is-active"${v.isActive !== false ? ' checked' : ''}> Active
+      `;
+  }
+
+  /* ── Edit Price Item Widget ──────────────────────────────── */
+
+  function _plEditItemHTML(item, allItems) {
+    const isNew = !item;
+    return `<div class="sp-widget plei-widget">
+      <div class="sp-toolbar plei-toolbar">
+        <button class="btn-secondary sp-btn" data-action="plei-add">Add New</button>
+        <button class="btn-primary sp-btn" data-action="plei-save-new">Save &amp; New</button>
+        <button class="btn-secondary sp-btn sp-btn-icon" data-action="plei-copy"${isNew ? ' disabled' : ''} title="Copy item">&#10697;</button>
+        <button class="btn-secondary sp-btn sp-btn-icon plei-prev-btn" data-action="plei-prev" title="Previous item">&#8249;</button>
+        <button class="btn-secondary sp-btn sp-btn-icon plei-next-btn" data-action="plei-next" title="Next item">&#8250;</button>
+        <label class="eci-archive-label">
+          Archive <input type="checkbox" data-pf="archive"${item && !item.isActive ? ' checked' : ''}>
         </label>
-      </div>`;
+        <button class="btn-secondary sp-btn" data-action="plei-delete"${isNew ? ' disabled' : ''} style="margin-left:auto">Delete</button>
+      </div>
+      <div class="plei-body">
+        ${_buildFormFields(item, allItems)}
+      </div>
+      <div class="plei-footer">
+        <button class="btn-secondary sp-btn" data-action="plei-cancel">Cancel</button>
+        <button class="btn-primary sp-btn" data-action="plei-save">Save &amp; Close</button>
+      </div>
+    </div>`;
+  }
+
+  function openEditPriceItem(itemId, templateItem) {
+    const raw      = AppData.tables['DB_Price_List'] || [];
+    const allItems = raw.filter(r => r.Item_Name).map(_mapPriceRow);
+    const item     = templateItem || (itemId ? allItems.find(i => i.itemId === itemId) || null : null);
+    const id       = 'edit-price-item';
+    const title    = (item && !templateItem) ? 'Edit Price Item' : 'New Price Item';
+    if (WidgetManager.open(id, title, _plEditItemHTML(item, allItems), {
+      width: 480, height: 390, minWidth: 380, minHeight: 320, category: 'estimating',
+    }) !== false) {
+      _bindEditPriceItem(id, item, templateItem ? null : itemId, allItems);
+    }
+  }
+
+  function _bindEditPriceItem(widgetId, initialItem, itemId, allItems) {
+    const el = document.getElementById('widget-' + widgetId);
+    if (!el) return;
+
+    let editing = initialItem;
+    const bodyEl = el.querySelector('.plei-body');
+
+    function _rebuildForm(item) {
+      editing = item;
+      bodyEl.innerHTML = _buildFormFields(item, allItems);
+      const catInp  = bodyEl.querySelector('[data-pf="category"]');
+      const subList = bodyEl.querySelector('#pf-sub-opts');
+      if (catInp && subList) {
+        catInp.addEventListener('input', function () {
+          subList.innerHTML = _plSubOptions(this.value.trim(), allItems).map(s => `<option value="${s}">`).join('');
+        });
+      }
+    }
+
+    function _readForm() {
+      const f = name => bodyEl.querySelector(`[data-pf="${name}"]`);
+      return {
+        itemId:       editing?.itemId || ('PL-' + Date.now()),
+        itemName:     f('name').value.trim(),
+        category:     f('category').value.trim(),
+        subCategory:  f('sub-category').value.trim(),
+        uom:          f('uom').value.trim(),
+        currentCost:  parseFloat(f('current-cost').value) || 0,
+        startingCost: parseFloat(f('starting-cost').value) || 0,
+        masterId:     f('master-id').value,
+        isActive:     !(el.querySelector('[data-pf="archive"]')?.checked ?? false),
+        _new:         !editing,
+      };
+    }
+
+    function _persist(pfData) {
+      const stored = JSON.parse(localStorage.getItem('pl_price_items') || '[]');
+      const idx    = stored.findIndex(s => s.itemId === pfData.itemId);
+      if (idx >= 0) stored[idx] = { ...stored[idx], ...pfData };
+      else          stored.push(pfData);
+      localStorage.setItem('pl_price_items', JSON.stringify(stored));
+      const tbl    = AppData.tables['DB_Price_List'] || [];
+      const ri     = tbl.findIndex(r => r.Item_ID === pfData.itemId);
+      const merged = {
+        Item_ID: pfData.itemId, PL_Cat_ID: pfData.category, PL_Subcat_ID: pfData.subCategory,
+        Item_Name: pfData.itemName, Unit_Of_Measure: pfData.uom, Current_Cost: pfData.currentCost,
+        Starting_Cost: pfData.startingCost, Master_Price_ID: pfData.masterId,
+        Is_Active: pfData.isActive ? 'TRUE' : 'FALSE',
+      };
+      if (ri >= 0) tbl[ri] = merged;
+      else         tbl.push(merged);
+      AppData.tables['DB_Price_List'] = tbl;
+      document.dispatchEvent(new CustomEvent('pl-item-saved'));
+    }
+
+    function _navigate(dir) {
+      const all = (AppData.tables['DB_Price_List'] || []).filter(r => r.Item_Name).map(_mapPriceRow);
+      if (!editing || !all.length) return;
+      const idx  = all.findIndex(i => i.itemId === editing.itemId);
+      const next = dir === 'next' ? all[idx + 1] : all[idx - 1];
+      if (!next) return;
+      WidgetManager.close(widgetId);
+      openEditPriceItem(next.itemId);
+    }
+
+    el.querySelector('.plei-toolbar').addEventListener('click', function (e) {
+      const action = e.target.closest('[data-action]')?.dataset.action;
+      if (!action) return;
+      if (action === 'plei-cancel') { WidgetManager.close(widgetId); return; }
+      if (action === 'plei-save') {
+        const pfData = _readForm();
+        if (!pfData.itemName) return;
+        _persist(pfData);
+        WidgetManager.close(widgetId);
+        return;
+      }
+      if (action === 'plei-save-new') {
+        const pfData = _readForm();
+        if (!pfData.itemName) return;
+        _persist(pfData);
+        WidgetManager.close(widgetId);
+        openEditPriceItem(null);
+        return;
+      }
+      if (action === 'plei-add') {
+        WidgetManager.close(widgetId);
+        openEditPriceItem(null);
+        return;
+      }
+      if (action === 'plei-copy') {
+        if (!editing) return;
+        const copy = { ...editing, itemId: null };
+        WidgetManager.close(widgetId);
+        openEditPriceItem(null, copy);
+        return;
+      }
+      if (action === 'plei-delete') {
+        if (!editing) return;
+        if (!confirm(`Delete "${editing.itemName}"?`)) return;
+        const stored = JSON.parse(localStorage.getItem('pl_price_items') || '[]');
+        localStorage.setItem('pl_price_items', JSON.stringify(stored.filter(s => s.itemId !== editing.itemId)));
+        const tbl = AppData.tables['DB_Price_List'] || [];
+        AppData.tables['DB_Price_List'] = tbl.filter(r => r.Item_ID !== editing.itemId);
+        document.dispatchEvent(new CustomEvent('pl-item-saved'));
+        WidgetManager.close(widgetId);
+        return;
+      }
+      if (action === 'plei-prev') { _navigate('prev'); return; }
+      if (action === 'plei-next') { _navigate('next'); return; }
+    });
+
+    _rebuildForm(editing);
   }
 
   async function openPriceList() {
@@ -2897,7 +2976,7 @@ const Estimating = (function () {
 
     return `<div class="sp-widget est-widget">
       <div class="sp-toolbar est-toolbar">
-        <button class="btn-secondary sp-btn" data-action="est-setup">Estimate Setup</button>
+        <button class="btn-secondary sp-btn" data-action="est-setup">Estimate Settings</button>
         <button class="btn-secondary sp-btn" data-action="est-duplicate">Duplicate</button>
         <button class="btn-secondary sp-btn est-collapse-btn">Collapse All</button>
         <button class="btn-secondary sp-btn sp-btn-icon est-undo-btn" data-action="est-undo" disabled title="Undo">&#8617;</button>
@@ -3091,7 +3170,7 @@ const Estimating = (function () {
       // TODO: redo stack — wired in full-stack build
     });
     el.querySelector('[data-action="est-setup"]').addEventListener('click', () => {
-      alert('Estimate Setup: wired in full-stack build.');
+      openEstimateSettings(est.estimateId || null);
     });
     el.querySelector('[data-action="est-duplicate"]').addEventListener('click', () => {
       alert('Duplicate: wired in full-stack build.');
@@ -3168,6 +3247,268 @@ const Estimating = (function () {
 
   }
 
+  /* ── Estimate Settings Widget ────────────────────────────── */
+
+  function _estSettingsHTML(est) {
+    const v = est || {};
+
+    const people = (AppData.tables.DB_People || [])
+      .filter(r => r.Display_Name)
+      .sort((a, b) => a.Display_Name.localeCompare(b.Display_Name));
+    const personOpts = people.map(p =>
+      `<option value="${p.People_ID}"${p.People_ID === v.peopleId ? ' selected' : ''}>${p.Display_Name}</option>`
+    ).join('');
+
+    const allProps = AppData.tables.DB_Property || [];
+    const links    = AppData.tables.Link_Property_People || [];
+    const clientLinks = v.peopleId
+      ? links.filter(l => l.People_ID === v.peopleId && !l.Date_To).map(l => l.Property_ID)
+      : allProps.map(p => p.Property_ID);
+    const propPool = allProps.filter(p => clientLinks.includes(p.Property_ID));
+    const propOpts = propPool.map(p =>
+      `<option value="${p.Property_ID}"${p.Property_ID === v.propertyId ? ' selected' : ''}>${p.Address_Street_1}${p.Address_City ? ', ' + p.Address_City : ''}</option>`
+    ).join('');
+
+    const estTypeOpts = (AppData.tables.DB_Lookup_Lists || [])
+      .filter(r => r.List_Type === 'Estimate_Type')
+      .sort((a, b) => (a.Sort_Order || 0) - (b.Sort_Order || 0))
+      .map(r => `<option value="${r.List_Value}">`).join('');
+
+    const taxOpts = (AppData.tables.DB_Tax_Rates || []).map(r =>
+      `<option value="${r.Tax_ID}"${r.Tax_ID === v.taxId || (!v.taxId && r.Is_Default === 'TRUE') ? ' selected' : ''}>${r.Tax_Name}${r.Tax_Rate ? ' (' + r.Tax_Rate + '%)' : ''}</option>`
+    ).join('');
+
+    const mm  = v.markupMode || 'markup';
+    const nv  = f => v[f] != null ? v[f] : '';
+    const sel = (a, b) => a === b ? ' checked' : '';
+
+    function mkpRow(label, field) {
+      return `
+        <span class="est-mkp-label">${label}</span>
+        <input class="form-input est-mkp-inp" type="number" min="0" step="0.1"
+          data-es="${field}" value="${nv(field)}" placeholder="0">`;
+    }
+
+    return `
+      <div class="est-settings-widget">
+        <div class="est-settings-body">
+
+          <div class="form-section est-settings-hdr">Client &amp; Property</div>
+          <div class="est-settings-section">
+            <div class="form-row">
+              <div class="form-group f-grow">
+                <label class="form-label">Client</label>
+                <select class="form-select" data-es="people-id">
+                  <option value="">— Select Client —</option>
+                  ${personOpts}
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group f-grow">
+                <label class="form-label">Property</label>
+                <select class="form-select" data-es="property-id">
+                  <option value="">— Select Property —</option>
+                  ${propOpts}
+                </select>
+              </div>
+              <button class="btn-secondary sp-btn est-add-prop-btn" title="Add New Property" style="align-self:flex-end;margin-bottom:2px">+ Property</button>
+            </div>
+            <div class="est-address-display" data-es="address-display">${_esAddressText(v.propertyId, allProps)}</div>
+          </div>
+
+          <hr class="est-settings-divider">
+
+          <div class="form-section est-settings-hdr">Estimate Details</div>
+          <div class="est-settings-section">
+            <div class="form-row">
+              <div class="form-group f-grow">
+                <label class="form-label">Estimate Name</label>
+                <input class="form-input" data-es="name" value="${v.estimateName || ''}" placeholder="e.g. Kitchen Remodel">
+              </div>
+              <div class="form-group" style="flex:0 0 180px">
+                <label class="form-label">Estimate Type</label>
+                <input class="form-input" data-es="type" list="es-type-opts" value="${v.estimateType || ''}" placeholder="Select or type…">
+                <datalist id="es-type-opts">${estTypeOpts}</datalist>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group f-grow">
+                <label class="form-label">Notes</label>
+                <textarea class="form-textarea" data-es="notes" rows="3">${v.estimateNotes || ''}</textarea>
+              </div>
+            </div>
+          </div>
+
+          <hr class="est-settings-divider">
+
+          <div class="form-section est-settings-hdr">Markups &amp; Settings</div>
+          <div class="est-settings-section">
+            <div class="est-mm-toggle">
+              <label><input type="radio" name="es-mm" value="markup"${sel(mm,'markup')}> Markup %</label>
+              <label><input type="radio" name="es-mm" value="margin"${sel(mm,'margin')}> Margin %</label>
+            </div>
+            <div class="est-markup-grid">
+              ${mkpRow('Labor',        'markupLabor')}
+              ${mkpRow('Material',     'markupMaterial')}
+              ${mkpRow('Subcontractor','markupSub')}
+              ${mkpRow('Equipment',    'markupEquipment')}
+              ${mkpRow('Other',        'markupOther')}
+              <span class="est-mkp-label est-mkp-sep">Overhead</span>
+              <input class="form-input est-mkp-inp" type="number" min="0" step="0.1"
+                data-es="overheadPct" value="${nv('overheadPct')}" placeholder="0">
+              ${mkpRow('Profit',       'profitPct')}
+            </div>
+            <div class="form-row" style="margin-top:12px;align-items:flex-end">
+              <div class="form-group" style="flex:0 0 220px">
+                <label class="form-label">Tax Rate</label>
+                <select class="form-select" data-es="tax-id">
+                  <option value="">— None —</option>
+                  ${taxOpts}
+                </select>
+              </div>
+              <label class="est-show-sub-label">
+                <input type="checkbox" data-es="show-subdivisions"${v.showSubdivisions ? ' checked' : ''}> Show Sub-Divisions
+              </label>
+            </div>
+          </div>
+
+        </div><!-- /.est-settings-body -->
+        <div class="est-settings-footer">
+          <button class="btn-secondary sp-btn" data-action="es-cancel">Cancel</button>
+          <button class="btn-primary sp-btn"   data-action="es-done">Done</button>
+        </div>
+      </div>`;
+  }
+
+  function _esAddressText(propertyId, allProps) {
+    if (!propertyId) return '';
+    const p = (allProps || AppData.tables.DB_Property || []).find(r => r.Property_ID === propertyId);
+    if (!p) return '';
+    return [p.Address_Street_1, p.Address_Street_2, p.Address_City, p.Address_State, p.Address_Zip]
+      .filter(Boolean).join(', ');
+  }
+
+  function openEstimateSettings(estimateId) {
+    const raw = AppData.tables.DB_Estimates || [];
+    const row = estimateId ? raw.find(r => r.Estimate_ID === estimateId) : null;
+    const est = row ? {
+      estimateId:    row.Estimate_ID,
+      peopleId:      row.People_ID       || '',
+      propertyId:    row.Property_ID     || '',
+      estimateName:  row.Estimate_Name   || '',
+      estimateType:  row.Estimate_Type   || '',
+      estimateNotes: row.Notes           || '',
+      markupMode:    row.Markup_Mode     || 'markup',
+      markupLabor:   row.Default_Markup_Labor     || '',
+      markupMaterial:row.Default_Markup_Materials || '',
+      markupSub:     row.Default_Markup_Subs      || '',
+      markupEquipment:row.Default_Markup_Equipment|| '',
+      markupOther:   row.Default_Markup_Other     || '',
+      overheadPct:   row.Default_Overhead_Margin  || '',
+      profitPct:     row.Default_Profit_Margin    || '',
+      taxId:         row.Default_Tax_ID           || '',
+      showSubdivisions: row.Show_Subdivisions === 'TRUE',
+    } : null;
+    const title = est ? 'Estimate Settings' : 'New Estimate';
+    const id    = 'estimate-settings';
+    if (WidgetManager.open(id, title, _estSettingsHTML(est), {
+      width: 620, height: 600, minWidth: 480, minHeight: 460, category: 'estimating',
+    }) !== false) {
+      _bindEstimateSettings(id, est);
+    }
+  }
+
+  function _bindEstimateSettings(widgetId, initialEst) {
+    const el = document.getElementById('widget-' + widgetId);
+    if (!el) return;
+
+    const allProps  = AppData.tables.DB_Property || [];
+    const links     = AppData.tables.Link_Property_People || [];
+    const peopleEl  = el.querySelector('[data-es="people-id"]');
+    const propEl    = el.querySelector('[data-es="property-id"]');
+    const addrEl    = el.querySelector('[data-es="address-display"]');
+
+    function _rebuildProps(peopleId) {
+      const clientLinks = peopleId
+        ? links.filter(l => l.People_ID === peopleId && !l.Date_To).map(l => l.Property_ID)
+        : allProps.map(p => p.Property_ID);
+      const pool = allProps.filter(p => clientLinks.includes(p.Property_ID));
+      propEl.innerHTML = '<option value="">— Select Property —</option>' +
+        pool.map(p =>
+          `<option value="${p.Property_ID}">${p.Address_Street_1}${p.Address_City ? ', ' + p.Address_City : ''}</option>`
+        ).join('');
+      addrEl.textContent = '';
+    }
+
+    peopleEl.addEventListener('change', function () {
+      _rebuildProps(this.value);
+      if (allProps.filter(p =>
+        links.some(l => l.People_ID === this.value && l.Property_ID === p.Property_ID && !l.Date_To)
+      ).length === 1) {
+        const onlyId = links.find(l => l.People_ID === this.value && !l.Date_To)?.Property_ID;
+        if (onlyId) { propEl.value = onlyId; addrEl.textContent = _esAddressText(onlyId, allProps); }
+      }
+    });
+
+    propEl.addEventListener('change', function () {
+      addrEl.textContent = _esAddressText(this.value, allProps);
+    });
+
+    el.querySelector('.est-add-prop-btn').addEventListener('click', () => {
+      alert('Add New Property: wired in full-stack build.');
+    });
+
+    function _readForm() {
+      const f = key => el.querySelector(`[data-es="${key}"]`);
+      const mm = el.querySelector('[name="es-mm"]:checked');
+      return {
+        estimateId:      initialEst?.estimateId || null,
+        peopleId:        f('people-id').value,
+        propertyId:      f('property-id').value,
+        estimateName:    f('name').value.trim(),
+        estimateType:    f('type').value.trim(),
+        estimateNotes:   f('notes').value.trim(),
+        markupMode:      mm ? mm.value : 'markup',
+        markupLabor:     parseFloat(f('markupLabor').value)    || 0,
+        markupMaterial:  parseFloat(f('markupMaterial').value) || 0,
+        markupSub:       parseFloat(f('markupSub').value)      || 0,
+        markupEquipment: parseFloat(f('markupEquipment').value)|| 0,
+        markupOther:     parseFloat(f('markupOther').value)    || 0,
+        overheadPct:     parseFloat(f('overheadPct').value)    || 0,
+        profitPct:       parseFloat(f('profitPct').value)      || 0,
+        taxId:           f('tax-id').value,
+        showSubdivisions: f('show-subdivisions').checked,
+      };
+    }
+
+    function _persist(data) {
+      const stored = JSON.parse(localStorage.getItem('est_settings') || '[]');
+      const id     = data.estimateId || ('EST-' + Date.now());
+      const idx    = stored.findIndex(s => s.estimateId === id);
+      const record = { ...data, estimateId: id };
+      if (idx >= 0) stored[idx] = record;
+      else          stored.push(record);
+      localStorage.setItem('est_settings', JSON.stringify(stored));
+      document.dispatchEvent(new CustomEvent('est-settings-saved', { detail: record }));
+    }
+
+    el.addEventListener('click', function (e) {
+      const action = e.target.closest('[data-action]')?.dataset.action;
+      if (!action) return;
+      if (action === 'es-cancel') { WidgetManager.close(widgetId); return; }
+      if (action === 'es-done') {
+        const data = _readForm();
+        if (!data.estimateName) {
+          el.querySelector('[data-es="name"]').focus();
+          return;
+        }
+        _persist(data);
+        WidgetManager.close(widgetId);
+      }
+    });
+  }
+
   function openEstimate(estimateId) {
     const est = _EST_MOCK;
     const id  = 'estimate';
@@ -3179,6 +3520,6 @@ const Estimating = (function () {
   }
 
   /* ── Public API ───────────────────────────────────────────── */
-  return { openCostbook, openEditCostItem, openPriceList, openEstimate };
+  return { openCostbook, openEditCostItem, openPriceList, openEditPriceItem, openEstimate, openEstimateSettings };
 
 }());
