@@ -33,6 +33,18 @@ const WidgetManager = (function () {
     if (options.top !== undefined && options.left !== undefined) {
       top  = options.top;
       left = options.left;
+    } else if (options.centeredOn && state[options.centeredOn]) {
+      // Center horizontally over the parent; offset 30px from parent top
+      const pEl   = state[options.centeredOn].el;
+      const pTop  = parseInt(pEl.style.top)  || 0;
+      const pLeft = parseInt(pEl.style.left) || 0;
+      const pW    = pEl.offsetWidth;
+      const pH    = pEl.offsetHeight;
+      const cH    = autoHeight ? MIN_HEIGHT : h;
+      const rawLeft = pLeft + (pW - w)   / 2;
+      const rawTop  = pTop  + (pH - cH)  / 2;
+      left = Math.max(0, Math.min(rawLeft, workspace.clientWidth  - w));
+      top  = Math.max(0, Math.min(rawTop,  workspace.clientHeight - cH));
     } else {
       const offset  = cascadeCount * CASCADE_STEP;
       const maxLeft = workspace.clientWidth  - w;

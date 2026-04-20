@@ -621,9 +621,9 @@ const Estimating = (function () {
 
       if (itemRow) {
         const itemId = itemRow.dataset.item;
-        _item('+ Cost Item',       '',              () => openEditCostItem(null));
+        _item('+ Cost Item',       '',              () => openEditCostItem(null,   widgetId));
         _item('+ Header',          '',              () => _addHeaderAfter(itemRow));
-        _item('Edit Cost Item',    '',              () => openEditCostItem(itemId));
+        _item('Edit Cost Item',    '',              () => openEditCostItem(itemId, widgetId));
         _sep();
         _item('Archive Cost Item', '',              () => { /* TODO */ });
         _item('Delete Cost Item',  'cb-ctx-danger', () => { /* TODO */ });
@@ -647,7 +647,7 @@ const Estimating = (function () {
     rowsEl.addEventListener('dblclick', function (e) {
       const itemRow = e.target.closest('.cb-row-item');
       if (!itemRow) return;
-      openEditCostItem(itemRow.dataset.item);
+      openEditCostItem(itemRow.dataset.item, widgetId);
     });
 
     /* --- Header row label: double-click to edit, Enter/blur to lock --- */
@@ -1412,7 +1412,7 @@ const Estimating = (function () {
     function _navTo(idx) {
       if (idx < 0 || idx >= masterItems.length) return;
       WidgetManager.close(wid);
-      openEditCostItem(masterItems[idx].itemId);
+      openEditCostItem(masterItems[idx].itemId, 'costbook');
     }
 
     el.querySelector('.eci-prev-btn')?.addEventListener('click', () => _navTo(curIdx - 1));
@@ -1420,7 +1420,7 @@ const Estimating = (function () {
 
     el.querySelector('.eci-new-btn')?.addEventListener('click', () => {
       WidgetManager.close(wid);
-      openEditCostItem(null); /* null = new blank item */
+      openEditCostItem(null, 'costbook');
     });
 
     el.querySelector('.eci-copy-btn')?.addEventListener('click', () => {
@@ -1440,7 +1440,7 @@ const Estimating = (function () {
     el.querySelector('.eci-save-new-btn')?.addEventListener('click', () => {
       /* TODO: persist to Sheets, then open blank */
       WidgetManager.close(wid);
-      openEditCostItem(null);
+      openEditCostItem(null, 'costbook');
     });
 
     el.querySelector('.eci-cancel-btn')?.addEventListener('click', () => {
@@ -1448,7 +1448,7 @@ const Estimating = (function () {
     });
   }
 
-  function openEditCostItem(itemId) {
+  function openEditCostItem(itemId, parentWidgetId) {
     const raw      = AppData.tables['DB_Costbook_Items'] || [];
     const allItems = raw.filter(r => r.Item_Description).map(_mapRow);
 
@@ -1484,6 +1484,7 @@ const Estimating = (function () {
     const title = itemId ? 'Edit Cost Item' : 'New Cost Item';
     if (WidgetManager.open(wid, title, _eciHTML(item, aliases), {
       width: 550, height: 650, minWidth: 550, minHeight: 500, category: 'estimating',
+      centeredOn: parentWidgetId,
     }) !== false) {
       _bindECI(wid, item, allItems);
     }
@@ -2405,7 +2406,7 @@ const Estimating = (function () {
       const nameCell = e.target.closest('.pl-name-cell');
       if (!nameCell) return;
       const id = nameCell.closest('.pl-row')?.dataset.itemId;
-      if (id) openEditPriceItem(id);
+      if (id) openEditPriceItem(id, undefined, widgetId);
     });
 
     // ── Main list drag-to-reorder within same sub-category ──
@@ -2474,7 +2475,7 @@ const Estimating = (function () {
       if (action === 'ctx-new') {
         _insertNewRow(ctxItemId);
       } else if (action === 'ctx-edit') {
-        if (item) openEditPriceItem(item.itemId);
+        if (item) openEditPriceItem(item.itemId, undefined, widgetId);
       } else if (action === 'ctx-archive') {
         if (!item) return;
         item.isActive = !item.isActive;
@@ -2638,7 +2639,7 @@ const Estimating = (function () {
     </div>`;
   }
 
-  function openEditPriceItem(itemId, templateItem) {
+  function openEditPriceItem(itemId, templateItem, parentWidgetId) {
     const raw      = AppData.tables['DB_Price_List'] || [];
     const allItems = raw.filter(r => r.Item_Name).map(_mapPriceRow);
     const item     = templateItem || (itemId ? allItems.find(i => i.itemId === itemId) || null : null);
@@ -2646,6 +2647,7 @@ const Estimating = (function () {
     const title    = (item && !templateItem) ? 'Edit Price Item' : 'New Price Item';
     if (WidgetManager.open(id, title, _plEditItemHTML(item, allItems), {
       width: 480, height: 390, minWidth: 380, minHeight: 320, category: 'estimating',
+      centeredOn: parentWidgetId,
     }) !== false) {
       _bindEditPriceItem(id, item, templateItem ? null : itemId, allItems);
     }
@@ -2713,7 +2715,7 @@ const Estimating = (function () {
       const next = dir === 'next' ? all[idx + 1] : all[idx - 1];
       if (!next) return;
       WidgetManager.close(widgetId);
-      openEditPriceItem(next.itemId);
+      openEditPriceItem(next.itemId, undefined, 'price-list');
     }
 
     el.querySelector('.plei-toolbar').addEventListener('click', function (e) {
@@ -2732,19 +2734,19 @@ const Estimating = (function () {
         if (!pfData.itemName) return;
         _persist(pfData);
         WidgetManager.close(widgetId);
-        openEditPriceItem(null);
+        openEditPriceItem(null, undefined, 'price-list');
         return;
       }
       if (action === 'plei-add') {
         WidgetManager.close(widgetId);
-        openEditPriceItem(null);
+        openEditPriceItem(null, undefined, 'price-list');
         return;
       }
       if (action === 'plei-copy') {
         if (!editing) return;
         const copy = { ...editing, itemId: null };
         WidgetManager.close(widgetId);
-        openEditPriceItem(null, copy);
+        openEditPriceItem(null, copy, 'price-list');
         return;
       }
       if (action === 'plei-delete') {
@@ -2979,6 +2981,9 @@ const Estimating = (function () {
         <button class="btn-secondary sp-btn" data-action="est-setup">Estimate Settings</button>
         <button class="btn-secondary sp-btn" data-action="est-duplicate">Duplicate</button>
         <button class="btn-secondary sp-btn est-collapse-btn">Collapse All</button>
+        <label class="est-show-sub-lbl" title="Show Sub-Divisions in estimate grid">
+          <input type="checkbox" data-action="est-show-sub"> Sub-Divs
+        </label>
         <button class="btn-secondary sp-btn sp-btn-icon est-undo-btn" data-action="est-undo" disabled title="Undo">&#8617;</button>
         <button class="btn-secondary sp-btn sp-btn-icon est-redo-btn" data-action="est-redo" disabled title="Redo">&#8618;</button>
         <button class="btn-secondary sp-btn sp-btn-icon" data-action="est-print" title="Print">&#9113;</button>
@@ -3170,7 +3175,7 @@ const Estimating = (function () {
       // TODO: redo stack — wired in full-stack build
     });
     el.querySelector('[data-action="est-setup"]').addEventListener('click', () => {
-      openEstimateSettings(est.estimateId || null);
+      openEstimateSettings(est.estimateId || null, wid);
     });
     el.querySelector('[data-action="est-duplicate"]').addEventListener('click', () => {
       alert('Duplicate: wired in full-stack build.');
@@ -3252,15 +3257,13 @@ const Estimating = (function () {
   function _estSettingsHTML(est) {
     const v = est || {};
 
-    const people = (AppData.tables.DB_People || [])
-      .filter(r => r.Display_Name)
-      .sort((a, b) => a.Display_Name.localeCompare(b.Display_Name));
-    const personOpts = people.map(p =>
-      `<option value="${p.People_ID}"${p.People_ID === v.peopleId ? ' selected' : ''}>${p.Display_Name}</option>`
-    ).join('');
-
     const allProps = AppData.tables.DB_Property || [];
     const links    = AppData.tables.Link_Property_People || [];
+
+    const clientName = v.peopleId
+      ? ((AppData.tables.DB_People || []).find(p => p.People_ID === v.peopleId) || {}).Display_Name || ''
+      : '';
+
     const clientLinks = v.peopleId
       ? links.filter(l => l.People_ID === v.peopleId && !l.Date_To).map(l => l.Property_ID)
       : allProps.map(p => p.Property_ID);
@@ -3272,21 +3275,25 @@ const Estimating = (function () {
     const estTypeOpts = (AppData.tables.DB_Lookup_Lists || [])
       .filter(r => r.List_Type === 'Estimate_Type')
       .sort((a, b) => (a.Sort_Order || 0) - (b.Sort_Order || 0))
-      .map(r => `<option value="${r.List_Value}">`).join('');
+      .map(r => `<option value="${r.List_Value}"${r.List_Value === v.estimateType ? ' selected' : ''}>${r.List_Value}</option>`)
+      .join('');
 
-    const taxOpts = (AppData.tables.DB_Tax_Rates || []).map(r =>
-      `<option value="${r.Tax_ID}"${r.Tax_ID === v.taxId || (!v.taxId && r.Is_Default === 'TRUE') ? ' selected' : ''}>${r.Tax_Name}${r.Tax_Rate ? ' (' + r.Tax_Rate + '%)' : ''}</option>`
+    const taxRates  = AppData.tables.DB_Tax_Rates || [];
+    const selTax    = taxRates.find(r => r.Tax_ID === v.taxId) || taxRates.find(r => r.Is_Default === 'TRUE');
+    const taxOpts   = taxRates.map(r =>
+      `<option value="${r.Tax_ID}"${r === selTax ? ' selected' : ''}>${r.Tax_Name}</option>`
     ).join('');
+    const taxDisplay = selTax ? selTax.Tax_Rate : '';
 
     const mm  = v.markupMode || 'markup';
     const nv  = f => v[f] != null ? v[f] : '';
     const sel = (a, b) => a === b ? ' checked' : '';
 
-    function mkpRow(label, field) {
-      return `
-        <span class="est-mkp-label">${label}</span>
-        <input class="form-input est-mkp-inp" type="number" min="0" step="0.1"
-          data-es="${field}" value="${nv(field)}" placeholder="0">`;
+    function mkpField(lbl, field) {
+      return `<div class="est-mkp-field">
+        <span class="form-label">${lbl}</span>
+        <input class="est-mkp-inp" type="number" min="0" step="0.1" data-es="${field}" value="${nv(field)}" placeholder="0">
+      </div>`;
     }
 
     return `
@@ -3298,10 +3305,11 @@ const Estimating = (function () {
             <div class="form-row">
               <div class="form-group f-grow">
                 <label class="form-label">Client</label>
-                <select class="form-select" data-es="people-id">
-                  <option value="">— Select Client —</option>
-                  ${personOpts}
-                </select>
+                <div class="est-client-wrap">
+                  <input class="form-input est-client-inp" placeholder="Search by name…" value="${clientName}" autocomplete="off">
+                  <input type="hidden" data-es="people-id" value="${v.peopleId || ''}">
+                  <div class="est-client-results" style="display:none"></div>
+                </div>
               </div>
             </div>
             <div class="form-row">
@@ -3312,7 +3320,7 @@ const Estimating = (function () {
                   ${propOpts}
                 </select>
               </div>
-              <button class="btn-secondary sp-btn est-add-prop-btn" title="Add New Property" style="align-self:flex-end;margin-bottom:2px">+ Property</button>
+              <button class="btn-secondary sp-btn est-add-prop-btn" style="align-self:flex-end;margin-bottom:2px">+ Property</button>
             </div>
             <div class="est-address-display" data-es="address-display">${_esAddressText(v.propertyId, allProps)}</div>
           </div>
@@ -3328,8 +3336,10 @@ const Estimating = (function () {
               </div>
               <div class="form-group" style="flex:0 0 180px">
                 <label class="form-label">Estimate Type</label>
-                <input class="form-input" data-es="type" list="es-type-opts" value="${v.estimateType || ''}" placeholder="Select or type…">
-                <datalist id="es-type-opts">${estTypeOpts}</datalist>
+                <select class="form-select" data-es="type">
+                  <option value="">— Select Type —</option>
+                  ${estTypeOpts}
+                </select>
               </div>
             </div>
             <div class="form-row">
@@ -3344,32 +3354,33 @@ const Estimating = (function () {
 
           <div class="form-section est-settings-hdr">Markups &amp; Settings</div>
           <div class="est-settings-section">
-            <div class="est-mm-toggle">
-              <label><input type="radio" name="es-mm" value="markup"${sel(mm,'markup')}> Markup %</label>
-              <label><input type="radio" name="es-mm" value="margin"${sel(mm,'margin')}> Margin %</label>
-            </div>
-            <div class="est-markup-grid">
-              ${mkpRow('Labor',        'markupLabor')}
-              ${mkpRow('Material',     'markupMaterial')}
-              ${mkpRow('Subcontractor','markupSub')}
-              ${mkpRow('Equipment',    'markupEquipment')}
-              ${mkpRow('Other',        'markupOther')}
-              <span class="est-mkp-label est-mkp-sep">Overhead</span>
-              <input class="form-input est-mkp-inp" type="number" min="0" step="0.1"
-                data-es="overheadPct" value="${nv('overheadPct')}" placeholder="0">
-              ${mkpRow('Profit',       'profitPct')}
-            </div>
-            <div class="form-row" style="margin-top:12px;align-items:flex-end">
-              <div class="form-group" style="flex:0 0 220px">
-                <label class="form-label">Tax Rate</label>
-                <select class="form-select" data-es="tax-id">
-                  <option value="">— None —</option>
-                  ${taxOpts}
-                </select>
+            <div class="est-mm-row">
+              <div class="est-mm-toggle">
+                <label><input type="radio" name="es-mm" value="markup"${sel(mm,'markup')}> Markup %</label>
+                <label><input type="radio" name="es-mm" value="margin"${sel(mm,'margin')}> Margin %</label>
               </div>
-              <label class="est-show-sub-label">
-                <input type="checkbox" data-es="show-subdivisions"${v.showSubdivisions ? ' checked' : ''}> Show Sub-Divisions
-              </label>
+              <div class="est-tax-group">
+                <span class="form-label">Tax Rate</span>
+                <div class="est-tax-row">
+                  <select class="form-select est-tax-sel" data-es="tax-id">
+                    <option value="">—</option>
+                    ${taxOpts}
+                  </select>
+                  <input type="number" class="est-tax-display" data-es="tax-display" min="0" step="0.001" placeholder="0" value="${taxDisplay}">
+                </div>
+              </div>
+            </div>
+            <div class="est-mkp-row">
+              ${mkpField('Labor',  'markupLabor')}
+              ${mkpField('Mat',    'markupMaterial')}
+              ${mkpField('Sub',    'markupSub')}
+              ${mkpField('Equip',  'markupEquipment')}
+              ${mkpField('Other',  'markupOther')}
+              <div class="est-mkp-field est-mkp-sep-field">
+                <span class="form-label">OH</span>
+                <input class="est-mkp-inp" type="number" min="0" step="0.1" data-es="overheadPct" value="${nv('overheadPct')}" placeholder="0">
+              </div>
+              ${mkpField('Profit', 'profitPct')}
             </div>
           </div>
 
@@ -3389,7 +3400,7 @@ const Estimating = (function () {
       .filter(Boolean).join(', ');
   }
 
-  function openEstimateSettings(estimateId) {
+  function openEstimateSettings(estimateId, parentWidgetId) {
     const raw = AppData.tables.DB_Estimates || [];
     const row = estimateId ? raw.find(r => r.Estimate_ID === estimateId) : null;
     const est = row ? {
@@ -3410,10 +3421,11 @@ const Estimating = (function () {
       taxId:         row.Default_Tax_ID           || '',
       showSubdivisions: row.Show_Subdivisions === 'TRUE',
     } : null;
-    const title = est ? 'Estimate Settings' : 'New Estimate';
+    const title = 'Estimate Settings';
     const id    = 'estimate-settings';
     if (WidgetManager.open(id, title, _estSettingsHTML(est), {
-      width: 620, height: 600, minWidth: 480, minHeight: 460, category: 'estimating',
+      width: 420, height: 560, minWidth: 400, minHeight: 460, category: 'estimating',
+      centeredOn: parentWidgetId,
     }) !== false) {
       _bindEstimateSettings(id, est);
     }
@@ -3423,33 +3435,54 @@ const Estimating = (function () {
     const el = document.getElementById('widget-' + widgetId);
     if (!el) return;
 
-    const allProps  = AppData.tables.DB_Property || [];
-    const links     = AppData.tables.Link_Property_People || [];
-    const peopleEl  = el.querySelector('[data-es="people-id"]');
-    const propEl    = el.querySelector('[data-es="property-id"]');
-    const addrEl    = el.querySelector('[data-es="address-display"]');
+    const allProps     = AppData.tables.DB_Property || [];
+    const links        = AppData.tables.Link_Property_People || [];
+    const allPeople    = (AppData.tables.DB_People || []).filter(r => r.Display_Name);
+    const clientInp    = el.querySelector('.est-client-inp');
+    const clientIdEl   = el.querySelector('[data-es="people-id"]');
+    const clientResults= el.querySelector('.est-client-results');
+    const propEl       = el.querySelector('[data-es="property-id"]');
+    const addrEl       = el.querySelector('[data-es="address-display"]');
 
     function _rebuildProps(peopleId) {
-      const clientLinks = peopleId
+      const ids  = peopleId
         ? links.filter(l => l.People_ID === peopleId && !l.Date_To).map(l => l.Property_ID)
         : allProps.map(p => p.Property_ID);
-      const pool = allProps.filter(p => clientLinks.includes(p.Property_ID));
+      const pool = allProps.filter(p => ids.includes(p.Property_ID));
       propEl.innerHTML = '<option value="">— Select Property —</option>' +
         pool.map(p =>
           `<option value="${p.Property_ID}">${p.Address_Street_1}${p.Address_City ? ', ' + p.Address_City : ''}</option>`
         ).join('');
       addrEl.textContent = '';
+      if (pool.length === 1) {
+        propEl.value = pool[0].Property_ID;
+        addrEl.textContent = _esAddressText(pool[0].Property_ID, allProps);
+      }
     }
 
-    peopleEl.addEventListener('change', function () {
-      _rebuildProps(this.value);
-      if (allProps.filter(p =>
-        links.some(l => l.People_ID === this.value && l.Property_ID === p.Property_ID && !l.Date_To)
-      ).length === 1) {
-        const onlyId = links.find(l => l.People_ID === this.value && !l.Date_To)?.Property_ID;
-        if (onlyId) { propEl.value = onlyId; addrEl.textContent = _esAddressText(onlyId, allProps); }
-      }
+    clientInp.addEventListener('input', function () {
+      const q = this.value.trim().toLowerCase();
+      if (!q) { clientResults.style.display = 'none'; return; }
+      const hits = allPeople.filter(p => p.Display_Name.toLowerCase().includes(q)).slice(0, 10);
+      if (!hits.length) { clientResults.style.display = 'none'; return; }
+      clientResults.innerHTML = hits.map(p =>
+        `<div class="est-client-result-row" data-id="${p.People_ID}" data-name="${p.Display_Name.replace(/"/g,'&quot;')}">${p.Display_Name}</div>`
+      ).join('');
+      clientResults.style.display = '';
     });
+
+    clientResults.addEventListener('click', function (e) {
+      const row = e.target.closest('.est-client-result-row');
+      if (!row) return;
+      clientInp.value    = row.dataset.name;
+      clientIdEl.value   = row.dataset.id;
+      clientResults.style.display = 'none';
+      _rebuildProps(row.dataset.id);
+    });
+
+    el.addEventListener('click', function (e) {
+      if (!e.target.closest('.est-client-wrap')) clientResults.style.display = 'none';
+    }, true);
 
     propEl.addEventListener('change', function () {
       addrEl.textContent = _esAddressText(this.value, allProps);
@@ -3459,26 +3492,32 @@ const Estimating = (function () {
       alert('Add New Property: wired in full-stack build.');
     });
 
+    const taxRates = AppData.tables.DB_Tax_Rates || [];
+    el.querySelector('[data-es="tax-id"]').addEventListener('change', function () {
+      const r = taxRates.find(t => t.Tax_ID === this.value);
+      el.querySelector('[data-es="tax-display"]').value = r ? r.Tax_Rate : '';
+    });
+
     function _readForm() {
-      const f = key => el.querySelector(`[data-es="${key}"]`);
+      const f  = key => el.querySelector(`[data-es="${key}"]`);
       const mm = el.querySelector('[name="es-mm"]:checked');
       return {
         estimateId:      initialEst?.estimateId || null,
         peopleId:        f('people-id').value,
         propertyId:      f('property-id').value,
         estimateName:    f('name').value.trim(),
-        estimateType:    f('type').value.trim(),
+        estimateType:    f('type').value,
         estimateNotes:   f('notes').value.trim(),
         markupMode:      mm ? mm.value : 'markup',
-        markupLabor:     parseFloat(f('markupLabor').value)    || 0,
-        markupMaterial:  parseFloat(f('markupMaterial').value) || 0,
-        markupSub:       parseFloat(f('markupSub').value)      || 0,
-        markupEquipment: parseFloat(f('markupEquipment').value)|| 0,
-        markupOther:     parseFloat(f('markupOther').value)    || 0,
-        overheadPct:     parseFloat(f('overheadPct').value)    || 0,
-        profitPct:       parseFloat(f('profitPct').value)      || 0,
+        markupLabor:     parseFloat(f('markupLabor').value)     || 0,
+        markupMaterial:  parseFloat(f('markupMaterial').value)  || 0,
+        markupSub:       parseFloat(f('markupSub').value)       || 0,
+        markupEquipment: parseFloat(f('markupEquipment').value) || 0,
+        markupOther:     parseFloat(f('markupOther').value)     || 0,
+        overheadPct:     parseFloat(f('overheadPct').value)     || 0,
+        profitPct:       parseFloat(f('profitPct').value)       || 0,
         taxId:           f('tax-id').value,
-        showSubdivisions: f('show-subdivisions').checked,
+        taxRatePct:      parseFloat(f('tax-display').value) || 0,
       };
     }
 

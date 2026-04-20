@@ -209,6 +209,9 @@
   .collapse {
     visibility: collapse;
   }
+  .invisible {
+    visibility: hidden;
+  }
   .visible {
     visibility: visible;
   }
@@ -280,6 +283,12 @@
   }
   .hidden {
     display: none;
+  }
+  .inline {
+    display: inline;
+  }
+  .inline-flex {
+    display: inline-flex;
   }
   .h-5 {
     height: calc(var(--spacing) * 5);
@@ -355,6 +364,10 @@
   }
   .rounded-xl {
     border-radius: var(--radius-xl);
+  }
+  .border {
+    border-style: var(--tw-border-style);
+    border-width: 1px;
   }
   .border-b {
     border-bottom-style: var(--tw-border-style);
@@ -563,6 +576,7 @@
 }
 :root {
   --btn-col: 80px;
+  --color-border: var(--color-border-slate);
 }
 * {
   margin: 0;
@@ -1189,11 +1203,11 @@ body.is-dragging .dock-icon-title {
   box-sizing: border-box;
 }
 .form-input {
-  height: 24px;
+  height: 22px;
   padding: 0 6px 0 3px;
 }
 .form-select {
-  height: 24px;
+  height: 22px;
   padding: 0 20px 0 3px;
   background-image: linear-gradient(to left, white 20px, transparent 20px);
   background-repeat: no-repeat;
@@ -4945,48 +4959,56 @@ body.is-dragging .widget {
   margin-bottom: 10px;
 }
 .est-settings-section {
-  margin-bottom: 14px;
+  margin-bottom: 4px;
 }
 .est-settings-divider {
   border: none;
   border-top: 1px solid var(--color-border);
-  margin: 4px 0 14px;
+  margin: 0 0 12px;
 }
 .est-address-display {
   font-size: 11px;
   color: var(--color-text-secondary);
-  padding: 3px 4px;
-  min-height: 16px;
+  padding: 2px 4px;
+  min-height: 0;
 }
-.est-markup-grid {
-  display: grid;
-  grid-template-columns: 110px 80px;
-  gap: 4px 8px;
-  align-items: center;
-  margin-bottom: 4px;
+.est-client-wrap {
+  position: relative;
 }
-.est-mkp-label {
+.est-client-results {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  max-height: 180px;
+  overflow-y: auto;
+  background: white;
+  border: 1px solid var(--color-brand-primary);
+  border-top: none;
+  border-radius: 0 0 4px 4px;
+  z-index: 200;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.12);
+}
+.est-client-result-row {
+  padding: 5px 8px;
   font-size: 12px;
-  text-align: right;
-  color: var(--color-text-primary);
+  cursor: pointer;
 }
-.est-mkp-sep {
-  margin-top: 6px;
-  border-top: 1px solid var(--color-border);
-  padding-top: 6px;
+.est-client-result-row:hover {
+  background: var(--color-brand-tint);
 }
-.est-markup-grid .est-mkp-sep + input {
-  margin-top: 6px;
-}
-.est-mkp-inp {
-  width: 80px !important;
-  text-align: right;
+.est-mm-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  margin-bottom: 8px;
 }
 .est-mm-toggle {
   display: flex;
   gap: 16px;
   font-size: 12px;
-  margin-bottom: 10px;
+  align-items: center;
+  padding-bottom: 2px;
 }
 .est-mm-toggle label {
   display: flex;
@@ -4994,13 +5016,76 @@ body.is-dragging .widget {
   gap: 4px;
   cursor: pointer;
 }
-.est-show-sub-label {
+.est-tax-group {
+  position: relative;
+  padding-top: 10px;
+}
+.est-tax-row {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+.est-tax-sel {
+  width: 56px !important;
+}
+.est-tax-display {
+  width: 52px !important;
+  height: 24px;
+  padding: 0 4px;
+  font-size: 12px;
+  text-align: right;
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  background: white;
+}
+.est-tax-display:focus {
+  outline: none;
+  border-color: var(--color-brand-primary);
+}
+.est-settings-widget input[type="number"]::-webkit-outer-spin-button, .est-settings-widget input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.est-settings-widget input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+.est-mkp-row {
+  display: flex;
+  gap: 6px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+.est-mkp-field {
+  position: relative;
+  padding-top: 10px;
+}
+.est-mkp-inp {
+  width: 44px !important;
+  height: 24px;
+  padding: 0 4px;
+  text-align: right;
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  font-size: 12px;
+  background: white;
+}
+.est-mkp-inp:focus {
+  outline: none;
+  border-color: var(--color-brand-primary);
+}
+.est-mkp-sep-field {
+  border-left: 1px solid var(--color-border);
+  margin-left: 8px;
+}
+.est-show-sub-lbl {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   font-size: 12px;
   cursor: pointer;
-  padding-bottom: 3px;
+  padding: 0 2px;
+  white-space: nowrap;
 }
 .est-settings-footer {
   display: flex;
