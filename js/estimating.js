@@ -329,11 +329,28 @@ const Estimating = (function () {
 
     /* --- Tag count (items only, not div/sub header checkboxes) --- */
     function _updateTagCount() {
-      const n = el.querySelectorAll('.cb-tag-item:checked').length;
+      const n           = el.querySelectorAll('.cb-tag-item:checked').length;
+      const hasEstimate = _getOpenEstimates().length > 0;
       tagCountEl.textContent   = n > 0 ? `${n} item${n === 1 ? '' : 's'} selected` : '';
       tagCountEl.dataset.count = n;
-      transferBtn.disabled     = n === 0;
+      transferBtn.disabled     = n === 0 || !hasEstimate;
     }
+
+    function _applyTagState() {
+      const hasEstimate = _getOpenEstimates().length > 0;
+      el.querySelectorAll('.cb-tag-item').forEach(cb => {
+        cb.disabled = !hasEstimate;
+        cb.title    = hasEstimate ? '' : 'Open an estimate to enable transfer';
+      });
+      _updateTagCount();
+    }
+
+    /* Called externally when an estimate opens/closes */
+    function _notifyCostbookTagStateLocal() { _applyTagState(); }
+    if (!window._cbTagListeners) window._cbTagListeners = [];
+    window._cbTagListeners.push(_notifyCostbookTagStateLocal);
+
+    _applyTagState();
 
     /* --- Column resize with localStorage persistence --- */
     const mainEl = el.querySelector('.cb-main');
@@ -424,6 +441,14 @@ const Estimating = (function () {
       const cb = e.target;
       if (!cb.matches('.cb-tag-item')) return;
       _updateTagCount();
+    });
+
+    /* Transfer button → open Transfer widget */
+    transferBtn.addEventListener('click', () => {
+      const tagged = [...el.querySelectorAll('.cb-tag-item:checked')].map(cb => ({
+        itemId: cb.dataset.item, divNum: cb.dataset.div, subNum: cb.dataset.sub,
+      }));
+      openTransfer(tagged, 'costbook');
     });
 
     /* --- Expand All / Collapse All toggle --- */
@@ -2776,6 +2801,29 @@ const Estimating = (function () {
     }) !== false) _bindPriceList(id);
   }
 
+  /* ── Open-estimate registry (multi-instance support) ─────── */
+  const _openEstimates = new Map(); // widgetId → est object
+
+  function _getOpenEstimates() {
+    for (const [id] of _openEstimates)
+      if (!WidgetManager.isOpen(id)) _openEstimates.delete(id);
+    return [..._openEstimates.entries()].map(([id, est]) => ({ id, est }));
+  }
+
+  function _notifyCostbookTagState() {
+    (window._cbTagListeners || []).forEach(fn => fn());
+  }
+
+  /* ── Estimate List Mock Data ─────────────────────────────── */
+
+  const _EST_LIST_MOCK = [
+    { estimateId: 'E001', clientName: 'John & Mary Smith',   estimateName: 'Kitchen & Bath Remodel 2026', address: '1824 Millbrook Dr, Nashville',  status: 'Active',   totalPrice: 9918.68, dateStarted: '2026-01-15', dateModified: '2026-04-18', costbook: 'Contractor Advantage 2026', notes: 'Client wants to stay under $50K. Phase 2 pending bid from plumber.' },
+    { estimateId: 'E002', clientName: 'Robert Johnson',       estimateName: 'Master Bath Addition',        address: '456 Elm Ave, Franklin',          status: 'Draft',    totalPrice: 24500,   dateStarted: '2026-03-01', dateModified: '2026-04-10', costbook: 'My Costbook 2026',           notes: 'Waiting on structural engineer report before finalizing scope.' },
+    { estimateId: 'E003', clientName: 'Patricia & Tom Ward',  estimateName: 'Deck & Screened Porch',       address: '892 Crestview Ln, Brentwood',    status: 'Active',   totalPrice: 31200,   dateStarted: '2026-02-20', dateModified: '2026-03-28', costbook: 'Contractor Advantage 2026', notes: '' },
+    { estimateId: 'E004', clientName: 'David Chen',           estimateName: 'Basement Finishing',          address: '3301 Highland Ave, Nashville',   status: 'Draft',    totalPrice: 0,       dateStarted: '2026-04-05', dateModified: '2026-04-19', costbook: 'My Costbook 2026',           notes: 'Initial consultation done. Need to discuss egress window options.' },
+    { estimateId: 'E005', clientName: 'Susan & Mark Torres',  estimateName: 'Full Kitchen Remodel',        address: '711 Maple St, Hendersonville',   status: 'Archived', totalPrice: 67400,   dateStarted: '2025-08-10', dateModified: '2025-11-22', costbook: 'Contractor Advantage 2025', notes: 'Client decided not to proceed. Keep for reference.' },
+  ];
+
   /* ── Estimate Widget ─────────────────────────────────────── */
 
   const _EST_MOCK = {
@@ -2982,6 +3030,7 @@ const Estimating = (function () {
     return `<div class="sp-widget est-widget">
       <div class="sp-toolbar est-toolbar">
         <button class="btn-secondary sp-btn" data-action="est-setup">Estimate Settings</button>
+        <button class="btn-secondary sp-btn" data-action="est-costbook">Costbook</button>
         <button class="btn-secondary sp-btn est-collapse-btn">Collapse All</button>
         <label class="est-show-sub-lbl" title="Show Sub-Divisions in estimate grid">
           <input type="checkbox" data-action="est-show-sub"> Hide Sub-Divs
@@ -3275,6 +3324,9 @@ const Estimating = (function () {
     el.querySelector('[data-action="est-setup"]').addEventListener('click', () => {
       openEstimateSettings(est.estimateId || null, wid);
     });
+    el.querySelector('[data-action="est-costbook"]').addEventListener('click', () => {
+      openCostbook();
+    });
     /* Overflow menu */
     const overflowBtn  = el.querySelector('.est-overflow-btn');
     const overflowMenu = el.querySelector('.est-overflow-menu');
@@ -3363,6 +3415,152 @@ const Estimating = (function () {
       onMove: w => { el.querySelector('.est-tab-panel').style.minWidth = w + 'px'; },
     });
 
+  }
+
+  /* ── Transfer Widget ─────────────────────────────────────── */
+
+  function _transferHTML(tagged, openEsts) {
+    const n = tagged.length;
+    const typeLabel = t => t === 'Sub-Phase' ? 'SUB' : t === 'Change Order' ? 'C/O' : 'PH';
+    const typeCls   = t => t === 'Sub-Phase' ? 'tr-phase--sub' : t === 'Change Order' ? 'tr-phase--co' : 'tr-phase--phase';
+
+    const estsHTML = openEsts.map(({ id, est }) => {
+      const topPhases = est.phases.filter(p => !p.parentId);
+      const phasesHTML = topPhases.map(ph => {
+        const subs = est.phases.filter(s => s.parentId === ph.phaseId);
+        const hasSubs = subs.length > 0;
+        const subsHTML = hasSubs ? `<div class="tr-sub-wrap" data-sub-of="${ph.phaseId}">` +
+          subs.map(s => `
+            <div class="tr-phase-row tr-phase-row--sub">
+              <input type="checkbox" class="tr-phase-chk" data-est-id="${id}" data-phase-id="${s.phaseId}" data-parent-id="${ph.phaseId}" checked>
+              <span class="tr-phase-lbl ${typeCls(s.type)}">${typeLabel(s.type)}</span>
+              <span class="tr-phase-name">${s.name}</span>
+            </div>`).join('') + '</div>' : '';
+        return `<div class="tr-phase-group">
+          <div class="tr-phase-row">
+            <input type="checkbox" class="tr-phase-chk" data-est-id="${id}" data-phase-id="${ph.phaseId}" checked>
+            <span class="tr-phase-lbl ${typeCls(ph.type)}">${typeLabel(ph.type)}</span>
+            <span class="tr-phase-name${hasSubs ? ' tr-phase-toggle' : ''}"${hasSubs ? ` data-toggle-subs="${ph.phaseId}"` : ''}>${ph.name}</span>
+          </div>
+          ${subsHTML}
+        </div>`;
+      }).join('');
+
+      return `
+        <div class="tr-est-section" data-est-id="${id}">
+          <div class="tr-est-hdr">
+            <input type="checkbox" class="tr-est-chk" data-est-id="${id}" checked>
+            <span class="tr-est-name tr-est-toggle" data-toggle-est="${id}">${est.estimateName || est.clientName || id}</span>
+          </div>
+          <div class="tr-phases-wrap" data-est-phases="${id}">${phasesHTML}</div>
+        </div>`;
+    }).join('');
+
+    return `<div class="sp-widget transfer-widget">
+      <div class="transfer-header">
+        <span class="transfer-count">${n} item${n === 1 ? '' : 's'} to transfer</span>
+        <span class="transfer-sub">Select destination phases:</span>
+      </div>
+      <div class="transfer-body">${estsHTML}</div>
+      <div class="transfer-footer sp-footer">
+        <button class="btn-secondary sp-btn" data-action="tr-cancel">Cancel</button>
+        <button class="btn-primary sp-btn"   data-action="tr-transfer">Transfer</button>
+      </div>
+    </div>`;
+  }
+
+  function openTransfer(tagged, parentWidgetId) {
+    const openEsts = _getOpenEstimates();
+    if (!openEsts.length) { alert('No estimates are open.'); return; }
+    const id = 'transfer';
+    if (WidgetManager.open(id, 'Transfer to Estimate', _transferHTML(tagged, openEsts), {
+      width: 300, autoHeight: true, minWidth: 260, category: 'estimating',
+      centeredOn: parentWidgetId,
+    }) !== false) {
+      _bindTransfer(id, tagged);
+      WidgetManager.resizeToContent(id);
+    }
+  }
+
+  function _bindTransfer(widgetId, tagged) {
+    const el = document.getElementById('widget-' + widgetId);
+    if (!el) return;
+
+    function _updateEstHeader(estId) {
+      const all     = [...el.querySelectorAll(`.tr-phase-chk[data-est-id="${estId}"]`)];
+      const n       = all.filter(c => c.checked).length;
+      const estChk  = el.querySelector(`.tr-est-chk[data-est-id="${estId}"]`);
+      if (estChk) {
+        estChk.checked       = n > 0;
+        estChk.indeterminate = n > 0 && n < all.length;
+      }
+    }
+
+    /* Est checkbox → check/uncheck all its phases and sub-phases */
+    el.addEventListener('change', e => {
+      const estChk = e.target.closest('.tr-est-chk');
+      if (!estChk) return;
+      const estId = estChk.dataset.estId;
+      el.querySelectorAll(`.tr-phase-chk[data-est-id="${estId}"]`).forEach(cb => { cb.checked = estChk.checked; });
+    });
+
+    /* Phase checkbox → cascade to sub-phases + update est header */
+    el.addEventListener('change', e => {
+      const phChk = e.target.closest('.tr-phase-chk');
+      if (!phChk) return;
+      const phaseId = phChk.dataset.phaseId;
+      const estId   = phChk.dataset.estId;
+      /* Unchecking a top-level phase unchecks its sub-phases */
+      if (!phChk.checked) {
+        el.querySelectorAll(`.tr-phase-chk[data-parent-id="${phaseId}"]`).forEach(cb => { cb.checked = false; });
+      }
+      _updateEstHeader(estId);
+    });
+
+    /* Collapse / expand clicks */
+    el.addEventListener('click', e => {
+      /* Estimate name → collapse all phases for that estimate */
+      const estToggle = e.target.closest('.tr-est-toggle');
+      if (estToggle && !e.target.closest('.tr-est-chk')) {
+        const estId = estToggle.dataset.toggleEst;
+        const wrap  = el.querySelector(`.tr-phases-wrap[data-est-phases="${estId}"]`);
+        if (wrap) {
+          const collapsed = wrap.style.display === 'none';
+          wrap.style.display = collapsed ? '' : 'none';
+          estToggle.classList.toggle('tr-collapsed', !collapsed);
+          WidgetManager.resizeToContent(widgetId);
+        }
+        return;
+      }
+
+      /* Phase name with subs → collapse its sub-phases */
+      const phToggle = e.target.closest('.tr-phase-toggle');
+      if (phToggle && !e.target.closest('.tr-phase-chk')) {
+        const phaseId = phToggle.dataset.toggleSubs;
+        const wrap    = el.querySelector(`.tr-sub-wrap[data-sub-of="${phaseId}"]`);
+        if (wrap) {
+          const collapsed = wrap.style.display === 'none';
+          wrap.style.display = collapsed ? '' : 'none';
+          phToggle.classList.toggle('tr-collapsed', !collapsed);
+          WidgetManager.resizeToContent(widgetId);
+        }
+        return;
+      }
+
+      const action = e.target.closest('[data-action]')?.dataset.action;
+      if (!action) return;
+      if (action === 'tr-cancel') { WidgetManager.close(widgetId); return; }
+      if (action === 'tr-transfer') {
+        const destinations = [];
+        el.querySelectorAll('.tr-phase-chk:checked').forEach(cb => {
+          destinations.push({ estId: cb.dataset.estId, phaseId: cb.dataset.phaseId });
+        });
+        if (!destinations.length) return;
+        console.log('Transfer', tagged.length, 'items to', destinations);
+        alert(`Transferred ${tagged.length} item${tagged.length === 1 ? '' : 's'} to ${destinations.length} phase${destinations.length === 1 ? '' : 's'}.`);
+        WidgetManager.close(widgetId);
+      }
+    });
   }
 
   /* ── Estimate Settings Widget ────────────────────────────── */
@@ -3842,21 +4040,329 @@ const Estimating = (function () {
         }
         _persist(data);
         WidgetManager.close(widgetId);
+        openEstimate(data.estimateId);
       }
     });
   }
 
   function openEstimate(estimateId) {
     const est = _EST_MOCK;
-    const id  = 'estimate';
+    const id  = 'estimate-' + (estimateId || est.estimateId || 'draft');
+    _openEstimates.set(id, est);
     if (WidgetManager.open(id, 'Estimate', _estHTML(est), {
       width: 813, height: 680, minWidth: 600, minHeight: 500, category: 'estimate',
     }) !== false) {
       _bindEstimate(id, est);
     }
+    _notifyCostbookTagState();
+  }
+
+  /* ── Estimate List Widget ────────────────────────────────── */
+
+  function _elFmt(n) {
+    if (!n) return '—';
+    return '$' + Number(n).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
+
+  function _elStatusCls(s) {
+    return s === 'Active' ? 'el-badge--active' : s === 'Archived' ? 'el-badge--archived' : 'el-badge--draft';
+  }
+
+  function _elBuildRows(pool, sortCol, sortDir, showArchived, search, groupSelect) {
+    let rows = pool.filter(e => showArchived || e.status !== 'Archived');
+    if (search) {
+      const q = search.toLowerCase();
+      rows = rows.filter(e =>
+        e.clientName.toLowerCase().includes(q) ||
+        e.estimateName.toLowerCase().includes(q) ||
+        e.address.toLowerCase().includes(q)
+      );
+    }
+    rows.sort((a, b) => {
+      const va = sortCol === 'dateStarted' || sortCol === 'dateModified' ? a[sortCol] : (a[sortCol] || '').toLowerCase();
+      const vb = sortCol === 'dateStarted' || sortCol === 'dateModified' ? b[sortCol] : (b[sortCol] || '').toLowerCase();
+      return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+    });
+    if (!rows.length) return '<div class="el-empty">No estimates found.</div>';
+    return rows.map(e => `
+      <div class="el-row${e.status === 'Archived' ? ' is-archived' : ''}" data-id="${e.estimateId}">
+        ${groupSelect ? `<input type="checkbox" class="el-row-chk" data-id="${e.estimateId}">` : ''}
+        <div class="el-cell el-col-client">${e.clientName}</div>
+        <div class="el-cell el-col-name">${e.estimateName}</div>
+        <div class="el-cell el-col-addr">${e.address}</div>
+        <div class="el-cell el-col-status"><span class="el-badge ${_elStatusCls(e.status)}">${e.status}</span></div>
+        <div class="el-cell el-col-price">${_elFmt(e.totalPrice)}</div>
+        <div class="el-cell el-col-date">${e.dateModified}</div>
+      </div>`).join('');
+  }
+
+  function _estListHTML() {
+    const arr = 'v';
+    return `<div class="sp-widget el-widget">
+      <div class="sp-toolbar el-toolbar">
+        <button class="btn-primary sp-btn" data-action="el-new">+ New Estimate</button>
+        <input class="sp-search el-search" type="search" placeholder="Search…">
+        <button class="btn-secondary sp-btn el-filter-btn" data-action="el-filter">Filter ▾</button>
+        <div class="el-toolbar-spacer"></div>
+        <label class="el-archived-lbl sp-normal-ctrl">
+          <input type="checkbox" data-action="el-show-archived"> Show Archived
+        </label>
+        <button class="btn-secondary sp-btn sp-btn-icon el-group-btn" data-action="el-group-select" title="Group select">&#9776;</button>
+      </div>
+      <div class="el-col-hdrs">
+        <div class="el-hdr el-col-client"  data-sort="clientName"   data-col-var="--el-w-client">CLIENT NAME <span class="el-sort-arrow">↑</span><div class="el-col-resize"></div></div>
+        <div class="el-hdr el-col-name"    data-sort="estimateName" data-col-var="--el-w-name">ESTIMATE <span class="el-sort-arrow"></span><div class="el-col-resize"></div></div>
+        <div class="el-hdr el-col-addr"    data-sort="address"      data-col-var="--el-w-addr">ADDRESS <span class="el-sort-arrow"></span><div class="el-col-resize"></div></div>
+        <div class="el-hdr el-col-status"  data-sort="status"       data-col-var="--el-w-status">STATUS <span class="el-sort-arrow"></span><div class="el-col-resize"></div></div>
+        <div class="el-hdr el-col-price"   data-sort="totalPrice"   data-col-var="--el-w-price">TOTAL <span class="el-sort-arrow"></span><div class="el-col-resize"></div></div>
+        <div class="el-hdr el-col-date"    data-sort="dateModified">MODIFIED <span class="el-sort-arrow"></span></div>
+      </div>
+      <div class="el-list-wrap">
+        <div class="el-list">${_elBuildRows(_EST_LIST_MOCK, 'clientName', 'asc', false, '', false)}</div>
+      </div>
+      <div class="el-action-bar" style="display:none">
+        <span class="el-sel-count">0 selected</span>
+        <button class="btn-secondary sp-btn" data-action="el-archive-sel">Archive Selected</button>
+        <button class="btn-secondary sp-btn el-danger-btn" data-action="el-delete-sel">Delete Selected</button>
+        <button class="btn-secondary sp-btn" data-action="el-group-cancel">Cancel</button>
+      </div>
+    </div>`;
+  }
+
+  function openEstimateList() {
+    const id = 'estimate-list';
+    if (WidgetManager.open(id, 'Estimate List', _estListHTML(), {
+      width: 760, height: 500, minWidth: 600, minHeight: 360, category: 'estimating',
+    }) !== false) {
+      _bindEstimateList(id);
+    }
+  }
+
+  function _bindEstimateList(widgetId) {
+    const el        = document.getElementById('widget-' + widgetId);
+    if (!el) return;
+    const listEl    = el.querySelector('.el-list');
+    const colHdrs   = el.querySelector('.el-col-hdrs');
+    const actionBar = el.querySelector('.el-action-bar');
+    const selCount  = el.querySelector('.el-sel-count');
+
+    let sortCol     = 'clientName';
+    let sortDir     = 'asc';
+    let showArchived= false;
+    let search      = '';
+    let groupSelect = false;
+
+    /* ── Column resize ── */
+    const EL_COL_KEY    = 'el-col-widths';
+    const EL_COL_VARS   = ['--el-w-client','--el-w-name','--el-w-addr','--el-w-status','--el-w-price','--el-w-date'];
+    const elContent     = el.querySelector('.el-widget');  // CSS vars must be set here, not on the outer container
+    try {
+      const saved = JSON.parse(localStorage.getItem(EL_COL_KEY) || '{}');
+      EL_COL_VARS.forEach(v => { if (saved[v]) elContent.style.setProperty(v, saved[v]); });
+    } catch (_) {}
+
+    colHdrs.addEventListener('mousedown', e => {
+      const handle = e.target.closest('.el-col-resize');
+      if (!handle) return;
+      e.preventDefault();
+      const hdr      = handle.closest('.el-hdr');
+      const varName  = hdr.dataset.colVar;
+      const startX   = e.clientX;
+      const startW   = hdr.offsetWidth;
+      function onMove(e) {
+        elContent.style.setProperty(varName, Math.max(50, startW + e.clientX - startX) + 'px');
+      }
+      function onUp() {
+        const widths = {};
+        EL_COL_VARS.forEach(v => { const val = elContent.style.getPropertyValue(v); if (val) widths[v] = val; });
+        localStorage.setItem(EL_COL_KEY, JSON.stringify(widths));
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      }
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+
+    function _render() {
+      listEl.innerHTML = _elBuildRows(_EST_LIST_MOCK, sortCol, sortDir, showArchived, search, groupSelect);
+      el.querySelectorAll('.el-hdr[data-sort]').forEach(h => {
+        const arrow = h.querySelector('.el-sort-arrow');
+        if (arrow) arrow.textContent = h.dataset.sort === sortCol ? (sortDir === 'asc' ? '↑' : '↓') : '';
+      });
+    }
+
+    function _updateSelCount() {
+      const n = el.querySelectorAll('.el-row-chk:checked').length;
+      selCount.textContent = `${n} selected`;
+    }
+
+    /* Sort headers — don't trigger on resize handle drag */
+    colHdrs.addEventListener('click', e => {
+      if (e.target.closest('.el-col-resize')) return;
+      const hdr = e.target.closest('.el-hdr[data-sort]');
+      if (!hdr) return;
+      const col = hdr.dataset.sort;
+      sortDir = col === sortCol ? (sortDir === 'asc' ? 'desc' : 'asc') : 'asc';
+      sortCol = col;
+      _render();
+    });
+
+    /* Search */
+    let _searchTimer;
+    el.querySelector('.el-search').addEventListener('input', function () {
+      clearTimeout(_searchTimer);
+      _searchTimer = setTimeout(() => { search = this.value.trim(); _render(); }, 200);
+    });
+
+    /* Row clicks — timer separates single-click (card toggle) from double-click (open estimate) */
+    let _elClickTimer = null;
+    listEl.addEventListener('click', e => {
+      if (e.target.closest('.el-row-chk')) { _updateSelCount(); return; }
+      const row = e.target.closest('.el-row');
+      if (!row) return;
+      const rowId = row.dataset.id;
+      clearTimeout(_elClickTimer);
+      _elClickTimer = setTimeout(() => {
+        _elClickTimer = null;
+        const cardId = 'estimate-summary-' + rowId;
+        if (WidgetManager.isOpen(cardId)) {
+          WidgetManager.close(cardId);
+          return;
+        }
+        const est = _EST_LIST_MOCK.find(x => x.estimateId === rowId);
+        if (!est) return;
+        const workspace = document.querySelector('.workspace');
+        const wsRect    = workspace.getBoundingClientRect();
+        const wRect     = el.getBoundingClientRect();
+        openEstimateSummary(est, {
+          left: Math.round(wRect.right - wsRect.left + 8),
+          top:  parseInt(el.style.top) || 0,
+        });
+      }, 220);
+    });
+    listEl.addEventListener('dblclick', e => {
+      clearTimeout(_elClickTimer);
+      _elClickTimer = null;
+      const row = e.target.closest('.el-row');
+      if (!row) return;
+      openEstimate(row.dataset.id);
+    });
+
+    el.addEventListener('click', e => {
+      const action = e.target.closest('[data-action]')?.dataset.action;
+      if (!action) return;
+      if (action === 'el-new') { openEstimateSettings(null, widgetId); return; }
+      if (action === 'el-show-archived') { showArchived = e.target.checked; _render(); return; }
+      if (action === 'el-group-select') {
+        groupSelect = !groupSelect;
+        el.classList.toggle('is-group-select', groupSelect);
+        actionBar.style.display = groupSelect ? '' : 'none';
+        _render();
+        return;
+      }
+      if (action === 'el-group-cancel') {
+        groupSelect = false;
+        el.classList.remove('is-group-select');
+        actionBar.style.display = 'none';
+        _render();
+        return;
+      }
+      if (action === 'el-archive-sel') {
+        el.querySelectorAll('.el-row-chk:checked').forEach(cb => {
+          const est = _EST_LIST_MOCK.find(x => x.estimateId === cb.dataset.id);
+          if (est) est.status = 'Archived';
+        });
+        groupSelect = false; el.classList.remove('is-group-select'); actionBar.style.display = 'none'; _render();
+        return;
+      }
+      if (action === 'el-delete-sel') {
+        const ids = [...el.querySelectorAll('.el-row-chk:checked')].map(cb => cb.dataset.id);
+        if (ids.length && confirm(`Delete ${ids.length} estimate${ids.length === 1 ? '' : 's'}?`)) {
+          ids.forEach(id => { const i = _EST_LIST_MOCK.findIndex(x => x.estimateId === id); if (i >= 0) _EST_LIST_MOCK.splice(i, 1); });
+          groupSelect = false; el.classList.remove('is-group-select'); actionBar.style.display = 'none'; _render();
+        }
+        return;
+      }
+      if (action === 'el-filter') { alert('Filter: wired in full-stack build.'); return; }
+    });
+  }
+
+  /* ── Estimate Summary Card ───────────────────────────────── */
+
+  function _estSummaryHTML(est) {
+    const statusCls = _elStatusCls(est.status);
+    const price     = est.totalPrice ? ('$' + Number(est.totalPrice).toLocaleString('en-US', { minimumFractionDigits: 2 })) : '—';
+    return `<div class="sp-widget el-summary-card">
+      <div class="el-summary-body">
+        <div class="el-summary-client">${est.clientName}</div>
+        <div class="el-summary-name">${est.estimateName}</div>
+        <div class="el-summary-addr">${est.address}</div>
+        <div class="el-summary-row">
+          <span class="el-summary-lbl">Status</span>
+          <span class="el-badge ${statusCls}">${est.status}</span>
+        </div>
+        <div class="el-summary-row">
+          <span class="el-summary-lbl">Total Price</span>
+          <span class="el-summary-val">${price}</span>
+        </div>
+        <div class="el-summary-row">
+          <span class="el-summary-lbl">Started</span>
+          <span class="el-summary-val">${est.dateStarted}</span>
+        </div>
+        <div class="el-summary-row">
+          <span class="el-summary-lbl">Modified</span>
+          <span class="el-summary-val">${est.dateModified}</span>
+        </div>
+        <div class="el-summary-row">
+          <span class="el-summary-lbl">Costbook</span>
+          <span class="el-summary-val">${est.costbook || '—'}</span>
+        </div>
+        ${est.notes ? `<div class="el-summary-notes">${est.notes}</div>` : ''}
+        <div class="el-summary-btns">
+          <button class="btn-primary sp-btn"    data-action="esc-open">Open Estimate</button>
+          <button class="btn-secondary sp-btn"  data-action="esc-settings">Estimate Settings</button>
+          <button class="btn-secondary sp-btn"  data-action="esc-archive">Archive</button>
+          <button class="btn-secondary sp-btn el-danger-btn" data-action="esc-delete">Delete</button>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  function openEstimateSummary(est, posOpts) {
+    const id    = 'estimate-summary-' + est.estimateId;
+    const cardW = 300;
+    const opts  = { width: cardW, autoHeight: true, minWidth: 260, category: 'estimating', noDock: true };
+    if (posOpts) {
+      const ws   = document.querySelector('.workspace');
+      opts.left  = Math.max(0, Math.min(posOpts.left, (ws ? ws.clientWidth : 9999) - cardW - 8));
+      opts.top   = posOpts.top;
+    }
+    if (WidgetManager.open(id, 'Estimate Summary', _estSummaryHTML(est), opts) !== false) {
+      _bindEstimateSummary(id, est);
+      WidgetManager.resizeToContent(id);
+    }
+  }
+
+  function _bindEstimateSummary(widgetId, est) {
+    const el = document.getElementById('widget-' + widgetId);
+    if (!el) return;
+    el.addEventListener('click', e => {
+      const action = e.target.closest('[data-action]')?.dataset.action;
+      if (!action) return;
+      if (action === 'esc-open')     { openEstimate(est.estimateId); WidgetManager.close(widgetId); return; }
+      if (action === 'esc-settings') { openEstimateSettings(est.estimateId, widgetId); return; }
+      if (action === 'esc-archive')  { est.status = 'Archived'; WidgetManager.close(widgetId); return; }
+      if (action === 'esc-delete')   {
+        if (confirm(`Delete "${est.estimateName}"?`)) {
+          const i = _EST_LIST_MOCK.findIndex(x => x.estimateId === est.estimateId);
+          if (i >= 0) _EST_LIST_MOCK.splice(i, 1);
+          WidgetManager.close(widgetId);
+        }
+      }
+    });
   }
 
   /* ── Public API ───────────────────────────────────────────── */
-  return { openCostbook, openEditCostItem, openPriceList, openEditPriceItem, openEstimate, openEstimateSettings };
+  return { openCostbook, openEditCostItem, openPriceList, openEditPriceItem, openEstimate, openEstimateSettings, openEstimateList, openTransfer };
 
 }());

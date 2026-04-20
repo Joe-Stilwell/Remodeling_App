@@ -2181,9 +2181,9 @@ const CRM = (function () {
           <button class="pb-filter-clear" style="display:none" data-action="clear-filters">Clear all</button>
         </div>
         <div class="pb-col-headers">
-          <div class="pb-col-header pb-col-name">Name</div>
-          <div class="pb-col-header pb-col-phone" data-sort="phone">Phone</div>
-          <div class="pb-col-header pb-col-email">Email</div>
+          <div class="pb-col-header pb-col-name" data-col-var="--pb-w-name">Name<span class="pb-sort-icon"></span><div class="pb-col-resize"></div></div>
+          <div class="pb-col-header pb-col-phone" data-sort="phone" data-col-var="--pb-w-phone">Phone<span class="pb-sort-icon"></span><div class="pb-col-resize"></div></div>
+          <div class="pb-col-header pb-col-email" data-col-var="--pb-w-email">Email<div class="pb-col-resize"></div></div>
         </div>
         <div class="pb-list-wrap">
           <div class="pb-list"></div>
@@ -2444,12 +2444,29 @@ const CRM = (function () {
       render();
     });
 
-    // Row click
-    el.querySelector('.pb-list').addEventListener('click', function (e) {
+    // Row click — timer separates single-click (profile toggle) from double-click (no-op / future edit)
+    let _pbClickTimer = null;
+    const pbList = el.querySelector('.pb-list');
+    pbList.addEventListener('click', function (e) {
       const row = e.target.closest('.pb-row');
       if (!row) return;
-      if (editMode) openEditContact(row.dataset.type, row.dataset.id);
-      else openProfile(row.dataset.type, row.dataset.id);
+      const type = row.dataset.type;
+      const id   = row.dataset.id;
+      clearTimeout(_pbClickTimer);
+      _pbClickTimer = setTimeout(() => {
+        _pbClickTimer = null;
+        if (editMode) { openEditContact(type, id); return; }
+        const profileId = `profile-${type}-${id}`;
+        if (WidgetManager.isOpen(profileId)) {
+          WidgetManager.close(profileId);
+        } else {
+          openProfile(type, id);
+        }
+      }, 220);
+    });
+    pbList.addEventListener('dblclick', function (e) {
+      clearTimeout(_pbClickTimer);
+      _pbClickTimer = null;
     });
 
     // Delegated actions — footer + filter
@@ -2483,12 +2500,44 @@ const CRM = (function () {
       document.addEventListener('mouseup', onUp);
     });
 
+    // Resizable columns
+    const PB_COL_KEY  = 'pb-col-widths';
+    const PB_COL_VARS = ['--pb-w-name', '--pb-w-phone', '--pb-w-email'];
+    const pbWidget    = el.querySelector('.phonebook-widget');
+    try {
+      const saved = JSON.parse(localStorage.getItem(PB_COL_KEY) || '{}');
+      PB_COL_VARS.forEach(v => { if (saved[v]) pbWidget.style.setProperty(v, saved[v]); });
+    } catch (_) {}
+
+    const pbColHdrs = el.querySelector('.pb-col-headers');
+    pbColHdrs.addEventListener('mousedown', e => {
+      const handle = e.target.closest('.pb-col-resize');
+      if (!handle) return;
+      e.preventDefault();
+      const hdr    = handle.closest('.pb-col-header');
+      const varName = hdr.dataset.colVar;
+      const startX  = e.clientX;
+      const startW  = hdr.offsetWidth;
+      function onMove(e) {
+        pbWidget.style.setProperty(varName, Math.max(60, startW + e.clientX - startX) + 'px');
+      }
+      function onUp() {
+        const widths = {};
+        PB_COL_VARS.forEach(v => { const val = pbWidget.style.getPropertyValue(v); if (val) widths[v] = val; });
+        localStorage.setItem(PB_COL_KEY, JSON.stringify(widths));
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      }
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+
     // Hide email column when main panel is too narrow for it
-    const pbWidget = el.querySelector('.phonebook-widget');
-    const mainEl   = el.querySelector('.pb-main');
-    const EMAIL_HIDE_WIDTH = 280; // name(155) + phone(105) + 20px container padding
+    const mainEl = el.querySelector('.pb-main');
     new ResizeObserver(() => {
-      pbWidget.classList.toggle('pb-hide-email', mainEl.offsetWidth < EMAIL_HIDE_WIDTH);
+      const nameW  = parseInt(pbWidget.style.getPropertyValue('--pb-w-name')  || '155');
+      const phoneW = parseInt(pbWidget.style.getPropertyValue('--pb-w-phone') || '105');
+      pbWidget.classList.toggle('pb-hide-email', mainEl.offsetWidth < nameW + phoneW + 20);
     }).observe(mainEl);
 
     _updateLabels();

@@ -13,6 +13,22 @@ const WidgetManager = (function () {
   const state = {};
   let cascadeCount = 0;
 
+  /* Measure natural content height of the widget body.
+     .widget-form elements size themselves by content — use offsetHeight.
+     .sp-widget elements use height:100% (inflated) — temporarily set auto to measure. */
+  function _measureBodyContent(body, form) {
+    if (form) return form.offsetHeight;
+    const spW = body.querySelector(':scope > .sp-widget');
+    if (spW) {
+      const saved = spW.style.height;
+      spW.style.height = 'auto';
+      const h = spW.scrollHeight;
+      spW.style.height = saved;
+      return h;
+    }
+    return body.scrollHeight;
+  }
+
   /* ── Public: open ─────────────────────────────────────────── */
   function open(id, title, contentHTML = '', options = {}) {
     if (state[id]) {
@@ -160,7 +176,7 @@ const WidgetManager = (function () {
         const headerH = header ? header.offsetHeight : 0;
         const padTop  = parseInt(getComputedStyle(body).paddingTop)    || 0;
         const padBot  = parseInt(getComputedStyle(body).paddingBottom) || 0;
-        const formH   = form ? form.offsetHeight : body.scrollHeight;
+        const formH   = _measureBodyContent(body, form);
         const afterH  = isPanel ? 0 : 16; // panels have no ::after chrome strip
         const natural = headerH + padTop + formH + padBot + afterH + 6; // buffer prevents scrollbar from pixel rounding
         const maxH    = workspace.clientHeight - top;
@@ -700,7 +716,7 @@ const WidgetManager = (function () {
     const headerH   = header ? header.offsetHeight : 0;
     const padTop    = parseInt(getComputedStyle(body).paddingTop)    || 0;
     const padBot    = parseInt(getComputedStyle(body).paddingBottom) || 0;
-    const formH     = form ? form.offsetHeight : body.scrollHeight;
+    const formH     = _measureBodyContent(body, form);
     const afterH    = isPanel ? 0 : 16;
     const natural   = headerH + padTop + formH + padBot + afterH + 6;
     const top       = parseInt(widget.style.top) || 0;
@@ -836,6 +852,9 @@ const WidgetManager = (function () {
     _bringToFront(candidates[nextIdx][1].el);
   });
 
-  return { open, close, minimize, restore, resizeToContent };
+  function isOpen(id) { return !!state[id]; }
+  function getOpenIds() { return Object.keys(state); }
+
+  return { open, close, minimize, restore, resizeToContent, isOpen, getOpenIds };
 
 })();

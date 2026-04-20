@@ -517,3 +517,139 @@ function _bindXxxGrid(widgetId) {
     <button class="btn-primary   sp-btn" data-action="save">Save</button>
   </div>
 */
+
+
+/* ================================================================
+   LIST WIDGET STANDARDS
+   Reference: Estimate List (el-), Phone Book (pb-)
+   ================================================================
+
+   COLUMN HEADERS
+   ──────────────
+   - Background:  var(--color-brand-tint)
+   - Bottom border: 2px solid var(--color-border-slate)
+   - Right border: 1px solid var(--color-border-slate) on all but last column
+     (.xx-hdr:not(:last-child) { border-right: 1px solid var(--color-border-slate); })
+   - Text: var(--color-brand-primary), 10px, 700, uppercase, 0.06em tracking
+   - Hover text: var(--color-brand-dark)
+   - Sort indicator: ↑ / ↓ in a <span class="xx-sort-arrow"> (appended by JS)
+   - Resize handle: <div class="xx-col-resize"> as last child of each resizable header
+     (position:absolute, right:0, top:0, bottom:0, width:5px, cursor:col-resize)
+   - position:relative required on the header cell for the handle to position correctly
+
+   RESIZABLE COLUMNS
+   ─────────────────
+   - Define CSS variables on the widget CONTENT element (e.g. .xx-widget), NOT the
+     outer widget container. The content element has its own stylesheet declaration
+     that overrides inherited values — always target it directly:
+       const xxContent = el.querySelector('.xx-widget');
+       xxContent.style.setProperty(varName, w + 'px');
+   - Use var() in grid-template-columns on both the header row and data rows
+   - Load saved widths from localStorage on bind; persist on mouseup
+   - Minimum column width: 50px; last column has no handle (stretches to fill)
+   - data-col-var="--xx-w-colname" attribute on each resizable header drives the handler
+
+   SEARCH BOX
+   ──────────
+   - Use class: sp-search  (defined in shared CSS)
+   - Height: 24px, border: 1px solid var(--color-border-slate), border-radius: 4px
+   - Focus: border-color: var(--color-brand-primary)
+
+   TOOLBAR
+   ───────
+   - Background: var(--color-brand-tint)  ← NOT white
+   - Order (left to right): + New [Record] | sp-search | Filter ▾ | [spacer] | Show Archived | Group Select icon
+
+   ROW STANDARD
+   ────────────
+   - Height: 32px, border-bottom: 1px solid #f0f4f8
+   - Hover: background var(--color-brand-tint)
+   - Archived rows: opacity 0.55
+
+   CLICK / DOUBLE-CLICK PATTERN  (required for all list widgets)
+   ─────────────────────────────
+   Single click → toggle summary card (open if closed, close if open)
+   Double click → open the record's primary widget directly, no card side-effect
+   Implementation: 220ms timer on click; dblclick cancels the timer.
+
+     let _clickTimer = null;
+     listEl.addEventListener('click', e => {
+       const row = e.target.closest('.xx-row');
+       if (!row) return;
+       const rowId = row.dataset.id;          // capture ID at click time
+       clearTimeout(_clickTimer);
+       _clickTimer = setTimeout(() => {
+         _clickTimer = null;
+         const cardId = 'xx-summary-' + rowId;
+         if (WidgetManager.isOpen(cardId)) { WidgetManager.close(cardId); return; }
+         openXxSummary(findRecord(rowId), { left: ..., top: ... });
+       }, 220);
+     });
+     listEl.addEventListener('dblclick', e => {
+       clearTimeout(_clickTimer);
+       _clickTimer = null;
+       const row = e.target.closest('.xx-row');
+       if (!row) return;
+       openXxRecord(row.dataset.id);
+     });
+
+   STATUS BADGES  (.el-badge)
+   ───────────────────────────
+   - Active:   green bg #d4edda / text #155724
+   - Draft:    amber bg #fff3cd / text #856404
+   - Archived: gray  bg #e2e3e5 / text #495057
+   - Font: 10px, 700, uppercase, 0.04em tracking, border-radius 10px, padding 2px 7px
+
+   GROUP SELECT MODE
+   ─────────────────
+   - Toggle via .is-group-select class on the widget CONTENT element (not outer container)
+   - Adds a 24px checkbox column (first) to both header and row grid templates
+   - Action bar appears at bottom: count | Archive | Delete | Cancel
+   - Checkbox class: xx-row-chk
+
+   SUMMARY CARD
+   ────────────
+   - noDock: true, autoHeight: true + WidgetManager.resizeToContent(id)
+   - Width: 300px
+   - Position: right of the list widget, clamped to workspace bounds:
+       const ws    = document.querySelector('.workspace');   // NOT getElementById
+       const wRect = el.getBoundingClientRect();
+       const wsRect= ws.getBoundingClientRect();
+       const cardW = 300;
+       opts.left = Math.max(0, Math.min(Math.round(wRect.right - wsRect.left + 8),
+                                        ws.clientWidth - cardW - 8));
+       opts.top  = parseInt(el.style.top) || 0;
+   - Toggle: check WidgetManager.isOpen(cardId) before opening; close if already open
+   - Buttons at bottom: Open [Record] | Edit/Settings | Archive | Delete
+
+   BOILERPLATE — LIST WIDGET
+   ──────────────────────────
+  <div class="sp-widget xx-widget">
+    <div class="sp-toolbar xx-toolbar">
+      <button class="btn-primary sp-btn" data-action="xx-new">+ New Record</button>
+      <input class="sp-search xx-search" type="search" placeholder="Search…">
+      <button class="btn-secondary sp-btn" data-action="xx-filter">Filter ▾</button>
+      <div class="xx-toolbar-spacer" style="flex:1"></div>
+      <label class="sp-normal-ctrl">
+        <input type="checkbox" data-action="xx-show-archived"> Show Archived
+      </label>
+      <button class="btn-secondary sp-btn sp-btn-icon" data-action="xx-group-select" title="Group select">&#9776;</button>
+    </div>
+    <div class="xx-col-hdrs">
+      <div class="xx-hdr xx-col-name" data-sort="name" data-col-var="--xx-w-name">
+        NAME <span class="xx-sort-arrow">↑</span><div class="xx-col-resize"></div>
+      </div>
+      <!-- more columns... last column has no resize handle, no data-col-var -->
+      <div class="xx-hdr xx-col-modified" data-sort="dateModified">MODIFIED <span class="xx-sort-arrow"></span></div>
+    </div>
+    <div class="xx-list-wrap" style="flex:1;overflow-y:auto">
+      <div class="xx-list"><!-- rows rendered by JS --></div>
+    </div>
+    <div class="xx-action-bar" style="display:none">
+      <span class="xx-sel-count">0 selected</span>
+      <button class="btn-secondary sp-btn" data-action="xx-archive-sel">Archive Selected</button>
+      <button class="btn-secondary sp-btn" data-action="xx-delete-sel">Delete Selected</button>
+      <button class="btn-secondary sp-btn" data-action="xx-group-cancel">Cancel</button>
+    </div>
+  </div>
+*/
