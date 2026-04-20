@@ -4563,6 +4563,40 @@ body.is-dragging .widget {
 
 .est-toolbar-spacer { flex: 1; }
 
+.est-overflow-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.est-overflow-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  background: white;
+  border: 1px solid var(--color-border-slate);
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  padding: 4px 0;
+  min-width: 190px;
+  z-index: 200;
+  white-space: nowrap;
+}
+
+.est-overflow-item {
+  display: block;
+  width: 100%;
+  padding: 6px 14px;
+  font-size: 12px;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-brand-dark);
+}
+
+.est-overflow-item:hover { background: var(--color-brand-tint); }
+
 .est-total-box {
   display: flex;
   flex-direction: column;
@@ -4638,103 +4672,280 @@ body.is-dragging .widget {
 
 /* Phase tabs (top-level) */
 .est-tab {
+  display: flex;
+  align-items: center;
+  gap: 5px;
   background: white;
-  border-top: 2px solid var(--color-brand-primary);
-  border-bottom: 2px solid var(--color-brand-primary);
-  border-left: 4px solid var(--color-brand-primary);
+  border-top: 2px solid var(--color-category-pill-4);
+  border-bottom: 2px solid var(--color-category-pill-4);
+  border-left: 4px solid var(--color-category-pill-4);
   border-right: none;
   border-radius: 4px 0 0 4px;
   margin-bottom: 0;
-  padding: 0 8px 0 7px;
+  padding: 0 8px 0 6px;
   height: 28px;
-  line-height: 28px;
   color: var(--color-brand-dark);
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
   user-select: none;
-  white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
   box-shadow: 0 1px 3px rgba(0,0,0,0.08);
 }
 
+.est-tab-chk {
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+  margin: 0;
+  cursor: pointer;
+  accent-color: var(--color-category-pill-4);
+}
+
+.est-tab-name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.est-tab-rename-inp {
+  flex: 1;
+  height: 18px;
+  padding: 0 3px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid var(--color-category-pill-4);
+  border-radius: 2px;
+  min-width: 0;
+}
+
 .est-tab:hover {
-  background: var(--color-brand-tint);
+  background: #fdf5f1;
   box-shadow: 0 2px 5px rgba(0,0,0,0.12);
 }
 
 .est-tab.is-active {
-  background: var(--color-brand-tint);
+  background: #fdf5f1;
   box-shadow: 0 2px 5px rgba(0,0,0,0.12);
 }
 
 .est-tab.is-off {
   background: #f5f5f5;
   color: #999;
-  text-decoration: line-through;
   border-color: #ddd;
-  border-left-color: #aac4d4;
+  border-left-color: #c8a898;
   box-shadow: none;
 }
 
+.est-tab.is-off .est-tab-name { text-decoration: line-through; }
+
 .est-tab.is-off:hover {
   background: #efefef;
-  text-decoration: none;
   color: #777;
 }
 
-/* Option sub-tabs */
+.est-tab.is-off:hover .est-tab-name { text-decoration: none; }
+
+/* Sub-Phase tabs */
 .est-subtab {
   margin-left: 12px;
   height: 25px;
-  line-height: 25px;
   font-size: 10.5px;
   font-weight: 500;
-  background: #f8fbfd;
-  border-top: 2px solid var(--color-brand-primary);
-  border-bottom: 2px solid var(--color-brand-primary);
-  border-left-color: var(--color-brand-primary);
+  background: #fdf8f6;
+  border-top: 2px solid var(--color-category-pill-5);
+  border-bottom: 2px solid var(--color-category-pill-5);
+  border-left-color: var(--color-category-pill-5);
   box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
+
+.est-subtab .est-tab-chk { accent-color: var(--color-category-pill-5); }
+.est-subtab .est-tab-rename-inp { border-color: var(--color-category-pill-5); }
 
 /* Change Order tabs */
 .est-co-tab {
   background: #fff8f4;
-  border-color: #f0c8a8;
-  border-left-color: var(--color-brand-orange);
+  border-color: #c4834a;
+  border-left-color: var(--color-category-pill-6);
 }
 
-.est-co-tab:hover {
-  background: #fff1e6;
-  border-left-color: var(--color-brand-orange);
-}
+.est-co-tab .est-tab-chk { accent-color: var(--color-category-pill-6); }
+.est-co-tab .est-tab-rename-inp { border-color: var(--color-category-pill-6); }
 
-.est-co-tab.is-active {
-  background: #fff1e6;
-  border-left-color: var(--color-brand-orange);
-}
+.est-co-tab:hover { background: #fff1e6; }
+.est-co-tab.is-active { background: #fff1e6; }
 
-/* Spacing: Phase → first Option */
+/* Spacing: Phase → first Sub-Phase */
 .est-tab:not(.est-subtab):not(.est-co-tab) + .est-subtab { margin-top: 2px; }
 
-/* Spacing: Option → Option */
+/* Spacing: Sub-Phase → Sub-Phase */
 .est-subtab + .est-subtab { margin-top: 2px; }
 
-/* Spacing: last Option → next Phase */
+/* Spacing: last Sub-Phase → next Phase */
 .est-subtab + .est-tab:not(.est-subtab):not(.est-co-tab) { margin-top: 6px; }
 
-/* Spacing: Phase → Phase (no options between) */
+/* Spacing: Phase → Phase (no sub-phases between) */
 .est-tab:not(.est-subtab):not(.est-co-tab) + .est-tab:not(.est-subtab):not(.est-co-tab) { margin-top: 6px; }
 
 /* Spacing: before Change Orders */
 .est-co-tab { margin-top: 8px; }
+
+/* Context menu */
+.est-tab-ctx { min-width: 160px; }
 
 .est-tab-hint {
   font-size: 9px;
   color: #8a9ab0;
   padding: 6px 8px 4px;
   font-style: italic;
+}
+
+/* ── Estimate Settings Phase Section ────────────────────── */
+.est-phase-list {
+  padding: 4px 0;
+}
+
+.est-phase-empty {
+  font-size: 11px;
+  color: #8a9ab0;
+  font-style: italic;
+  padding: 4px 0;
+}
+
+.est-phase-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 8px 0 6px;
+  margin-bottom: 3px;
+  border-radius: 13px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1.5px solid transparent;
+}
+
+.est-phase-pill--phase {
+  background: #fdf2ed;
+  border-color: var(--color-category-pill-4);
+  color: #6b3820;
+}
+
+.est-phase-pill--sub {
+  background: #fdf0ea;
+  border-color: var(--color-category-pill-5);
+  color: #5a200a;
+}
+
+.est-phase-pill--co {
+  background: #faf0e8;
+  border-color: var(--color-category-pill-6);
+  color: #4a2010;
+}
+
+.est-phase-pill--indented { margin-left: 20px; }
+
+.est-phase-pill.is-off {
+  background: #f0f0f0;
+  border-color: #ccc;
+  color: #999;
+}
+
+.est-phase-pill:hover { filter: brightness(0.96); }
+
+.est-phase-pill-lbl {
+  flex-shrink: 0;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.7;
+}
+
+.est-phase-pill-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.est-phase-pill-mkp {
+  flex-shrink: 0;
+  font-size: 9px;
+  font-style: italic;
+  opacity: 0.7;
+}
+
+.est-phase-add-row {
+  padding: 6px 0 4px;
+}
+
+.est-phase-add-btn { font-size: 11px; }
+
+/* Phase form (inline in settings) */
+.est-phase-form {
+  background: var(--color-brand-tint);
+  border: 1px solid var(--color-border-slate);
+  border-radius: 4px;
+  padding: 8px 10px 4px;
+  margin-bottom: 6px;
+}
+
+.est-phase-form .form-row { margin-bottom: 0; }
+
+.est-phase-override-lbl {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--color-brand-dark);
+  cursor: pointer;
+  padding-top: 8px;
+  padding-bottom: 2px;
+}
+
+.est-phase-mkp-row {
+  display: flex;
+  gap: 4px;
+  padding: 4px 0 4px;
+}
+
+.est-phase-form-btns {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  padding-top: 6px;
+  padding-bottom: 4px;
+}
+
+/* Context menu shared styles */
+.sp-ctx-menu {
+  background: white;
+  border: 1px solid var(--color-border-slate);
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  padding: 4px 0;
+  min-width: 140px;
+}
+
+.sp-ctx-item {
+  display: block;
+  width: 100%;
+  padding: 5px 14px;
+  font-size: 12px;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-brand-dark);
+}
+
+.sp-ctx-item:hover { background: var(--color-brand-tint); }
+.sp-ctx-item.danger { color: #c0392b; }
+.sp-ctx-item.danger:hover { background: #fff0ee; }
+
+.sp-ctx-sep {
+  border: none;
+  border-top: 1px solid var(--color-border-slate);
+  margin: 3px 0;
 }
 
 /* Panel Divider --------------------------------------------- */

@@ -2784,11 +2784,11 @@ const Estimating = (function () {
     estimateName: 'Kitchen & Bath Remodel 2026',
     status:       'Draft',
     phases: [
-      { phaseId: 'P1',    type: 'Phase',        name: 'Kitchen Renovation',    parentId: null, isSelected: true,  sortOrder: 10 },
-      { phaseId: 'P1-OA', type: 'Option',       name: 'Standard Cabinets',     parentId: 'P1', isSelected: true,  sortOrder: 15 },
-      { phaseId: 'P1-OB', type: 'Option',       name: 'Custom Cabinets',       parentId: 'P1', isSelected: false, sortOrder: 20 },
-      { phaseId: 'P2',    type: 'Phase',        name: 'Bathroom Renovation',   parentId: null, isSelected: true,  sortOrder: 30 },
-      { phaseId: 'CO1',   type: 'Change Order', name: 'Additional Tile Work',  parentId: null, isSelected: true,  sortOrder: 40 },
+      { phaseId: 'P1',    type: 'Phase',        name: 'Kitchen Renovation',   parentId: null, isSelected: true,  sortOrder: 10, markupOverride: false, markupLabor: null, markupMaterial: null, markupSub: null, markupEquipment: null, markupOther: null },
+      { phaseId: 'P1-OA', type: 'Sub-Phase',    name: 'Standard Cabinets',    parentId: 'P1', isSelected: true,  sortOrder: 15, markupOverride: false, markupLabor: null, markupMaterial: null, markupSub: null, markupEquipment: null, markupOther: null },
+      { phaseId: 'P1-OB', type: 'Sub-Phase',    name: 'Custom Cabinets',      parentId: 'P1', isSelected: false, sortOrder: 20, markupOverride: false, markupLabor: null, markupMaterial: null, markupSub: null, markupEquipment: null, markupOther: null },
+      { phaseId: 'P2',    type: 'Phase',        name: 'Bathroom Renovation',  parentId: null, isSelected: true,  sortOrder: 30, markupOverride: false, markupLabor: null, markupMaterial: null, markupSub: null, markupEquipment: null, markupOther: null },
+      { phaseId: 'CO1',   type: 'Change Order', name: 'Additional Tile Work', parentId: null, isSelected: true,  sortOrder: 40, markupOverride: false, markupLabor: null, markupMaterial: null, markupSub: null, markupEquipment: null, markupOther: null },
     ],
     items: [
       { itemId:'EI001', phaseId:'P1',    divNum:'04', divName:'Demolition & Cleanup',    subNum:'020', subName:'Demolition',      description:'Selective Demolition',             qty:8,   uom:'HR', labor:65,   material:0,    sub:0, equipment:0, other:0,    laborMkp:35, materialMkp:20, subMkp:15, equipMkp:20, otherMkp:20, clientView:true,  sortWeight:10 },
@@ -2871,10 +2871,13 @@ const Estimating = (function () {
     let tabsHTML = '';
     est.phases.forEach(phase => {
       const offCls  = phase.isSelected ? '' : ' is-off';
-      const typeCls = phase.type === 'Option' ? ' est-subtab' : phase.type === 'Change Order' ? ' est-co-tab' : '';
-      tabsHTML += `<div class="est-tab${typeCls}${offCls}" data-phase-id="${phase.phaseId}">${phase.name}</div>`;
+      const typeCls = phase.type === 'Sub-Phase' ? ' est-subtab' : phase.type === 'Change Order' ? ' est-co-tab' : '';
+      const chk     = phase.isSelected ? '' : ' checked';
+      tabsHTML += `<div class="est-tab${typeCls}${offCls}" data-phase-id="${phase.phaseId}">` +
+                  `<input type="checkbox" class="est-tab-chk"${chk} title="Check to deactivate">` +
+                  `<span class="est-tab-name">${phase.name}</span></div>`;
     });
-    tabsHTML += '<div class="est-tab-hint">Dbl-click tab to toggle on/off</div>';
+    tabsHTML += '<div class="est-tab-hint">Check to activate · Dbl-click to rename</div>';
 
     /* Build grid rows */
     let rowsHTML = '';
@@ -2979,16 +2982,22 @@ const Estimating = (function () {
     return `<div class="sp-widget est-widget">
       <div class="sp-toolbar est-toolbar">
         <button class="btn-secondary sp-btn" data-action="est-setup">Estimate Settings</button>
-        <button class="btn-secondary sp-btn" data-action="est-duplicate">Duplicate</button>
         <button class="btn-secondary sp-btn est-collapse-btn">Collapse All</button>
         <label class="est-show-sub-lbl" title="Show Sub-Divisions in estimate grid">
-          <input type="checkbox" data-action="est-show-sub"> Sub-Divs
+          <input type="checkbox" data-action="est-show-sub"> Hide Sub-Divs
         </label>
         <button class="btn-secondary sp-btn sp-btn-icon est-undo-btn" data-action="est-undo" disabled title="Undo">&#8617;</button>
         <button class="btn-secondary sp-btn sp-btn-icon est-redo-btn" data-action="est-redo" disabled title="Redo">&#8618;</button>
         <button class="btn-secondary sp-btn sp-btn-icon" data-action="est-print" title="Print">&#9113;</button>
         <button class="btn-secondary sp-btn sp-btn-icon" data-action="est-refresh" title="Refresh">&#8635;</button>
         <div class="est-toolbar-spacer"></div>
+        <div class="est-overflow-wrap">
+          <button class="btn-secondary sp-btn sp-btn-icon est-overflow-btn" title="More actions">&#8943;</button>
+          <div class="est-overflow-menu" style="display:none">
+            <button class="est-overflow-item" data-action="est-duplicate">Duplicate Estimate</button>
+            <button class="est-overflow-item" data-action="est-save-template">Save Estimate as Template</button>
+          </div>
+        </div>
         <div class="est-total-box est-total-cost-box">
           <span class="est-total-label">Total Cost</span>
           <span class="est-total-value est-grand-cost">${_efmt(gCost,true)}</span>
@@ -3015,6 +3024,58 @@ const Estimating = (function () {
         </div>
       </div>
     </div>`;
+  }
+
+  /* ── Tab context menu ────────────────────────────────── */
+  function _showTabContextMenu(x, y, phaseId, phase, isOff) {
+    document.querySelector('.est-tab-ctx')?.remove();
+    const menu = document.createElement('div');
+    menu.className = 'est-tab-ctx sp-ctx-menu';
+    const items = [
+      { label: 'Add Phase',                               action: 'add-phase'    },
+      { label: 'Add Sub-Phase',                           action: 'add-subphase' },
+      { label: 'Add Change Order',                        action: 'add-co'       },
+      { sep: true },
+      { label: isOff ? 'Set Active'    : 'Set Inactive', action: 'toggle'  },
+      { label: 'Rename',                                  action: 'rename'  },
+      { sep: true },
+      { label: 'Delete',                                  action: 'delete', cls: 'danger' },
+    ];
+    items.forEach(it => {
+      if (it.sep) { const s = document.createElement('hr'); s.className = 'sp-ctx-sep'; menu.append(s); return; }
+      const btn = document.createElement('button');
+      btn.className = 'sp-ctx-item' + (it.cls ? ' ' + it.cls : '');
+      btn.textContent = it.label;
+      btn.dataset.action = it.action;
+      btn.dataset.phaseId = phaseId;
+      menu.append(btn);
+    });
+    menu.style.cssText = `position:fixed;left:${x}px;top:${y}px;z-index:9999`;
+    document.body.append(menu);
+    function _close() { menu.remove(); document.removeEventListener('mousedown', _close, true); }
+    document.addEventListener('mousedown', _close, true);
+    menu.addEventListener('mousedown', ev => ev.stopPropagation());
+    menu.addEventListener('click', ev => {
+      const btn = ev.target.closest('[data-action]');
+      if (!btn) return;
+      _close();
+      const action = btn.dataset.action;
+      const tab    = document.querySelector(`.est-tab[data-phase-id="${phaseId}"]`);
+      if (action === 'toggle' && tab) {
+        const chk = tab.querySelector('.est-tab-chk');
+        if (chk) { chk.checked = !chk.checked; chk.dispatchEvent(new Event('change', { bubbles: true })); }
+      } else if (action === 'rename' && tab) {
+        tab.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+      } else if (action === 'delete') {
+        if (confirm(`Delete "${phase?.name || phaseId}"?`)) {
+          const idx = _EST_MOCK.phases.findIndex(p => p.phaseId === phaseId);
+          if (idx >= 0) _EST_MOCK.phases.splice(idx, 1);
+          tab?.remove();
+        }
+      } else if (action === 'add-phase' || action === 'add-subphase' || action === 'add-co') {
+        alert('Add phase: wired in full-stack build.');
+      }
+    });
   }
 
   /* ── Estimate bind ────────────────────────────────────── */
@@ -3092,15 +3153,21 @@ const Estimating = (function () {
       if (!phase) return;
       const newVal = !selState.get(phaseId);
       selState.set(phaseId, newVal);
-      /* Turning a Phase off cascades to its Options */
+      const tab = tabs.querySelector(`[data-phase-id="${phaseId}"]`);
+      tab?.classList.toggle('is-off', !newVal);
+      const chk = tab?.querySelector('.est-tab-chk');
+      if (chk) chk.checked = !newVal;
+      /* Turning a Phase off cascades to its Sub-Phases */
       if (!newVal && phase.type === 'Phase') {
-        est.phases.filter(p => p.type === 'Option' && p.parentId === phaseId)
-          .forEach(opt => {
-            selState.set(opt.phaseId, false);
-            tabs.querySelector(`[data-phase-id="${opt.phaseId}"]`)?.classList.add('is-off');
+        est.phases.filter(p => p.type === 'Sub-Phase' && p.parentId === phaseId)
+          .forEach(sub => {
+            selState.set(sub.phaseId, false);
+            const subTab = tabs.querySelector(`[data-phase-id="${sub.phaseId}"]`);
+            subTab?.classList.add('is-off');
+            const subChk = subTab?.querySelector('.est-tab-chk');
+            if (subChk) subChk.checked = true;
           });
       }
-      tabs.querySelector(`[data-phase-id="${phaseId}"]`)?.classList.toggle('is-off', !newVal);
       _applyVis();
       _updateGrandTotals();
     }
@@ -3110,26 +3177,57 @@ const Estimating = (function () {
       if (icon) icon.classList.toggle('is-open', expanded);
     }
 
-    /* Tab: single click → scroll to section */
+    /* Tab: checkbox click → toggle active/inactive */
+    tabs.addEventListener('change', e => {
+      const chk = e.target.closest('.est-tab-chk');
+      if (!chk) return;
+      const tab = chk.closest('.est-tab');
+      if (tab) _togglePhase(tab.dataset.phaseId);
+    });
+
+    /* Tab: single click on name → scroll to section */
     tabs.addEventListener('click', e => {
+      if (e.target.closest('.est-tab-chk')) return;
       const tab = e.target.closest('.est-tab');
       if (!tab) return;
       const target = el.querySelector(`#est-sec-${tab.dataset.phaseId}`);
       if (target) target.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     });
 
-    /* Tab: double-click → toggle on/off */
+    /* Tab: double-click on name → rename inline */
     tabs.addEventListener('dblclick', e => {
+      if (e.target.closest('.est-tab-chk')) return;
       const tab = e.target.closest('.est-tab');
-      if (tab) _togglePhase(tab.dataset.phaseId);
+      if (!tab) return;
+      const nameEl  = tab.querySelector('.est-tab-name');
+      const current = nameEl.textContent;
+      const inp = document.createElement('input');
+      inp.className = 'est-tab-rename-inp';
+      inp.value = current;
+      nameEl.replaceWith(inp);
+      inp.focus(); inp.select();
+      function _commit() {
+        const val  = inp.value.trim() || current;
+        const span = document.createElement('span');
+        span.className = 'est-tab-name';
+        span.textContent = val;
+        inp.replaceWith(span);
+        const phase = _EST_MOCK.phases.find(p => p.phaseId === tab.dataset.phaseId);
+        if (phase) phase.name = val;
+      }
+      inp.addEventListener('blur',  _commit);
+      inp.addEventListener('keydown', ev => { if (ev.key === 'Enter') inp.blur(); if (ev.key === 'Escape') { inp.value = current; inp.blur(); } });
     });
 
-    /* Tab: right-click → toggle on/off */
+    /* Tab: right-click → context menu */
     tabs.addEventListener('contextmenu', e => {
       const tab = e.target.closest('.est-tab');
       if (!tab) return;
       e.preventDefault();
-      _togglePhase(tab.dataset.phaseId);
+      const phaseId = tab.dataset.phaseId;
+      const phase   = _EST_MOCK.phases.find(p => p.phaseId === phaseId);
+      const isOff   = tab.classList.contains('is-off');
+      _showTabContextMenu(e.clientX, e.clientY, phaseId, phase, isOff);
     });
 
     /* Grid click → expand / collapse */
@@ -3177,8 +3275,23 @@ const Estimating = (function () {
     el.querySelector('[data-action="est-setup"]').addEventListener('click', () => {
       openEstimateSettings(est.estimateId || null, wid);
     });
+    /* Overflow menu */
+    const overflowBtn  = el.querySelector('.est-overflow-btn');
+    const overflowMenu = el.querySelector('.est-overflow-menu');
+    overflowBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      overflowMenu.style.display = overflowMenu.style.display !== 'none' ? 'none' : '';
+    });
+    document.addEventListener('click', e => {
+      if (!e.target.closest('.est-overflow-wrap')) overflowMenu.style.display = 'none';
+    });
     el.querySelector('[data-action="est-duplicate"]').addEventListener('click', () => {
-      alert('Duplicate: wired in full-stack build.');
+      overflowMenu.style.display = 'none';
+      alert('Duplicate Estimate: wired in full-stack build.');
+    });
+    el.querySelector('[data-action="est-save-template"]').addEventListener('click', () => {
+      overflowMenu.style.display = 'none';
+      alert('Save as Template: wired in full-stack build.');
     });
     el.querySelector('[data-action="est-refresh"]').addEventListener('click', () => {
       // TODO: re-fetch DB_Estimates data when live DB is wired
@@ -3253,6 +3366,74 @@ const Estimating = (function () {
   }
 
   /* ── Estimate Settings Widget ────────────────────────────── */
+
+  function _esPhaseListHTML(phases) {
+    if (!phases.length) return '<div class="est-phase-empty">No phases defined.</div>';
+    let html = '';
+    phases.forEach(ph => {
+      const typeCls = ph.type === 'Sub-Phase' ? ' est-phase-pill--sub' : ph.type === 'Change Order' ? ' est-phase-pill--co' : ' est-phase-pill--phase';
+      const offCls  = ph.isSelected ? '' : ' is-off';
+      const indent  = ph.parentId ? ' est-phase-pill--indented' : '';
+      const typeLabel = ph.type === 'Sub-Phase' ? 'Sub' : ph.type === 'Change Order' ? 'C/O' : 'Ph';
+      html += `<div class="est-phase-pill${typeCls}${offCls}${indent}" data-phase-id="${ph.phaseId}" data-expanded="false">` +
+              `<span class="est-phase-pill-lbl">${typeLabel}</span>` +
+              `<span class="est-phase-pill-name">${ph.name}</span>` +
+              `${ph.markupOverride ? '<span class="est-phase-pill-mkp">mkp</span>' : ''}` +
+              `</div>`;
+    });
+    return html;
+  }
+
+  function _esPhaseFormHTML(phases, editPhase) {
+    const ph = editPhase || {};
+    const parentOpts = phases.filter(p => p.type === 'Phase').map(p =>
+      `<option value="${p.phaseId}"${ph.parentId === p.phaseId ? ' selected' : ''}>${p.name}</option>`
+    ).join('');
+    const sel = (v, match) => v === match ? ' selected' : '';
+    const mkpVal = key => ph[key] != null ? ph[key] : '';
+    const showParent  = ph.type === 'Sub-Phase' ? '' : 'display:none';
+    const showMkpRow  = ph.markupOverride ? '' : 'display:none';
+    return `
+      <div class="form-row">
+        <div class="form-group f-grow">
+          <label class="form-label">Phase Name</label>
+          <input class="form-input" type="text" data-ep="name" value="${ph.name || ''}" placeholder="Phase name">
+        </div>
+        <div class="form-group" style="width:110px">
+          <label class="form-label">Type</label>
+          <select class="form-select" data-ep="type">
+            <option value="Phase"${sel(ph.type,'Phase')}>Phase</option>
+            <option value="Sub-Phase"${sel(ph.type,'Sub-Phase')}>Sub-Phase</option>
+            <option value="Change Order"${sel(ph.type,'Change Order')}>Change Order</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row est-phase-parent-row" style="${showParent}">
+        <div class="form-group f-grow">
+          <label class="form-label">Parent Phase</label>
+          <select class="form-select" data-ep="parent-id">
+            <option value="">— Select Parent —</option>
+            ${parentOpts}
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="est-phase-override-lbl">
+          <input type="checkbox" data-ep="markup-override"${ph.markupOverride ? ' checked' : ''}> Override markup defaults for this phase
+        </label>
+      </div>
+      <div class="est-phase-mkp-row" style="${showMkpRow}">
+        <div class="est-mkp-field"><span class="form-label">Labor</span><input class="est-mkp-inp" type="number" min="0" step="0.1" data-ep="markupLabor" value="${mkpVal('markupLabor')}" placeholder="0"></div>
+        <div class="est-mkp-field"><span class="form-label">Mat</span><input class="est-mkp-inp" type="number" min="0" step="0.1" data-ep="markupMaterial" value="${mkpVal('markupMaterial')}" placeholder="0"></div>
+        <div class="est-mkp-field"><span class="form-label">Sub</span><input class="est-mkp-inp" type="number" min="0" step="0.1" data-ep="markupSub" value="${mkpVal('markupSub')}" placeholder="0"></div>
+        <div class="est-mkp-field"><span class="form-label">Equip</span><input class="est-mkp-inp" type="number" min="0" step="0.1" data-ep="markupEquipment" value="${mkpVal('markupEquipment')}" placeholder="0"></div>
+        <div class="est-mkp-field"><span class="form-label">Other</span><input class="est-mkp-inp" type="number" min="0" step="0.1" data-ep="markupOther" value="${mkpVal('markupOther')}" placeholder="0"></div>
+      </div>
+      <div class="form-row est-phase-form-btns">
+        <button class="btn-secondary sp-btn" data-action="ep-cancel">Done</button>
+        <button class="btn-primary sp-btn"   data-action="ep-save-add">Save + Add Phase</button>
+      </div>`;
+  }
 
   function _estSettingsHTML(est) {
     const v = est || {};
@@ -3384,6 +3565,16 @@ const Estimating = (function () {
             </div>
           </div>
 
+          <hr class="est-settings-divider">
+
+          <div class="form-section est-settings-hdr">Phases</div>
+          <div class="est-phase-add-row">
+            <button class="btn-secondary sp-btn est-phase-add-btn" data-action="ep-new">+ Phase</button>
+          </div>
+          <div class="est-phase-list" id="es-phase-list">
+            ${_esPhaseListHTML(_EST_MOCK.phases)}
+          </div>
+
         </div><!-- /.est-settings-body -->
         <div class="est-settings-footer">
           <button class="btn-secondary sp-btn" data-action="es-cancel">Cancel</button>
@@ -3424,7 +3615,7 @@ const Estimating = (function () {
     const title = 'Estimate Settings';
     const id    = 'estimate-settings';
     if (WidgetManager.open(id, title, _estSettingsHTML(est), {
-      width: 420, height: 560, minWidth: 400, minHeight: 460, category: 'estimating',
+      width: 420, height: 680, minWidth: 400, minHeight: 520, category: 'estimating',
       centeredOn: parentWidgetId,
     }) !== false) {
       _bindEstimateSettings(id, est);
@@ -3532,11 +3723,118 @@ const Estimating = (function () {
       document.dispatchEvent(new CustomEvent('est-settings-saved', { detail: record }));
     }
 
+    /* ── Phase section ── */
+    const phaseList = el.querySelector('#es-phase-list');
+    let _editingPhaseId = null;
+
+    /* Single reusable form element — moved in the DOM to sit after the active pill */
+    const phaseForm = document.createElement('div');
+    phaseForm.className = 'est-phase-form';
+    phaseForm.style.display = 'none';
+
+    function _phaseFormF(key) { return phaseForm.querySelector(`[data-ep="${key}"]`); }
+
+    function _attachFormListeners() {
+      _phaseFormF('type').addEventListener('change', function () {
+        phaseForm.querySelector('.est-phase-parent-row').style.display =
+          this.value === 'Sub-Phase' ? '' : 'none';
+      });
+      _phaseFormF('markup-override').addEventListener('change', function () {
+        phaseForm.querySelector('.est-phase-mkp-row').style.display = this.checked ? '' : 'none';
+      });
+    }
+
+    function _closePhaseForm() {
+      phaseForm.style.display = 'none';
+      _editingPhaseId = null;
+    }
+
+    function _refreshPhaseList() {
+      /* Re-render pills; re-insert form after its pill if it was open */
+      const openId = phaseForm.style.display !== 'none' ? _editingPhaseId : null;
+      phaseList.innerHTML = _esPhaseListHTML(_EST_MOCK.phases);
+      if (openId) {
+        const pill = phaseList.querySelector(`[data-phase-id="${openId}"]`);
+        if (pill) pill.after(phaseForm);
+      }
+    }
+
+    function _openPhaseForm(phase, afterEl) {
+      const phaseId = phase?.phaseId || null;
+      /* Toggle: clicking the same pill while open closes the form */
+      if (_editingPhaseId === phaseId && phaseForm.style.display !== 'none') {
+        _closePhaseForm();
+        return;
+      }
+      _editingPhaseId = phaseId;
+      phaseForm.innerHTML = _esPhaseFormHTML(_EST_MOCK.phases, phase || null);
+      _attachFormListeners();
+      /* Move form to the right position in the DOM */
+      phaseForm.remove();
+      if (afterEl) {
+        afterEl.after(phaseForm);
+      } else {
+        phaseList.prepend(phaseForm);
+      }
+      phaseForm.style.display = '';
+      _phaseFormF('name').focus();
+    }
+
+    function _savePhaseForm(keepOpen) {
+      const name    = _phaseFormF('name').value.trim();
+      if (!name) { _phaseFormF('name').focus(); return; }
+      const type    = _phaseFormF('type').value;
+      const parentId = type === 'Sub-Phase' ? (_phaseFormF('parent-id')?.value || null) : null;
+      const overrideEl = _phaseFormF('markup-override');
+      const override   = overrideEl ? overrideEl.checked : false;
+      const mkpVal = key => { const inp = _phaseFormF(key); return (override && inp) ? (parseFloat(inp.value) || null) : null; };
+      if (_editingPhaseId) {
+        const ph = _EST_MOCK.phases.find(p => p.phaseId === _editingPhaseId);
+        if (ph) {
+          ph.name = name; ph.type = type; ph.parentId = parentId;
+          ph.markupOverride = override;
+          ph.markupLabor = mkpVal('markupLabor'); ph.markupMaterial = mkpVal('markupMaterial');
+          ph.markupSub = mkpVal('markupSub'); ph.markupEquipment = mkpVal('markupEquipment');
+          ph.markupOther = mkpVal('markupOther');
+        }
+      } else {
+        const maxOrder = _EST_MOCK.phases.reduce((m, p) => Math.max(m, p.sortOrder), 0);
+        _EST_MOCK.phases.push({
+          phaseId: 'P' + Date.now(), type, name, parentId, isSelected: true,
+          sortOrder: maxOrder + 10, markupOverride: override,
+          markupLabor: mkpVal('markupLabor'), markupMaterial: mkpVal('markupMaterial'),
+          markupSub: mkpVal('markupSub'), markupEquipment: mkpVal('markupEquipment'),
+          markupOther: mkpVal('markupOther'),
+        });
+      }
+      if (keepOpen) {
+        /* Save + Add Phase: refresh list then open blank form at top */
+        _editingPhaseId = null;
+        _refreshPhaseList();
+        _openPhaseForm(null, null);
+      } else {
+        _closePhaseForm();
+        _refreshPhaseList();
+      }
+    }
+
+    /* Phase list: click pill to toggle form open/closed in-place */
+    phaseList.addEventListener('click', function (e) {
+      const pill = e.target.closest('.est-phase-pill');
+      if (!pill) return;
+      const ph = _EST_MOCK.phases.find(p => p.phaseId === pill.dataset.phaseId);
+      if (ph) _openPhaseForm(ph, pill);
+    });
+
     el.addEventListener('click', function (e) {
       const action = e.target.closest('[data-action]')?.dataset.action;
       if (!action) return;
       if (action === 'es-cancel') { WidgetManager.close(widgetId); return; }
+      if (action === 'ep-new')    { _openPhaseForm(null, null); return; }
+      if (action === 'ep-cancel') { _closePhaseForm(); return; }
+      if (action === 'ep-save-add') { _savePhaseForm(true);  return; }
       if (action === 'es-done') {
+        if (phaseForm.style.display !== 'none') _savePhaseForm(false);
         const data = _readForm();
         if (!data.estimateName) {
           el.querySelector('[data-es="name"]').focus();
