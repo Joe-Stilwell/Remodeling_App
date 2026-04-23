@@ -1,4 +1,10 @@
-/* SplitPanel — shared two-panel (nav + main) layout helper */
+/* ================================================================
+   MODULE: splitpanel.js
+   Owns:   Two-panel (nav + main) resizable layout helper
+   Public: SplitPanel.bindDivider
+   Reads:  Nothing — zero dependencies on other modules
+   Never:  Data access, widget lifecycle, AppData.
+   ================================================================ */
 const SplitPanel = (function () {
 
   /* bindDivider(dividerEl, opts)

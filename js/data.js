@@ -1,6 +1,18 @@
-/* ── Google Sheets Data Layer ─────────────────────────────────
-   Fetches all sheet tabs from the Remodeling App spreadsheet.
-   Data is available via AppData.tables after AppData.ready resolves.
+/* ── Data Access Layer ─────────────────────────────────────────
+   MODULE: data.js
+   Owns:   AppData — the single source of truth for all in-memory
+           table data fetched from Google Sheets.
+   Public: AppData.get, AppData.find, AppData.upsert, AppData.set,
+           AppData.insert, AppData.refresh, AppData.ready,
+           AppData.isReady, AppData.hasError
+   Reads:  Google Sheets API (via fetch)
+   Never:  Business logic, UI rendering, widget state
+
+   FULL BUILD NOTE:
+   get / find are sync against the in-memory cache.
+   In the full build these become async calls to the real DB/API.
+   All call sites should be written to tolerate that transition —
+   avoid caching return values across ticks.
 ──────────────────────────────────────────────────────────────── */
 
 const AppData = (function () {
@@ -34,8 +46,25 @@ const AppData = (function () {
     'DB_Price_List_History',
   ];
 
-  // Converts a sheet tab (rows of values) into an array of objects
-  // using the first row as property names.
+  // Primary key field for each table — used by find() and upsert()
+  const _pk = {
+    DB_People:                  'People_ID',
+    DB_Company:                 'Company_ID',
+    DB_Property:                'Property_ID',
+    DB_Estimates:               'Estimate_ID',
+    DB_Vendor:                  'Company_ID',
+    DB_Costbook_Items:          'Item_ID',
+    DB_Costbooks:               'Costbook_ID',
+    DB_Price_List:              'Item_ID',
+    DB_Workflow_Templates:      'Template_ID',
+    DB_Divisions:               'Division_ID',
+    DB_Subdivisions:            'Subdivision_ID',
+    DB_Price_List_Categories:   'Category_ID',
+    DB_Price_List_Subcategories:'Subcategory_ID',
+    DB_Tax_Rates:               'Tax_Rate_ID',
+    DB_Documents:               'Document_ID',
+  };
+
   function _rowsToObjects(rows) {
     if (!rows || rows.length < 2) return [];
     const headers = rows[0];
@@ -56,13 +85,21 @@ const AppData = (function () {
     return _rowsToObjects(json.values);
   }
 
-  // tables holds all fetched data keyed by tab name, e.g. AppData.tables.DB_People
   const tables = {};
+
+  let _ready    = false;
+  let _hasError = false;
 
   const ready = Promise.all(TABS.map(async tab => {
     tables[tab] = await _fetchTab(tab);
-  })).catch(err => {
+  })).then(() => {
+    _ready = true;
+    document.dispatchEvent(new CustomEvent('appdata-ready'));
+  }, err => {
+    _hasError = true;
     console.error('AppData: failed to load sheet data', err);
+    document.dispatchEvent(new CustomEvent('appdata-error', { detail: { error: err } }));
+    throw err;
   });
 
   async function refresh(tabs) {
@@ -72,6 +109,53 @@ const AppData = (function () {
     }));
   }
 
-  return { tables, ready, refresh };
+  // ── Read API ────────────────────────────────────────────────
+
+  // Returns all records for a table. Always an array — never null.
+  function get(table) {
+    return tables[table] || [];
+  }
+
+  // Returns the first record matching id on the primary key (or a
+  // specified field). Returns undefined if not found.
+  function find(table, id, field) {
+    const key = field || _pk[table];
+    if (!key) return undefined;
+    return (tables[table] || []).find(r => r[key] === id);
+  }
+
+  // ── Write API (in-memory for prototype) ─────────────────────
+  // FULL BUILD: these become async API calls (POST/PUT/DELETE).
+
+  // Insert a record. Returns the record.
+  function insert(table, record) {
+    if (!tables[table]) tables[table] = [];
+    tables[table].push(record);
+    return record;
+  }
+
+  // Update an existing record by PK (or field), or insert if not found.
+  // Merges updates into the existing record. Returns the record.
+  function upsert(table, record, field) {
+    const key = field || _pk[table];
+    if (!tables[table]) tables[table] = [];
+    const idx = key ? tables[table].findIndex(r => r[key] === record[key]) : -1;
+    if (idx >= 0) {
+      tables[table][idx] = { ...tables[table][idx], ...record };
+      return tables[table][idx];
+    }
+    tables[table].push(record);
+    return record;
+  }
+
+  // Replace an entire table's records (e.g. after a filtered save).
+  function set(table, records) {
+    tables[table] = records;
+  }
+
+  function isReady()   { return _ready; }
+  function hasError()  { return _hasError; }
+
+  return { tables, ready, refresh, get, find, insert, upsert, set, isReady, hasError };
 
 }());

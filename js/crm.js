@@ -1,4 +1,15 @@
-/* --- CRM Module --- */
+/* ================================================================
+   MODULE: crm.js
+   Owns:   DB_People, DB_Company, DB_Property, DB_Vendor,
+           Link_Company_People, Link_Property_People,
+           Link_Property_Company, Link_People_Relationship
+   Public: CRM.openNewContact, openNewContactFromSearch,
+           openProfile, openPhonebook, openEditContact,
+           openVendorMgmt
+   Reads:  AppData (get/find/upsert), WidgetManager
+   Never:  Write to Estimate or Work Order tables.
+           Own global state outside this IIFE.
+   ================================================================ */
 const CRM = (function () {
 
   /* ── Storage keys ─────────────────────────────────────────── */
@@ -1198,31 +1209,32 @@ const CRM = (function () {
       searchResults.querySelectorAll('.company-search-item').forEach(item => {
         item.addEventListener('mousedown', function (e) {
           e.preventDefault();
-          const co = (AppData.tables['DB_Company'] || []).find(c => c.Company_ID === this.dataset.coId);
+          const co = (AppData.get('DB_Company')).find(c => c.Company_ID === this.dataset.coId);
           if (!co) return;
           _selectedCompanyId = co.Company_ID;
           nameInput.value = co.Company_DBA || co.Company_Name;
-          sideEl.querySelector('[data-co="dba"]').value       = co.Company_DBA    || '';
+          sideEl.querySelector('[data-co="dba"]').value = co.Company_DBA || '';
+          _dbaUserEdited = false;
           searchResults.innerHTML = '';
         });
       });
     }
 
-    // Copy Company Name → DBA when DBA is still empty
-    nameInput.addEventListener('blur', function () {
-      const dbaInput = sideEl.querySelector('[data-co="dba"]');
-      if (this.value.trim() && !dbaInput.value.trim()) {
-        dbaInput.value = this.value.trim();
-      }
+    // Mirror Company Name → DBA live; stop mirroring once user edits DBA directly
+    const dbaInput = sideEl.querySelector('[data-co="dba"]');
+    let _dbaUserEdited = false;
+    dbaInput.addEventListener('input', function () {
+      _dbaUserEdited = true;
     });
 
     nameInput.addEventListener('input', function () {
+      if (!_dbaUserEdited) dbaInput.value = this.value;
       _selectedCompanyId = null;
       clearTimeout(_coSearchDebounce);
       const q = this.value.trim().toLowerCase();
       if (q.length < 2) { searchResults.innerHTML = ''; return; }
       _coSearchDebounce = setTimeout(() => {
-        const matches = (AppData.tables['DB_Company'] || [])
+        const matches = (AppData.get('DB_Company'))
           .filter(c => [c.Company_Name, c.Company_DBA].some(f => f && f.toLowerCase().includes(q)))
           .slice(0, 6);
         _showCoResults(matches);
@@ -1488,22 +1500,23 @@ const CRM = (function () {
     _setData(KEYS.properties, properties);
     _setData(KEYS.links, links);
 
+    Toast.show('✓ Saved');
     WidgetManager.close(widgetId);
     if (afterSave) afterSave();
   }
 
   /* ── Profile widget helpers ──────────────────────────────── */
   function _getPersonCompanyRecord(peopleId) {
-    const links     = AppData.tables['Link_Company_People'] || [];
-    const companies = AppData.tables['DB_Company']          || [];
+    const links     = AppData.get('Link_Company_People');
+    const companies = AppData.get('DB_Company');
     const link      = links.find(l => l.People_ID === peopleId);
     if (!link) return null;
     return companies.find(c => c.Company_ID === link.Company_ID) || null;
   }
 
   function _getPersonProperties(peopleId) {
-    const ppLinks  = AppData.tables['Link_Property_People'] || [];
-    const allProps = AppData.tables['DB_Property']          || [];
+    const ppLinks  = AppData.get('Link_Property_People');
+    const allProps = AppData.get('DB_Property');
     return ppLinks
       .filter(l => l.People_ID === peopleId && !l.Date_To)
       .map(l => allProps.find(p => p.Property_ID === l.Property_ID))
@@ -1512,8 +1525,8 @@ const CRM = (function () {
   }
 
   function _getCompanyProperties(companyId) {
-    const cpLinks  = AppData.tables['Link_Property_Company'] || [];
-    const allProps = AppData.tables['DB_Property']           || [];
+    const cpLinks  = AppData.get('Link_Property_Company');
+    const allProps = AppData.get('DB_Property');
     return cpLinks
       .filter(l => l.Company_ID === companyId && !l.Date_To)
       .map(l => allProps.find(p => p.Property_ID === l.Property_ID))
@@ -1564,8 +1577,8 @@ const CRM = (function () {
     const phones     = _profilePhones(person);
     const emails     = _profileEmails(person);
 
-    const relLinks  = AppData.tables['Link_People_Relationship'] || [];
-    const allPeople = AppData.tables['DB_People']                || [];
+    const relLinks  = AppData.get('Link_People_Relationship');
+    const allPeople = AppData.get('DB_People');
     const linkedPeople = relLinks
       .filter(l => l.People_ID_1 === person.People_ID || l.People_ID_2 === person.People_ID)
       .map(l => {
@@ -1598,8 +1611,8 @@ const CRM = (function () {
   }
 
   function _companyProfileHTML(company) {
-    const links      = AppData.tables['Link_Company_People'] || [];
-    const allPeople  = AppData.tables['DB_People']           || [];
+    const links      = AppData.get('Link_Company_People');
+    const allPeople  = AppData.get('DB_People');
     const properties = _getCompanyProperties(company.Company_ID);
     const phones     = _profilePhones(company);
     const emails     = _profileEmails(company);
@@ -1625,7 +1638,6 @@ const CRM = (function () {
     return `<div class="widget-form profile-form">
       <div class="profile-block profile-header-block">
         <div class="profile-name">${company.Company_DBA || company.Company_Name}</div>
-        ${company.Company_DBA ? `<div class="profile-meta">${company.Company_Name}</div>` : ''}
         ${vendorMeta ? `<div class="profile-meta">${vendorMeta}</div>` : ''}
       </div>
       ${_profileContactRows(phones, emails)}
@@ -1658,9 +1670,9 @@ const CRM = (function () {
   }
 
   function _propertyProfileHTML(property) {
-    const ppLinks    = AppData.tables['Link_Property_People'] || [];
-    const allPeople  = AppData.tables['DB_People']           || [];
-    const allEstimates = AppData.tables['DB_Estimates']      || [];
+    const ppLinks    = AppData.get('Link_Property_People');
+    const allPeople  = AppData.get('DB_People');
+    const allEstimates = AppData.get('DB_Estimates');
 
     // Section 2: current owners/occupants (no Date_To)
     const owners = ppLinks
@@ -1750,16 +1762,16 @@ const CRM = (function () {
       ? emails.map((em, i) => _emailRowHTML(i, i === 0, em)).join('')
       : _emailRowHTML(0, true);
 
-    const ppLinks    = AppData.tables['Link_Property_People'] || [];
-    const allProps   = AppData.tables['DB_Property']          || [];
+    const ppLinks    = AppData.get('Link_Property_People');
+    const allProps   = AppData.get('DB_Property');
     const properties = ppLinks
       .filter(l => l.People_ID === person.People_ID && !l.Date_To)
       .map(l => allProps.find(p => p.Property_ID === l.Property_ID))
       .filter(Boolean)
       .sort((a, b) => (b.Property_Use === 'Primary Residence') - (a.Property_Use === 'Primary Residence'));
 
-    const cpLinks    = AppData.tables['Link_Company_People'] || [];
-    const allCos     = AppData.tables['DB_Company']          || [];
+    const cpLinks    = AppData.get('Link_Company_People');
+    const allCos     = AppData.get('DB_Company');
     const compLink   = cpLinks.find(l => l.People_ID === person.People_ID);
     const company    = compLink ? allCos.find(c => c.Company_ID === compLink.Company_ID) : null;
 
@@ -1951,7 +1963,7 @@ const CRM = (function () {
     // Delete
     el.querySelector('[data-action="delete-record"]').addEventListener('click', () => {
       if (!confirm(`Delete ${person.People_Last_Name}, ${person.People_First_Name}? This cannot be undone.`)) return;
-      const people = AppData.tables['DB_People'] || [];
+      const people = AppData.get('DB_People');
       const idx    = people.findIndex(p => p.People_ID === person.People_ID);
       if (idx !== -1) people.splice(idx, 1);
       WidgetManager.close(widgetId);
@@ -1972,7 +1984,7 @@ const CRM = (function () {
       const now    = new Date().toISOString();
       const phones = _collectPhones(el);
       const emails = _collectEmails(el);
-      const people = AppData.tables['DB_People'] || [];
+      const people = AppData.get('DB_People');
 
       // Update the existing person record
       const rec = people.find(p => p.People_ID === person.People_ID);
@@ -2000,7 +2012,7 @@ const CRM = (function () {
       }
 
       // Create new DB_People entries from any added persons
-      const relLinks = AppData.tables['Link_People_Relationship'] || [];
+      const relLinks = AppData.get('Link_People_Relationship');
       el.querySelectorAll('[data-person-summary]').forEach(row => {
         const d = JSON.parse(row.dataset.personSummary);
         if (!d.firstName && !d.lastName) return;
@@ -2108,7 +2120,7 @@ const CRM = (function () {
 
     el.querySelector('[data-action="delete-record"]').addEventListener('click', () => {
       if (!confirm(`Delete ${company.Company_DBA || company.Company_Name}? This cannot be undone.`)) return;
-      const companies = AppData.tables['DB_Company'] || [];
+      const companies = AppData.get('DB_Company');
       const idx = companies.findIndex(c => c.Company_ID === company.Company_ID);
       if (idx !== -1) companies.splice(idx, 1);
       WidgetManager.close(widgetId);
@@ -2123,7 +2135,7 @@ const CRM = (function () {
         el.querySelector('[data-field="company-name"]').focus();
         return;
       }
-      const rec = (AppData.tables['DB_Company'] || []).find(c => c.Company_ID === company.Company_ID);
+      const rec = (AppData.get('DB_Company')).find(c => c.Company_ID === company.Company_ID);
       if (rec) {
         rec.Company_Name      = name;
         rec.Company_DBA       = el.querySelector('[data-field="company-dba"]').value.trim();
@@ -2139,7 +2151,7 @@ const CRM = (function () {
 
   function openEditContact(type, id) {
     if (type === 'person') {
-      const person = (AppData.tables['DB_People'] || []).find(p => p.People_ID === id);
+      const person = (AppData.get('DB_People')).find(p => p.People_ID === id);
       if (!person) return;
       const widgetId = `edit-person-${id}`;
       const title    = `Edit — ${person.People_Last_Name}, ${person.People_First_Name}`;
@@ -2148,7 +2160,7 @@ const CRM = (function () {
       }) !== false) _bindEditPersonForm(person, widgetId);
 
     } else if (type === 'company') {
-      const company = (AppData.tables['DB_Company'] || []).find(c => c.Company_ID === id);
+      const company = (AppData.get('DB_Company')).find(c => c.Company_ID === id);
       if (!company) return;
       const widgetId = `edit-company-${id}`;
       const title    = `Edit — ${company.Company_DBA || company.Company_Name}`;
@@ -2162,12 +2174,12 @@ const CRM = (function () {
   function _pbGetLabels(view) {
     if (view === 'companies') {
       return [...new Set(
-        (AppData.tables['DB_Company'] || []).map(c => c.Vendor_Category).filter(Boolean)
+        (AppData.get('DB_Company')).map(c => c.Vendor_Category).filter(Boolean)
       )].sort();
     }
     if (view === 'clients') {
       return [...new Set(
-        (AppData.tables['DB_People'] || [])
+        (AppData.get('DB_People'))
           .filter(p => p.Is_Client === 'Yes')
           .map(p => p.Client_Type).filter(Boolean)
       )].sort();
@@ -2209,6 +2221,11 @@ const CRM = (function () {
               </select>
             </div>
           </div>
+          <button class="more-menu-btn" data-action="more-menu" title="More options">&#8942;</button>
+          <div class="split-btn-dropdown" hidden>
+            <button class="split-btn-item" data-action="print">Print / Save as PDF</button>
+            <button class="split-btn-item" data-action="export-csv">Export to CSV</button>
+          </div>
         </div>
         <div class="pb-chips-bar" style="display:none">
           <div class="pb-filter-chips"></div>
@@ -2221,8 +2238,6 @@ const CRM = (function () {
         </div>
         <div class="pb-list-wrap">
           <div class="pb-list"></div>
-        </div>
-        <div class="widget-footer">
         </div>
       </div>
     </div>`;
@@ -2237,10 +2252,10 @@ const CRM = (function () {
   }
 
   function _pbRender(listEl, view, labelFilter, sortCol, sortDir, searchText, activeFilters) {
-    const people    = AppData.tables['DB_People']  || [];
-    const companies = AppData.tables['DB_Company'] || [];
-    const links     = AppData.tables['Link_Property_People'] || [];
-    const props     = AppData.tables['DB_Property'] || [];
+    const people    = AppData.get('DB_People');
+    const companies = AppData.get('DB_Company');
+    const links     = AppData.get('Link_Property_People');
+    const props     = AppData.get('DB_Property');
     const q  = searchText.toLowerCase();
     const qD = q.replace(/\D/g, '');
     const rows = [];
@@ -2310,7 +2325,15 @@ const CRM = (function () {
       return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
     });
 
-    if (!rows.length) { listEl.innerHTML = '<div class="pb-empty">No results</div>'; return; }
+    if (!rows.length) {
+      const msg = searchText
+        ? `🔍 No results for "${searchText}"`
+        : (Object.keys(activeFilters).length || labelFilter)
+          ? '🔍 No contacts match the current filters'
+          : '📭 No contacts yet';
+      UIState.empty(listEl, msg);
+      return;
+    }
 
     listEl.innerHTML = rows.map(r => `
       <div class="pb-row" data-type="${r.type}" data-id="${r.id}">
@@ -2348,7 +2371,7 @@ const CRM = (function () {
       if (field === 'vendor_specialty')return Object.values(VENDOR_SPEC_BY_CAT).flat().filter((v,i,a) => a.indexOf(v) === i).sort();
       if (field === 'lead_source')     return _getList('leadSources');
       if (field === 'city') {
-        const props = AppData.tables['DB_Property'] || [];
+        const props = AppData.get('DB_Property');
         return [...new Set(props.map(p => p.Address_City).filter(Boolean))].sort();
       }
       return [];
@@ -2415,6 +2438,9 @@ const CRM = (function () {
       const activeIcon = el.querySelector(`.pb-col-header[data-sort="${sortCol}"] .pb-sort-icon`);
       if (activeIcon) activeIcon.textContent = sortDir === 'asc' ? ' ▲' : ' ▼';
       _pbRender(el.querySelector('.pb-list'), activeView, labelFilter, sortCol, sortDir, searchText, activeFilters);
+      const n = el.querySelectorAll('.pb-row').length;
+      const sl = el.closest('.widget')?.querySelector('.widget-status-left');
+      if (sl) sl.textContent = n === 1 ? '1 contact' : `${n} contacts`;
     }
 
     // Nav buttons
@@ -2512,6 +2538,11 @@ const CRM = (function () {
           }
           openProfile(type, id, posOpts);
           _lastPbProfile = profileId;
+          if (searchText) {
+            searchText = '';
+            el.querySelector('.pb-search').value = '';
+            render();
+          }
         }
       }, 220);
     });
@@ -2591,8 +2622,30 @@ const CRM = (function () {
       pbWidget.classList.toggle('pb-hide-email', mainEl.offsetWidth < nameW + phoneW + 20);
     }).observe(mainEl);
 
+    _bindMoreMenu(el, el.querySelector('[data-action="more-menu"]'), () => {
+      const listRows = [...el.querySelectorAll('.pb-row')];
+      const viewBtn  = el.querySelector('.pb-nav-btn.active');
+      return {
+        title:   'Contacts',
+        subtitle: viewBtn ? viewBtn.textContent.trim() : '',
+        headers: ['Name', 'Phone', 'Email'],
+        rows:    listRows.map(r => [
+          r.querySelector('.pb-col-name')?.textContent  || '',
+          r.querySelector('.pb-col-phone')?.textContent || '',
+          r.querySelector('.pb-col-email')?.textContent || '',
+        ]),
+      };
+    });
+
     _updateLabels();
-    render();
+    const _pbListEl = el.querySelector('.pb-list');
+    UIState.loading(_pbListEl);
+    AppData.ready.then(() => render()).catch(() => {
+      UIState.error(_pbListEl, "Couldn't load your data", () => {
+        UIState.loading(_pbListEl);
+        AppData.refresh().then(render).catch(() => UIState.error(_pbListEl, "Couldn't load your data"));
+      });
+    });
   }
 
   /* ── Public: open phone book widget ──────────────────────── */
@@ -2665,26 +2718,23 @@ const CRM = (function () {
     }
 
     if (type === 'person') {
-      const person = (AppData.tables['DB_People'] || []).find(p => p.People_ID === id);
+      const person = (AppData.get('DB_People')).find(p => p.People_ID === id);
       if (!person) return;
-      const title = `${person.People_Last_Name}, ${person.People_First_Name}`;
-      if (WidgetManager.open(widgetId, title, _personProfileHTML(person), {
+      if (WidgetManager.open(widgetId, 'Contact', _personProfileHTML(person), {
         width: cardW, minWidth: 260, autoHeight: true, noDock: true, ...pos,
       }) !== false) _bindProfileWidget(widgetId);
 
     } else if (type === 'company') {
-      const company = (AppData.tables['DB_Company'] || []).find(c => c.Company_ID === id);
+      const company = (AppData.get('DB_Company')).find(c => c.Company_ID === id);
       if (!company) return;
-      const title = company.Company_DBA || company.Company_Name;
-      if (WidgetManager.open(widgetId, title, _companyProfileHTML(company), {
+      if (WidgetManager.open(widgetId, 'Company', _companyProfileHTML(company), {
         width: cardW, minWidth: 260, autoHeight: true, noDock: true, ...pos,
       }) !== false) _bindProfileWidget(widgetId);
 
     } else if (type === 'property') {
-      const property = (AppData.tables['DB_Property'] || []).find(p => p.Property_ID === id);
+      const property = (AppData.get('DB_Property')).find(p => p.Property_ID === id);
       if (!property) return;
-      const title = property.Address_Street_1;
-      if (WidgetManager.open(widgetId, title, _propertyProfileHTML(property), {
+      if (WidgetManager.open(widgetId, 'Property', _propertyProfileHTML(property), {
         width: cardW, minWidth: 260, autoHeight: true, noDock: true, ...pos,
       }) !== false) _bindProfileWidget(widgetId);
     }
@@ -2763,6 +2813,11 @@ const CRM = (function () {
               </select>
             </div>
           </div>
+          <button class="more-menu-btn" data-action="more-menu" title="More options">&#8942;</button>
+          <div class="split-btn-dropdown" hidden>
+            <button class="split-btn-item" data-action="print">Print / Save as PDF</button>
+            <button class="split-btn-item" data-action="export-csv">Export to CSV</button>
+          </div>
         </div>
         <div class="vm-chips-bar" style="display:none">
           <div class="vm-filter-chips"></div>
@@ -2771,8 +2826,6 @@ const CRM = (function () {
         <div class="vm-col-headers"></div>
         <div class="vm-list-wrap">
           <div class="vm-list"></div>
-        </div>
-        <div class="widget-footer">
         </div>
       </div>
     </div>`;
@@ -2797,8 +2850,8 @@ const CRM = (function () {
   }
 
   function _vmRender(listEl, headersEl, view, typeFilter, alertFilter, sortCol, sortDir, searchText, vmFilters) {
-    const companies = AppData.tables['DB_Company'] || [];
-    const vendors   = AppData.tables['DB_Vendor']  || [];
+    const companies = AppData.get('DB_Company');
+    const vendors   = AppData.get('DB_Vendor');
     const q = searchText.toLowerCase();
     const vf = vmFilters || {};
 
@@ -2862,7 +2915,10 @@ const CRM = (function () {
     });
 
     if (!rows.length) {
-      listEl.innerHTML = '<div class="vm-empty">No vendors found</div>';
+      const msg = (searchText || typeFilter || alertFilter || Object.keys(vf).length)
+        ? '🔍 No vendors match the current filters'
+        : '📭 No vendors on file';
+      UIState.empty(listEl, msg);
       return;
     }
 
@@ -2892,8 +2948,8 @@ const CRM = (function () {
   }
 
   function _vmUpdateIssueBadge(el) {
-    const companies = AppData.tables['DB_Company'] || [];
-    const vendors   = AppData.tables['DB_Vendor']  || [];
+    const companies = AppData.get('DB_Company');
+    const vendors   = AppData.get('DB_Vendor');
     const pool      = companies.filter(c => VENDOR_TYPES.includes(c.Company_Type));
     const issueCount = pool.filter(c => {
       const v = vendors.find(v => v.Company_ID === c.Company_ID) || null;
@@ -2990,6 +3046,9 @@ const CRM = (function () {
       if (icon) icon.textContent = sortDir === 'asc' ? ' ▲' : ' ▼';
       _vmRender(listEl, headersEl, 'credentials', typeFilter, alertFilter, sortCol, sortDir, searchText, vmFilters);
       _vmUpdateIssueBadge(el);
+      const n = listEl.querySelectorAll('.vm-row').length;
+      const sl = el.closest('.widget')?.querySelector('.widget-status-left');
+      if (sl) sl.textContent = n === 1 ? '1 vendor' : `${n} vendors`;
     }
 
     // El-level: filter chip actions + close
@@ -3080,8 +3139,92 @@ const CRM = (function () {
       _openVendorDetail(row.dataset.companyId, widgetId, { ids: allIds, index });
     });
 
+    _bindMoreMenu(el, el.querySelector('[data-action="more-menu"]'), () => {
+      const listRows  = [...el.querySelectorAll('.vm-row')];
+      const hdrCells  = [...el.querySelectorAll('.vm-col-headers .vm-col')];
+      const headers   = hdrCells.map(h => h.textContent.trim().replace(/\s*[▲▼]\s*$/, '').trim());
+      const typeLabel = typeFilter || '';
+      return {
+        title:   'Vendor Management',
+        subtitle: typeLabel,
+        headers,
+        rows: listRows.map(r => [...r.querySelectorAll('.vm-cell')].map(c => c.textContent.trim())),
+      };
+    });
+
     _vmRenderHeaders(headersEl, 'credentials');
-    render();
+    UIState.loading(listEl);
+    AppData.ready.then(() => render()).catch(() => {
+      UIState.error(listEl, "Couldn't load your data", () => {
+        UIState.loading(listEl);
+        AppData.refresh().then(render).catch(() => UIState.error(listEl, "Couldn't load your data"));
+      });
+    });
+  }
+
+  /* ── Print / Export / More Menu utilities ────────────────── */
+
+  function _printList(title, subtitle, headers, rows) {
+    let frame = document.getElementById('print-frame');
+    if (!frame) {
+      frame = document.createElement('div');
+      frame.id = 'print-frame';
+      document.body.appendChild(frame);
+    }
+    const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    frame.innerHTML = `
+      <div class="pf-title">${title}</div>
+      ${subtitle ? `<div class="pf-subtitle">${subtitle}</div>` : ''}
+      <div class="pf-meta">Printed ${date} &nbsp;&middot;&nbsp; ${rows.length} record${rows.length === 1 ? '' : 's'}</div>
+      <table class="pf-table">
+        <thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+        <tbody>${rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('')}</tbody>
+      </table>`;
+    window.print();
+    Toast.show('✓ Sent to printer');
+  }
+
+  function _exportCSV(filename, headers, rows) {
+    function esc(v) {
+      const s = String(v ?? '');
+      return s.includes(',') || s.includes('"') || s.includes('\n') ? '"' + s.replace(/"/g, '""') + '"' : s;
+    }
+    const lines = [headers.map(esc).join(','), ...rows.map(r => r.map(esc).join(','))];
+    const blob  = new Blob([lines.join('\r\n')], { type: 'text/csv' });
+    const url   = URL.createObjectURL(blob);
+    const a     = document.createElement('a');
+    a.href = url; a.download = filename; a.click();
+    URL.revokeObjectURL(url);
+    Toast.show('✓ Exported to CSV');
+  }
+
+  function _bindMoreMenu(el, moreBtn, getState) {
+    if (!moreBtn) return;
+    const dropdown = moreBtn.nextElementSibling;
+
+    moreBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (!dropdown.hasAttribute('hidden')) { dropdown.setAttribute('hidden', ''); return; }
+      const rect = moreBtn.getBoundingClientRect();
+      dropdown.removeAttribute('hidden');
+      dropdown.style.top  = (rect.bottom + 2) + 'px';
+      dropdown.style.left = (rect.right - dropdown.offsetWidth) + 'px';
+    });
+
+    function _closeMore(e) {
+      if (!document.contains(el)) { document.removeEventListener('click', _closeMore); return; }
+      if (!moreBtn.contains(e.target) && !dropdown.contains(e.target)) dropdown.setAttribute('hidden', '');
+    }
+    document.addEventListener('click', _closeMore);
+
+    dropdown.addEventListener('click', function (e) {
+      const btn = e.target.closest('[data-action]');
+      if (!btn) return;
+      dropdown.setAttribute('hidden', '');
+      const { title, subtitle, headers, rows } = getState();
+      if (btn.dataset.action === 'print')      _printList(title, subtitle, headers, rows);
+      if (btn.dataset.action === 'export-csv') _exportCSV(title.replace(/\s+/g, '_') + '.csv', headers, rows);
+    });
   }
 
   /* ── Vendor Detail side widget ───────────────────────────── */
@@ -3095,8 +3238,8 @@ const CRM = (function () {
     }
 
     // Primary contact from Link_Company_People
-    const links   = AppData.tables['Link_Company_People'] || [];
-    const people  = AppData.tables['DB_People'] || [];
+    const links   = AppData.get('Link_Company_People');
+    const people  = AppData.get('DB_People');
     const contact = links
       .filter(l => l.Company_ID === company.Company_ID)
       .map(l => people.find(p => p.People_ID === l.People_ID))
@@ -3263,8 +3406,8 @@ const CRM = (function () {
   }
 
   function _openVendorDetail(companyId, parentWidgetId, navInfo) {
-    const companies = AppData.tables['DB_Company'] || [];
-    const vendors   = AppData.tables['DB_Vendor']  || [];
+    const companies = AppData.get('DB_Company');
+    const vendors   = AppData.get('DB_Vendor');
     const company   = companies.find(c => c.Company_ID === companyId);
     if (!company) return;
     const vendor = vendors.find(v => v.Company_ID === companyId) || null;
@@ -3310,7 +3453,7 @@ const CRM = (function () {
     // Vendor search bar
     const searchInput   = el.querySelector('.vd-search-input');
     const searchResults = el.querySelector('.vd-search-results');
-    const allVendors    = (AppData.tables['DB_Company'] || [])
+    const allVendors    = (AppData.get('DB_Company'))
       .filter(c => VENDOR_TYPES.includes(c.Company_Type));
 
     let searchTimer = null;
@@ -3414,7 +3557,7 @@ const CRM = (function () {
       const parentEl = document.getElementById('widget-' + parentWidgetId);
       if (parentEl) {
         // Merge saved record back into AppData so list re-renders correctly
-        const vendors = AppData.tables['DB_Vendor'] || [];
+        const vendors = AppData.get('DB_Vendor');
         const vi = vendors.findIndex(v => v.Company_ID === companyId);
         const merged = {
           Company_ID:        companyId,
@@ -3436,8 +3579,8 @@ const CRM = (function () {
           License_Expiration:vdData.licenseExpiration,
           Notes:             vdData.notes,
         };
-        if (vi >= 0) AppData.tables['DB_Vendor'][vi] = merged;
-        else AppData.tables['DB_Vendor'].push(merged);
+        AppData.upsert('DB_Vendor', merged, 'Company_ID');
+        Toast.show('✓ Saved');
       }
 
       WidgetManager.close(sideId);

@@ -714,6 +714,121 @@ function _bindXxxGrid(widgetId) {
    - If the panel would overflow the workspace right edge, WidgetManager shifts
      the entire family (parent + sibling panels) left to fit
 
+   DATA ACCESS — AppData API
+   ─────────────────────────
+   NEVER access AppData.tables directly. Always use the wrapper methods.
+   In the full build these become async API/DB calls — one layer to change.
+
+   READ:
+     AppData.get('DB_People')              // all records, always an array
+     AppData.find('DB_People', id)         // by primary key (auto-detected)
+     AppData.find('DB_Vendor', id, 'Company_ID')  // by explicit field
+
+   WRITE (in-memory for prototype):
+     AppData.insert('DB_People', record)   // add new record
+     AppData.upsert('DB_People', record)   // insert or update by PK
+     AppData.upsert('DB_Vendor', record, 'Company_ID')  // explicit PK field
+     AppData.set('DB_Price_List', arr)     // replace entire table
+
+   PRIMARY KEYS by table:
+     DB_People → People_ID       DB_Company → Company_ID
+     DB_Property → Property_ID   DB_Estimates → Estimate_ID
+     DB_Vendor → Company_ID      DB_Costbook_Items → Item_ID
+     DB_Price_List → Item_ID     DB_Workflow_Templates → Template_ID
+
+   Junction tables (Link_*) have no single PK — use AppData.get() + .filter().
+
+   ----------------------------------------------------------------
+
+   WIDGET CHROME — HEADER INFO ZONE & STATUSBAR
+   ─────────────────────────────────────────────
+   Every non-panel widget gets these two zones automatically from WidgetManager.
+   No per-widget HTML needed — just write to them from the bind function.
+
+   HEADER INFO ZONE  (.widget-header-info)
+     Sits between the title and the window controls. Empty by default (invisible).
+     Use for warnings and reminders that are specific to this widget's data.
+
+     // Show a warning pill:
+     el.closest('.widget').querySelector('.widget-header-info').innerHTML =
+       '<span class="widget-header-warning">⚠ Insurance expired</span>';
+
+     // Clear it:
+     el.closest('.widget').querySelector('.widget-header-info').innerHTML = '';
+
+     CSS class  .widget-header-warning  — orange rounded pill, white bold text.
+     Add multiple pills for multiple warnings; they right-align inside the zone.
+     Right-aligned so warnings appear close to the controls, not near the title.
+
+   STATUSBAR  (.widget-statusbar)
+     The 25px dark-blue bar at the bottom of the widget (same color as header).
+     Has two named slots:
+
+     .widget-status-left   — record count, current context ("14 contacts")
+     .widget-status-right  — transient state ("Saved", "Unsaved changes", sync status)
+
+     // Write to the slots:
+     el.closest('.widget').querySelector('.widget-status-left').textContent  = '14 contacts';
+     el.closest('.widget').querySelector('.widget-status-right').textContent = 'Saved';
+
+     // Clear a slot:
+     el.closest('.widget').querySelector('.widget-status-right').textContent = '';
+
+     Both slots are empty by default. Populate only what is relevant.
+     Font-size 11px, white at 70% opacity — informational, not attention-seeking.
+
+   SELF-CONTAINED LIST WIDGETS
+     List widgets (phonebook-widget, vm-widget) use a :has() rule in input.css to
+     strip widget-body padding and set overflow:hidden so content sits flush.
+     Add a matching rule for each new self-contained list widget:
+       .widget-body:has(.xx-widget) { padding: 0; overflow: hidden; }
+
+   ----------------------------------------------------------------
+
+   UI STATES — UIState + Toast
+   ────────────────────────────
+   UIState and Toast are global utilities defined in shell.js.
+
+   UIState  — replaces the content of a container element.
+     UIState.loading(el)                // shows a spinner
+     UIState.empty(el, msg)             // shows a message string (use emoji)
+     UIState.error(el, msg, onRetry)    // shows ⚠ msg + sub + Retry button
+
+   Usage in a list bind function — show spinner on open, render on data ready:
+     UIState.loading(listEl);
+     AppData.ready
+       .then(() => render())
+       .catch(() => UIState.error(listEl, "Couldn't load your data", () => {
+         UIState.loading(listEl);
+         AppData.refresh().then(render).catch(() => UIState.error(listEl, "Couldn't load your data"));
+       }));
+
+   UIState in a render function — replace empty with contextual messages:
+     if (!rows.length) {
+       const msg = searchText
+         ? `🔍 No results for "${searchText}"`
+         : filters ? '🔍 No items match the current filters'
+         : '📭 No items yet';
+       UIState.empty(listEl, msg);
+       return;
+     }
+
+   Toast  — activity bar notification, auto-dismisses in 3 s.
+     Toast.show('✓ Saved')
+     Toast.show('✓ Exported to CSV')
+     Toast.show('✓ Sent to printer')
+     Toast.show('⚠ Couldn\'t save — please try again', { warn: true })
+     Toast.show('msg', { duration: 5000 })   // custom duration in ms
+
+   Standard Toast messages:
+     Save    : '✓ Saved'
+     Delete  : '✓ Deleted'
+     Export  : '✓ Exported to CSV'
+     Print   : '✓ Sent to printer'
+     Error   : '⚠ Couldn\'t save — please try again'  (with { warn: true })
+
+   ----------------------------------------------------------------
+
    KEYBOARD SHORTCUTS
    ──────────────────
    These are wired globally in WidgetManager — no per-widget code needed.

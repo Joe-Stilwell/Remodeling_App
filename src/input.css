@@ -295,6 +295,30 @@ html, body {
   background-color: var(--color-brand-dark);
 }
 
+/* --- Activity Bar / Toast container --- */
+#app-toast {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  pointer-events: none;
+}
+.app-toast-msg {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 12px;
+  height: 22px;
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 11px;
+  font-size: 11px;
+  font-weight: 600;
+  color: white;
+  opacity: 0;
+  transition: opacity 200ms ease;
+}
+.app-toast-msg.is-visible { opacity: 1; }
+.app-toast-msg.is-warn    { background: var(--color-brand-orange); }
+
 /* --- Search Bar --- */
 .search-container {
   @apply transition-all duration-100;
@@ -518,12 +542,21 @@ body.is-dragging .dock-icon-title {
   overflow: hidden;
 }
 
-.widget:not(.is-panel)::after {
-  content: '';
-  height: 16px;
+.widget-statusbar {
+  height: 25px;
   flex-shrink: 0;
   background-color: var(--color-brand-primary);
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  gap: 8px;
 }
+.widget-status-left,
+.widget-status-right {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
+}
+.widget-status-right { margin-left: auto; }
 
 .widget.is-panel {
   border-top: 3px solid var(--color-brand-primary);
@@ -581,10 +614,35 @@ body.is-dragging .dock-icon-title {
   white-space: nowrap;
 }
 
+.widget-header-info {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 6px;
+  gap: 6px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
+  overflow: hidden;
+}
+.widget-header-warning {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  height: 18px;
+  background: var(--color-brand-orange);
+  color: white;
+  border-radius: 9px;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 .widget-controls {
   display: flex;
   gap: 0;
-  margin-left: auto;
   border-left: 1px solid rgba(255, 255, 255, 0.15);
 }
 
@@ -625,6 +683,13 @@ body.is-dragging .dock-icon-title {
   overflow: auto;
   padding: 6px 12px 0;
   background-color: var(--color-brand-tint);
+}
+
+/* List widgets are self-contained — strip widget-body padding and overflow */
+.widget-body:has(.phonebook-widget),
+.widget-body:has(.vm-widget) {
+  padding: 0;
+  overflow: hidden;
 }
 
 /* ECI is self-contained (own toolbar/body/footer) — strip widget-body padding, lock width */
@@ -960,6 +1025,7 @@ body.is-dragging .dock-icon-title {
   z-index: 1;
   display: flex;
   justify-content: flex-end;
+  align-items: center;
   gap: 8px;
   padding: 8px 0 10px;
   background-color: var(--color-brand-tint);
@@ -1947,14 +2013,6 @@ body.using-mouse .btn-secondary:focus-visible:not(:hover) {
   text-overflow: ellipsis;
 }
 
-.pb-empty {
-  padding: 24px;
-  text-align: center;
-  font-size: 12px;
-  color: var(--color-border-slate);
-  font-style: italic;
-}
-
 /* Suppress all hover effects during drag/resize */
 body.is-dragging * {
   pointer-events: none !important;
@@ -2744,13 +2802,6 @@ body.is-dragging .widget {
 
 .vm-cell.vm-col-w9 {
   text-align: center;
-}
-
-.vm-empty {
-  padding: 20px;
-  text-align: center;
-  font-size: 12px;
-  color: var(--color-ink-mid);
 }
 
 /* Date status colors */
@@ -5692,4 +5743,84 @@ body.is-dragging .widget {
   padding: 8px 12px;
   border-top: 1px solid var(--color-border);
   background: var(--color-brand-tint);
+}
+
+/* ─── More Menu Button ───────────────────────────────────── */
+.more-menu-btn {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: none;
+  border: 1px solid var(--color-border-slate);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--color-ink-mid);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.more-menu-btn:hover { background: var(--color-brand-tint); }
+
+/* ─── Print Frame ────────────────────────────────────────── */
+#print-frame { display: none; }
+
+/* ============================================================
+   Shared UI States: loading / empty / error
+   ============================================================ */
+
+.ui-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 100%;
+  padding: 24px 16px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--color-ink-muted);
+}
+.ui-state-msg { font-weight: 600; }
+.ui-state-sub { font-size: 11px; opacity: 0.7; }
+.ui-retry-btn {
+  margin-top: 4px;
+  padding: 0 14px;
+  height: 26px;
+  border: 1px solid var(--color-border-slate);
+  border-radius: 4px;
+  background: white;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-brand-primary);
+  cursor: pointer;
+  &:hover { background: var(--color-brand-tint); }
+}
+.ui-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2.5px solid var(--color-border-slate);
+  border-top-color: var(--color-brand-primary);
+  border-radius: 50%;
+  animation: ui-spin 0.7s linear infinite;
+}
+@keyframes ui-spin { to { transform: rotate(360deg); } }
+
+@media print {
+  body > *:not(#print-frame) { display: none !important; }
+  #print-frame {
+    display: block !important;
+    font-family: Arial, sans-serif;
+    padding: 24px;
+    color: #000;
+  }
+  .pf-title    { font-size: 18px; font-weight: 700; margin-bottom: 3px; }
+  .pf-subtitle { font-size: 12px; color: #555; margin-bottom: 3px; }
+  .pf-meta     { font-size: 11px; color: #888; margin-bottom: 16px; }
+  .pf-table    { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .pf-table th { text-align: left; padding: 4px 8px; border-bottom: 2px solid #333; font-weight: 700; }
+  .pf-table td { padding: 3px 8px; border-bottom: 1px solid #ddd; }
+  .pf-table tr:last-child td { border-bottom: none; }
 }

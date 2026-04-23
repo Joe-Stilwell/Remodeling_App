@@ -1,4 +1,16 @@
-/* --- Estimating Module --- */
+/* ================================================================
+   MODULE: estimating.js
+   Owns:   DB_Costbook_Items, DB_Costbooks, DB_Price_List,
+           DB_Estimates (read + local cache), DB_Workflow_Templates,
+           DB_Divisions, DB_Subdivisions, DB_Price_List_Categories,
+           DB_Price_List_Subcategories, DB_Price_List_History
+   Public: Estimating.openCostbook, openPriceList,
+           openEstimateList, openEstimate, openEstimateSettings,
+           openPhaseSettings
+   Reads:  AppData (get/find/set), WidgetManager, CostGrid
+   Never:  Read or write contact/company/property tables directly.
+           Own DOM outside its widgets.
+   ================================================================ */
 const Estimating = (function () {
 
   /* ── Costbook data — loaded from Google Sheets via AppData ─── */
@@ -972,8 +984,8 @@ const Estimating = (function () {
         const btn = e.target.closest('[data-action]');
         btn.disabled = true;
         AppData.refresh(['DB_Costbook_Items']).then(() => {
-          const raw  = AppData.tables['DB_Costbook_Items'];
-          const data = (raw && raw.length)
+          const raw  = AppData.get('DB_Costbook_Items');
+          const data = raw.length
             ? raw.filter(r => r.Item_Description && !_truthy(r.Is_Archived)).map(_mapRow)
             : COSTBOOK_FALLBACK.filter(r => !r.isArchived);
           const tree = _buildTree(data);
@@ -1123,7 +1135,7 @@ const Estimating = (function () {
   const _ECI_UOM = ['EA','SF','LF','SQ','CY','MO','DY','HR','LS','LOT','ALLOW','BF'];
 
   function _eciDivisions() {
-    const raw = AppData.tables['DB_Costbook_Items'] || [];
+    const raw = AppData.get('DB_Costbook_Items');
     const seen = new Map();
     raw.forEach(r => {
       const num  = String(r.Div_ID   || '').trim();
@@ -1134,7 +1146,7 @@ const Estimating = (function () {
   }
 
   function _eciSubs(divNum) {
-    const raw = AppData.tables['DB_Costbook_Items'] || [];
+    const raw = AppData.get('DB_Costbook_Items');
     const seen = new Map();
     raw.filter(r => String(r.Div_ID || '').trim() === divNum)
        .forEach(r => {
@@ -1474,7 +1486,7 @@ const Estimating = (function () {
   }
 
   function openEditCostItem(itemId, parentWidgetId) {
-    const raw      = AppData.tables['DB_Costbook_Items'] || [];
+    const raw      = AppData.get('DB_Costbook_Items');
     const allItems = raw.filter(r => r.Item_Description).map(_mapRow);
 
     let item;
@@ -1519,8 +1531,8 @@ const Estimating = (function () {
 
   async function openCostbook() {
     await AppData.ready;
-    const raw  = AppData.tables['DB_Costbook_Items'];
-    const data = (raw && raw.length)
+    const raw  = AppData.get('DB_Costbook_Items');
+    const data = raw.length
       ? raw.filter(r => r.Item_Description && !_truthy(r.Is_Archived)).map(_mapRow)
       : COSTBOOK_FALLBACK.filter(r => !r.isArchived);
     const id   = 'costbook';
@@ -1636,8 +1648,8 @@ const Estimating = (function () {
   ];
 
   function _plSeedData() {
-    const tbl = AppData.tables['DB_Price_List'];
-    if (!tbl || tbl.length > 0) return; // only seed if sheet is empty
+    const tbl = AppData.get('DB_Price_List');
+    if (tbl.length > 0) return; // only seed if sheet is empty
     PL_SEED.forEach(row => tbl.push(row));
   }
 
@@ -1765,8 +1777,8 @@ const Estimating = (function () {
   }
 
   function _plGetCatsAndSubs(currentItems) {
-    const dbCats    = (AppData.tables['DB_Price_List_Categories']    || []).filter(r => r.PL_Cat_Name);
-    const dbSubcats = (AppData.tables['DB_Price_List_Subcategories'] || []).filter(r => r.PL_Subcat_Name);
+    const dbCats    = (AppData.get('DB_Price_List_Categories')).filter(r => r.PL_Cat_Name);
+    const dbSubcats = (AppData.get('DB_Price_List_Subcategories')).filter(r => r.PL_Subcat_Name);
     if (dbCats.length) {
       return {
         cats:    dbCats.sort((a,b) => (+a.Sort_Weight||0) - (+b.Sort_Weight||0)),
@@ -1795,7 +1807,7 @@ const Estimating = (function () {
     const el = document.getElementById('widget-' + widgetId);
     if (!el) return;
 
-    const raw   = AppData.tables['DB_Price_List'] || [];
+    const raw   = AppData.get('DB_Price_List');
     let items   = raw.filter(r => r.Item_Name).map(_mapPriceRow);
 
     let searchText   = '';
@@ -2024,7 +2036,7 @@ const Estimating = (function () {
       localStorage.setItem('pl_price_items', JSON.stringify(stored));
       const item = items.find(i => i.itemId === id);
       if (item) item.currentCost = val;
-      const tbl = AppData.tables['DB_Price_List'] || [];
+      const tbl = AppData.get('DB_Price_List');
       const row = tbl.find(r => r.Item_ID === id);
       if (row) row.Current_Cost = val;
     }
@@ -2111,7 +2123,7 @@ const Estimating = (function () {
         const stored = JSON.parse(localStorage.getItem('pl_price_items') || '[]');
         stored.push(pfData);
         localStorage.setItem('pl_price_items', JSON.stringify(stored));
-        const tbl = AppData.tables['DB_Price_List'] || [];
+        const tbl = AppData.get('DB_Price_List');
         tbl.push({ Item_ID: pfData.itemId, PL_Cat_ID: pfData.category, PL_Subcat_ID: pfData.subCategory,
           Item_Name: pfData.itemName, Unit_Of_Measure: pfData.uom, Current_Cost: pfData.currentCost,
           Starting_Cost: 0, Is_Active: 'TRUE' });
@@ -2514,7 +2526,7 @@ const Estimating = (function () {
         if (!item || !confirm(`Delete "${item.itemName}"?`)) return;
         const stored = JSON.parse(localStorage.getItem('pl_price_items') || '[]');
         localStorage.setItem('pl_price_items', JSON.stringify(stored.filter(s => s.itemId !== item.itemId)));
-        AppData.tables['DB_Price_List'] = (AppData.tables['DB_Price_List'] || []).filter(r => r.Item_ID !== item.itemId);
+        AppData.set('DB_Price_List', AppData.get('DB_Price_List').filter(r => r.Item_ID !== item.itemId));
         _refreshItems();
         render();
       }
@@ -2533,7 +2545,7 @@ const Estimating = (function () {
         const btn = e.target.closest('[data-action]');
         btn.disabled = true;
         AppData.refresh(['DB_Price_List', 'DB_Price_List_Categories', 'DB_Price_List_Subcategories']).then(() => {
-          const raw = AppData.tables['DB_Price_List'] || [];
+          const raw = AppData.get('DB_Price_List');
           items = raw.filter(r => r.Item_Name).map(_mapPriceRow);
           render();
           btn.disabled = false;
@@ -2665,7 +2677,7 @@ const Estimating = (function () {
   }
 
   function openEditPriceItem(itemId, templateItem, parentWidgetId) {
-    const raw      = AppData.tables['DB_Price_List'] || [];
+    const raw      = AppData.get('DB_Price_List');
     const allItems = raw.filter(r => r.Item_Name).map(_mapPriceRow);
     const item     = templateItem || (itemId ? allItems.find(i => i.itemId === itemId) || null : null);
     const id       = 'edit-price-item';
@@ -2719,7 +2731,7 @@ const Estimating = (function () {
       if (idx >= 0) stored[idx] = { ...stored[idx], ...pfData };
       else          stored.push(pfData);
       localStorage.setItem('pl_price_items', JSON.stringify(stored));
-      const tbl    = AppData.tables['DB_Price_List'] || [];
+      const tbl    = AppData.get('DB_Price_List');
       const ri     = tbl.findIndex(r => r.Item_ID === pfData.itemId);
       const merged = {
         Item_ID: pfData.itemId, PL_Cat_ID: pfData.category, PL_Subcat_ID: pfData.subCategory,
@@ -2729,12 +2741,12 @@ const Estimating = (function () {
       };
       if (ri >= 0) tbl[ri] = merged;
       else         tbl.push(merged);
-      AppData.tables['DB_Price_List'] = tbl;
+      AppData.set('DB_Price_List', tbl);
       document.dispatchEvent(new CustomEvent('pl-item-saved'));
     }
 
     function _navigate(dir) {
-      const all = (AppData.tables['DB_Price_List'] || []).filter(r => r.Item_Name).map(_mapPriceRow);
+      const all = (AppData.get('DB_Price_List')).filter(r => r.Item_Name).map(_mapPriceRow);
       if (!editing || !all.length) return;
       const idx  = all.findIndex(i => i.itemId === editing.itemId);
       const next = dir === 'next' ? all[idx + 1] : all[idx - 1];
@@ -2779,8 +2791,8 @@ const Estimating = (function () {
         if (!confirm(`Delete "${editing.itemName}"?`)) return;
         const stored = JSON.parse(localStorage.getItem('pl_price_items') || '[]');
         localStorage.setItem('pl_price_items', JSON.stringify(stored.filter(s => s.itemId !== editing.itemId)));
-        const tbl = AppData.tables['DB_Price_List'] || [];
-        AppData.tables['DB_Price_List'] = tbl.filter(r => r.Item_ID !== editing.itemId);
+        const tbl = AppData.get('DB_Price_List');
+        AppData.set('DB_Price_List', tbl.filter(r => r.Item_ID !== editing.itemId));
         document.dispatchEvent(new CustomEvent('pl-item-saved'));
         WidgetManager.close(widgetId);
         return;
@@ -3636,11 +3648,11 @@ const Estimating = (function () {
   function _estSettingsHTML(est) {
     const v = est || {};
 
-    const allProps = AppData.tables.DB_Property || [];
-    const links    = AppData.tables.Link_Property_People || [];
+    const allProps = AppData.get('DB_Property');
+    const links    = AppData.get('Link_Property_People');
 
     const clientName = v.peopleId
-      ? ((AppData.tables.DB_People || []).find(p => p.People_ID === v.peopleId) || {}).Display_Name || ''
+      ? ((AppData.get('DB_People')).find(p => p.People_ID === v.peopleId) || {}).Display_Name || ''
       : '';
 
     const clientLinks = v.peopleId
@@ -3651,13 +3663,13 @@ const Estimating = (function () {
       `<option value="${p.Property_ID}"${p.Property_ID === v.propertyId ? ' selected' : ''}>${p.Address_Street_1}${p.Address_City ? ', ' + p.Address_City : ''}</option>`
     ).join('');
 
-    const estTypeOpts = (AppData.tables.DB_Lookup_Lists || [])
+    const estTypeOpts = (AppData.get('DB_Lookup_Lists'))
       .filter(r => r.List_Type === 'Estimate_Type')
       .sort((a, b) => (a.Sort_Order || 0) - (b.Sort_Order || 0))
       .map(r => `<option value="${r.List_Value}"${r.List_Value === v.estimateType ? ' selected' : ''}>${r.List_Value}</option>`)
       .join('');
 
-    const taxRates  = AppData.tables.DB_Tax_Rates || [];
+    const taxRates  = AppData.get('DB_Tax_Rates');
     const selTax    = taxRates.find(r => r.Tax_ID === v.taxId) || taxRates.find(r => r.Is_Default === 'TRUE');
     const taxOpts   = taxRates.map(r =>
       `<option value="${r.Tax_ID}"${r === selTax ? ' selected' : ''}>${r.Tax_Name}</option>`
@@ -3783,14 +3795,14 @@ const Estimating = (function () {
 
   function _esAddressText(propertyId, allProps) {
     if (!propertyId) return '';
-    const p = (allProps || AppData.tables.DB_Property || []).find(r => r.Property_ID === propertyId);
+    const p = (allProps || AppData.get('DB_Property')).find(r => r.Property_ID === propertyId);
     if (!p) return '';
     return [p.Address_Street_1, p.Address_Street_2, p.Address_City, p.Address_State, p.Address_Zip]
       .filter(Boolean).join(', ');
   }
 
   function openEstimateSettings(estimateId, parentWidgetId) {
-    const raw = AppData.tables.DB_Estimates || [];
+    const raw = AppData.get('DB_Estimates');
     const row = estimateId ? raw.find(r => r.Estimate_ID === estimateId) : null;
     const est = row ? {
       estimateId:    row.Estimate_ID,
@@ -3824,9 +3836,9 @@ const Estimating = (function () {
     const el = document.getElementById('widget-' + widgetId);
     if (!el) return;
 
-    const allProps     = AppData.tables.DB_Property || [];
-    const links        = AppData.tables.Link_Property_People || [];
-    const allPeople    = (AppData.tables.DB_People || []).filter(r => r.Display_Name);
+    const allProps     = AppData.get('DB_Property');
+    const links        = AppData.get('Link_Property_People');
+    const allPeople    = (AppData.get('DB_People')).filter(r => r.Display_Name);
     const clientInp    = el.querySelector('.est-client-inp');
     const clientIdEl   = el.querySelector('[data-es="people-id"]');
     const clientResults= el.querySelector('.est-client-results');
@@ -3881,7 +3893,7 @@ const Estimating = (function () {
       alert('Add New Property: wired in full-stack build.');
     });
 
-    const taxRates = AppData.tables.DB_Tax_Rates || [];
+    const taxRates = AppData.get('DB_Tax_Rates');
     el.querySelector('[data-es="tax-id"]').addEventListener('change', function () {
       const r = taxRates.find(t => t.Tax_ID === this.value);
       el.querySelector('[data-es="tax-display"]').value = r ? r.Tax_Rate : '';

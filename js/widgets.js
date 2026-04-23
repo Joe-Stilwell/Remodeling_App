@@ -1,4 +1,14 @@
-/* --- Widget Manager --- */
+/* ================================================================
+   MODULE: widgets.js
+   Owns:   Widget chrome lifecycle — open, close, minimize,
+           maximize, drag, resize, z-order, focus, tab-trap,
+           Ctrl+Q family cycling, dock icon management
+   Public: WidgetManager.open, close, minimize, restore,
+           resizeToContent, isOpen, hasMoved, getOpenIds
+   Reads:  Nothing — zero dependencies on other modules
+   Never:  Business logic, data access, or widget content HTML.
+           Touch AppData directly.
+   ================================================================ */
 const WidgetManager = (function () {
 
   const WORKSPACE      = () => document.querySelector('.workspace');
@@ -90,6 +100,7 @@ const WidgetManager = (function () {
       widget.innerHTML = `
         <div class="widget-header">
           <span class="widget-title">${title}</span>
+          <div class="widget-header-info"></div>
           <div class="widget-controls">
             <button class="widget-btn widget-btn-minimize" title="Minimize">&#8722;</button>
             <button class="widget-btn widget-btn-maximize" title="Maximize">&#9633;</button>
@@ -97,6 +108,10 @@ const WidgetManager = (function () {
           </div>
         </div>
         <div class="widget-body">${contentHTML}</div>
+        <div class="widget-statusbar">
+          <span class="widget-status-left"></span>
+          <span class="widget-status-right"></span>
+        </div>
         <div class="widget-resize-handle" data-dir="n"></div>
         <div class="widget-resize-handle" data-dir="ne"></div>
         <div class="widget-resize-handle" data-dir="e"></div>

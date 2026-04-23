@@ -1,4 +1,11 @@
-/* ============================================================
+/* ================================================================
+   MODULE: documents.js
+   Owns:   DB_Documents — document templates and editor
+   Public: (see return block — openDocumentEditor, etc.)
+   Reads:  AppData (get/find), WidgetManager
+   Never:  Contact or estimate business logic. Own DB_Estimates.
+   ================================================================
+
    Documents Module
    Template storage and document editor.
 

@@ -1,4 +1,11 @@
-/* CostGrid — shared CSS-Grid module for Estimate, Costbook, and Price List */
+/* ================================================================
+   MODULE: costgrid.js
+   Owns:   CSS-Grid layout rendering for tabular data widgets
+           (Costbook, Price List, Estimate line items)
+   Public: CostGrid.config, render (see internal API)
+   Reads:  Nothing — zero dependencies on other modules
+   Never:  Data access, widget lifecycle, AppData.
+   ================================================================ */
 const CostGrid = (function () {
 
   /* config(prefix, columns) → cfg object

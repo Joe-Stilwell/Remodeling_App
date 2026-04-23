@@ -1,4 +1,12 @@
-/* --- Resizable Widget Dock --- */
+/* ================================================================
+   MODULE: shell.js
+   Owns:   App navigation shell — dock, menu bar, global search,
+           command palette, keyboard shortcuts, activity bar
+   Public: (IIFE — no exported API; controls the app shell only)
+   Reads:  AppData (get), WidgetManager, CRM, Estimating
+   Never:  Own widget content HTML. Bypass WidgetManager for
+           opening/closing widgets. Write to any DB table.
+   ================================================================ */
 (function () {
   const SNAP_POINTS  = [165, 330];
   const DOCK_DEFAULT = 165;
@@ -89,8 +97,8 @@ function _positionOverlay() {
 }
 
 function _getPersonProperties(peopleId) {
-  const links = AppData.tables['Link_Property_People'] || [];
-  const props  = AppData.tables['DB_Property']         || [];
+  const links = AppData.get('Link_Property_People');
+  const props  = AppData.get('DB_Property');
   return links
     .filter(l => l.People_ID === peopleId && !l.Date_To)
     .map(l => props.find(p => p.Property_ID === l.Property_ID))
@@ -99,8 +107,8 @@ function _getPersonProperties(peopleId) {
 }
 
 function _getCompanyProperties(companyId) {
-  const links = AppData.tables['Link_Property_Company'] || [];
-  const props  = AppData.tables['DB_Property']          || [];
+  const links = AppData.get('Link_Property_Company');
+  const props  = AppData.get('DB_Property');
   return links
     .filter(l => l.Company_ID === companyId && !l.Date_To)
     .map(l => props.find(p => p.Property_ID === l.Property_ID))
@@ -108,8 +116,8 @@ function _getCompanyProperties(companyId) {
 }
 
 function _getPersonCompany(peopleId) {
-  const links     = AppData.tables['Link_Company_People'] || [];
-  const companies = AppData.tables['DB_Company']          || [];
+  const links     = AppData.get('Link_Company_People');
+  const companies = AppData.get('DB_Company');
   const link      = links.find(l => l.People_ID === peopleId);
   if (!link) return '';
   const co = companies.find(c => c.Company_ID === link.Company_ID);
@@ -117,8 +125,8 @@ function _getPersonCompany(peopleId) {
 }
 
 function _getPropertyOwner(propertyId) {
-  const links  = AppData.tables['Link_Property_People'] || [];
-  const people = AppData.tables['DB_People']            || [];
+  const links  = AppData.get('Link_Property_People');
+  const people = AppData.get('DB_People');
   const link   = links.find(l => l.Property_ID === propertyId && !l.Date_To && l.Link_Role === 'Owner');
   if (!link) return '';
   const person = people.find(p => p.People_ID === link.People_ID);
@@ -147,7 +155,7 @@ function _searchAll(query) {
   }
 
   // --- Person match (name / email / phone) — no property context ---
-  (AppData.tables['DB_People'] || []).forEach(person => {
+  (AppData.get('DB_People')).forEach(person => {
     const fullName    = `${person.People_First_Name || ''} ${person.People_Last_Name || ''}`.trim().toLowerCase();
     const reverseName = `${person.People_Last_Name || ''}, ${person.People_First_Name || ''}`.trim().toLowerCase();
     const textMatch   = fullName.includes(q) || reverseName.includes(q) ||
@@ -160,8 +168,8 @@ function _searchAll(query) {
     addPerson(person, null);
 
     // Also surface any company this person is linked to
-    const compLinks = AppData.tables['Link_Company_People'] || [];
-    const companies = AppData.tables['DB_Company']          || [];
+    const compLinks = AppData.get('Link_Company_People');
+    const companies = AppData.get('DB_Company');
     compLinks.filter(l => l.People_ID === person.People_ID).forEach(l => {
       const co = companies.find(c => c.Company_ID === l.Company_ID);
       if (co) addCompany(co, null);
@@ -169,18 +177,18 @@ function _searchAll(query) {
   });
 
   // --- Company match (name / DBA) — no property context ---
-  (AppData.tables['DB_Company'] || []).forEach(company => {
+  (AppData.get('DB_Company')).forEach(company => {
     if (![company.Company_Name, company.Company_DBA]
         .some(f => f && f.toLowerCase().includes(q))) return;
     addCompany(company, null);
   });
 
   // --- Address match — return everyone linked to that property ---
-  const allProps   = AppData.tables['DB_Property']          || [];
-  const ppLinks    = AppData.tables['Link_Property_People']  || [];
-  const cpLinks    = AppData.tables['Link_Property_Company'] || [];
-  const allPeople  = AppData.tables['DB_People']             || [];
-  const allCompanies = AppData.tables['DB_Company']          || [];
+  const allProps   = AppData.get('DB_Property');
+  const ppLinks    = AppData.get('Link_Property_People');
+  const cpLinks    = AppData.get('Link_Property_Company');
+  const allPeople  = AppData.get('DB_People');
+  const allCompanies = AppData.get('DB_Company');
 
   allProps.forEach(prop => {
     if (![prop.Address_Street_1, prop.Address_City, prop.Address_Zip, prop.Full_Address_Search]
@@ -489,3 +497,59 @@ submenuPanel.addEventListener('mouseenter', function () {
 submenuPanel.addEventListener('mouseleave', function () {
   hideSubmenu(true);
 });
+
+/* ── UIState — shared loading / empty / error renderer ─────────
+   Usage:
+     UIState.loading(el)               — spinner in el
+     UIState.empty(el, msg)            — message in el
+     UIState.error(el, msg, onRetry)   — error + Retry button
+   ────────────────────────────────────────────────────────────── */
+const UIState = (function () {
+  function loading(el) {
+    el.innerHTML = '<div class="ui-state"><div class="ui-spinner"></div></div>';
+  }
+  function empty(el, msg) {
+    el.innerHTML = `<div class="ui-state"><span class="ui-state-msg">${msg}</span></div>`;
+  }
+  function error(el, msg, onRetry) {
+    el.innerHTML = `<div class="ui-state">
+      <span class="ui-state-msg">⚠ ${msg}</span>
+      <span class="ui-state-sub">Check your internet connection and try again</span>
+      <button class="ui-retry-btn">Retry</button>
+    </div>`;
+    if (onRetry) el.querySelector('.ui-retry-btn').addEventListener('click', onRetry);
+  }
+  return { loading, empty, error };
+}());
+
+/* ── Toast — activity bar notification ─────────────────────────
+   Usage:
+     Toast.show('✓ Saved')
+     Toast.show('⚠ Couldn\'t save — please try again', { warn: true })
+   Auto-dismisses after 3 s (override with { duration: ms }).
+   ────────────────────────────────────────────────────────────── */
+const Toast = (function () {
+  let _el    = null;
+  let _timer = null;
+
+  function _getEl() {
+    if (!_el) {
+      _el = document.createElement('span');
+      _el.className = 'app-toast-msg';
+      document.getElementById('app-toast').appendChild(_el);
+    }
+    return _el;
+  }
+
+  function show(msg, opts) {
+    const el  = _getEl();
+    const warn = opts && opts.warn;
+    clearTimeout(_timer);
+    el.textContent = msg;
+    el.classList.toggle('is-warn', !!warn);
+    el.classList.add('is-visible');
+    _timer = setTimeout(() => el.classList.remove('is-visible'), (opts && opts.duration) || 3000);
+  }
+
+  return { show };
+}());
