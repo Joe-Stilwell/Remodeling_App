@@ -346,10 +346,10 @@ hamburger.addEventListener('click', function () {
 /* --- Submenu Config --- */
 const SUBMENUS = {
   phonebook: {
-    label: 'Phone Book',
+    label: 'Contacts',
     items: [
       { title: 'New Contact',       widget: 'new-contact' },
-      { title: 'Phone Book',        widget: 'phonebook' },
+      { title: 'Contact List',      widget: 'phonebook' },
       { title: 'Vendor Management', widget: 'vendor-mgmt' },
     ],
   },

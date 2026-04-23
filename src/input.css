@@ -1156,6 +1156,68 @@ body.is-dragging .dock-icon-title {
   color: #fff;
 }
 
+/* Split save button */
+.split-btn {
+  position: relative;
+  display: inline-flex;
+  width: var(--btn-col);
+  flex-shrink: 0;
+}
+.split-btn-main {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  border-right: none;
+  flex: 1;
+  width: auto;
+  padding: 0;
+}
+.split-btn-toggle {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  border-left: 1px solid rgba(0, 51, 102, 0.3);
+  width: 20px;
+  flex-shrink: 0;
+  padding: 0;
+  font-size: 9px;
+}
+.split-btn-dropdown {
+  position: fixed;
+  background: #fff;
+  border: 1px solid var(--color-border-slate);
+  border-radius: 4px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.12);
+  min-width: 200px;
+  z-index: 9999;
+}
+.split-btn-item {
+  display: block;
+  width: 100%;
+  padding: 0 12px;
+  height: 26px;
+  line-height: 26px;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--color-ink-dark);
+  white-space: nowrap;
+}
+.split-btn-item:first-child { border-radius: 4px 4px 0 0; }
+.split-btn-item:last-child  { border-radius: 0 0 4px 4px; }
+.split-btn-item:hover:not(:disabled) {
+  background: var(--color-brand-tint);
+}
+.split-btn-item:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.split-btn-sep {
+  height: 1px;
+  background: var(--color-border-slate);
+  margin: 2px 0;
+}
+
 
 .btn-action:focus-visible,
 .btn-primary:focus-visible,
@@ -1500,7 +1562,7 @@ body.using-mouse .btn-secondary:focus-visible:not(:hover) {
 }
 
 .pb-sidebar {
-  width: 140px;
+  width: 105px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
@@ -1524,8 +1586,9 @@ body.using-mouse .btn-secondary:focus-visible:not(:hover) {
 
 .pb-nav-btn {
   width: 100%;
+  height: 22px;
   text-align: left;
-  padding: 5px 8px;
+  padding: 0 8px;
   border-radius: 4px;
   border: none;
   background: none;
@@ -1533,7 +1596,6 @@ body.using-mouse .btn-secondary:focus-visible:not(:hover) {
   font-weight: 500;
   color: var(--color-ink-dark);
   cursor: pointer;
-  line-height: 1.4;
 }
 
 .pb-nav-btn:hover:not(:disabled) {
@@ -1568,8 +1630,9 @@ body.using-mouse .btn-secondary:focus-visible:not(:hover) {
 
 .pb-label-btn {
   width: 100%;
+  height: 22px;
   text-align: left;
-  padding: 4px 8px;
+  padding: 0 8px;
   border-radius: 4px;
   border: none;
   background: none;
@@ -1579,7 +1642,6 @@ body.using-mouse .btn-secondary:focus-visible:not(:hover) {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  line-height: 1.4;
 }
 
 .pb-label-btn:hover {
@@ -1869,7 +1931,7 @@ body.using-mouse .btn-secondary:focus-visible:not(:hover) {
   padding: 0 10px;
   border-bottom: 1px solid var(--color-border-slate);
   cursor: pointer;
-  min-height: 30px;
+  height: 22px;
 }
 
 .pb-row:hover {
@@ -1877,7 +1939,7 @@ body.using-mouse .btn-secondary:focus-visible:not(:hover) {
 }
 
 .pb-cell {
-  padding: 5px 6px;
+  padding: 0 6px;
   font-size: 12px;
   color: var(--color-ink-dark);
   white-space: nowrap;

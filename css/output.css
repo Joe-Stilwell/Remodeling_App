@@ -3,10 +3,10 @@
 @layer theme, base, components, utilities;
 @layer theme {
   :root, :host {
-    --font-sans: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji",
-      "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
-      "Courier New", monospace;
+    --font-sans: ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
+    'Noto Color Emoji';
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
+    monospace;
     --color-red-500: oklch(63.7% 0.237 25.331);
     --color-slate-300: oklch(86.9% 0.022 252.894);
     --color-slate-400: oklch(70.4% 0.04 256.788);
@@ -68,7 +68,7 @@
     line-height: 1.5;
     -webkit-text-size-adjust: 100%;
     tab-size: 4;
-    font-family: var(--default-font-family, ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji");
+    font-family: var(--default-font-family, ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji');
     font-feature-settings: var(--default-font-feature-settings, normal);
     font-variation-settings: var(--default-font-variation-settings, normal);
     -webkit-tap-highlight-color: transparent;
@@ -95,7 +95,7 @@
     font-weight: bolder;
   }
   code, kbd, samp, pre {
-    font-family: var(--default-mono-font-family, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace);
+    font-family: var(--default-mono-font-family, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace);
     font-feature-settings: var(--default-mono-font-feature-settings, normal);
     font-variation-settings: var(--default-mono-font-variation-settings, normal);
     font-size: 1em;
@@ -195,13 +195,13 @@
   :-moz-ui-invalid {
     box-shadow: none;
   }
-  button, input:where([type="button"], [type="reset"], [type="submit"]), ::file-selector-button {
+  button, input:where([type='button'], [type='reset'], [type='submit']), ::file-selector-button {
     appearance: button;
   }
   ::-webkit-inner-spin-button, ::-webkit-outer-spin-button {
     height: auto;
   }
-  [hidden]:where(:not([hidden="until-found"])) {
+  [hidden]:where(:not([hidden='until-found'])) {
     display: none !important;
   }
 }
@@ -1525,6 +1525,70 @@ body.is-dragging .dock-icon-title {
   background: var(--color-danger);
   color: #fff;
 }
+.split-btn {
+  position: relative;
+  display: inline-flex;
+  width: var(--btn-col);
+  flex-shrink: 0;
+}
+.split-btn-main {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  border-right: none;
+  flex: 1;
+  width: auto;
+  padding: 0;
+}
+.split-btn-toggle {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  border-left: 1px solid rgba(0, 51, 102, 0.3);
+  width: 20px;
+  flex-shrink: 0;
+  padding: 0;
+  font-size: 9px;
+}
+.split-btn-dropdown {
+  position: fixed;
+  background: #fff;
+  border: 1px solid var(--color-border-slate);
+  border-radius: 4px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.12);
+  min-width: 200px;
+  z-index: 9999;
+}
+.split-btn-item {
+  display: block;
+  width: 100%;
+  padding: 0 12px;
+  height: 26px;
+  line-height: 26px;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--color-ink-dark);
+  white-space: nowrap;
+}
+.split-btn-item:first-child {
+  border-radius: 4px 4px 0 0;
+}
+.split-btn-item:last-child {
+  border-radius: 0 0 4px 4px;
+}
+.split-btn-item:hover:not(:disabled) {
+  background: var(--color-brand-tint);
+}
+.split-btn-item:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.split-btn-sep {
+  height: 1px;
+  background: var(--color-border-slate);
+  margin: 2px 0;
+}
 .btn-action:focus-visible, .btn-primary:focus-visible, .btn-secondary:focus-visible {
   border-color: var(--color-brand-accent);
   outline: none;
@@ -1859,7 +1923,7 @@ body.using-mouse .profile-entity-pill:focus-visible:not(:hover), body.using-mous
   --pb-w-email: 170px;
 }
 .pb-sidebar {
-  width: 140px;
+  width: 105px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
@@ -1882,8 +1946,9 @@ body.using-mouse .profile-entity-pill:focus-visible:not(:hover), body.using-mous
 }
 .pb-nav-btn {
   width: 100%;
+  height: 22px;
   text-align: left;
-  padding: 5px 8px;
+  padding: 0 8px;
   border-radius: 4px;
   border: none;
   background: none;
@@ -1891,7 +1956,6 @@ body.using-mouse .profile-entity-pill:focus-visible:not(:hover), body.using-mous
   font-weight: 500;
   color: var(--color-ink-dark);
   cursor: pointer;
-  line-height: 1.4;
 }
 .pb-nav-btn:hover:not(:disabled) {
   background-color: rgba(0, 0, 0, 0.05);
@@ -1920,8 +1984,9 @@ body.using-mouse .profile-entity-pill:focus-visible:not(:hover), body.using-mous
 }
 .pb-label-btn {
   width: 100%;
+  height: 22px;
   text-align: left;
-  padding: 4px 8px;
+  padding: 0 8px;
   border-radius: 4px;
   border: none;
   background: none;
@@ -1931,7 +1996,6 @@ body.using-mouse .profile-entity-pill:focus-visible:not(:hover), body.using-mous
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  line-height: 1.4;
 }
 .pb-label-btn:hover {
   background-color: rgba(0, 0, 0, 0.05);
@@ -2187,13 +2251,13 @@ body.using-mouse .profile-entity-pill:focus-visible:not(:hover), body.using-mous
   padding: 0 10px;
   border-bottom: 1px solid var(--color-border-slate);
   cursor: pointer;
-  min-height: 30px;
+  height: 22px;
 }
 .pb-row:hover {
   background: rgba(0, 0, 0, 0.05);
 }
 .pb-cell {
-  padding: 5px 6px;
+  padding: 0 6px;
   font-size: 12px;
   color: var(--color-ink-dark);
   white-space: nowrap;

@@ -42,6 +42,13 @@
 
    Sizing:
      --btn-col: 80px             standard button + spacer width
+
+   ROW HEIGHT STANDARD — 22px for all interactive rows across all widgets:
+     - List rows       (contact rows, estimate rows, WO rows, etc.)
+     - Nav/filter rows (sidebar nav buttons, label filter buttons)
+     - Grid rows       (costbook, price list, estimate line items)
+     Use height:22px (not min-height) and padding:0 on vertical axis.
+     Only override at the widget level when content genuinely needs more space.
    ---------------------------------------------------------------- */
 
 
@@ -126,6 +133,68 @@
      default  →  dark border
      :hover   →  brand-accent border
      :active  →  brand-orange border
+
+   SPLIT SAVE BUTTON  (.split-btn)
+     An 80px wrapper that looks like one button but has a left action
+     (Save) and a right ▾ toggle that opens a fixed-position dropdown.
+     Use on any entry form where post-save routing varies.
+
+     HTML template:
+       <div class="split-btn" style="margin-left:6px">
+         <button class="btn-primary split-btn-main" data-action="save" disabled>Save</button><button class="btn-primary split-btn-toggle" data-action="save-menu" tabindex="-1" disabled>&#9660;</button>
+         <div class="split-btn-dropdown" hidden>
+           <button class="split-btn-item" data-action="save-new">Save &amp; New</button>
+           <div class="split-btn-sep"></div>
+           <button class="split-btn-item" data-action="save-event"     disabled>Save &#8212; Create Event</button>
+           <button class="split-btn-item" data-action="save-workorder" disabled>Save &#8212; New Work Order</button>
+           <button class="split-btn-item" data-action="save-estimate"  disabled>Save &#8212; New Estimate</button>
+         </div>
+       </div>
+
+     JS wiring (add to bind function):
+       const saveBtn     = el.querySelector('[data-action="save"]');
+       const saveMenuBtn = el.querySelector('[data-action="save-menu"]');
+       const saveDropdown = el.querySelector('.split-btn-dropdown');
+
+       // Gate both halves on form validity
+       function _updateSaveBtn() {
+         const enabled = <your validity check>;
+         saveBtn.disabled     = !enabled;
+         saveMenuBtn.disabled = !enabled;
+       }
+
+       // Dropdown toggle — fixed position so it escapes widget overflow
+       saveMenuBtn.addEventListener('click', e => {
+         e.stopPropagation();
+         if (!saveDropdown.hasAttribute('hidden')) { saveDropdown.setAttribute('hidden', ''); return; }
+         const rect = saveMenuBtn.getBoundingClientRect();
+         saveDropdown.removeAttribute('hidden');
+         saveDropdown.style.top  = (rect.bottom + 2) + 'px';
+         saveDropdown.style.left = (rect.right - saveDropdown.offsetWidth) + 'px';
+       });
+
+       // Close on outside click — self-cleans when widget is removed from DOM
+       function _closeSaveMenu(e) {
+         if (!document.contains(el)) { document.removeEventListener('click', _closeSaveMenu); return; }
+         if (!el.querySelector('.split-btn').contains(e.target)) saveDropdown.setAttribute('hidden', '');
+       }
+       document.addEventListener('click', _closeSaveMenu);
+
+       saveBtn.addEventListener('click', () => {
+         document.removeEventListener('click', _closeSaveMenu);
+         _saveRecord(el, widgetId, null);
+       });
+       el.querySelector('[data-action="save-new"]').addEventListener('click', () => {
+         saveDropdown.setAttribute('hidden', '');
+         document.removeEventListener('click', _closeSaveMenu);
+         _saveRecord(el, widgetId, () => openNewWidget());
+       });
+
+     Notes:
+     - Disabled dropdown items = modules not yet built; keep as placeholders.
+     - Add data-action="save-workorder" / "save-event" / "save-estimate"
+       handlers once those modules can receive a new record handoff.
+     - The action row form-row needs: style="...;position:relative;overflow:visible"
    ---------------------------------------------------------------- */
 
 
@@ -621,6 +690,45 @@ function _bindXxxGrid(widgetId) {
        opts.top  = parseInt(el.style.top) || 0;
    - Toggle: check WidgetManager.isOpen(cardId) before opening; close if already open
    - Buttons at bottom: Open [Record] | Edit/Settings | Archive | Delete
+
+   PANEL WIDGETS (side widgets / sub-forms)
+   ─────────────────────────────────────────
+   Panels are secondary widgets anchored to a parent entry form (e.g. + Person,
+   + Property, + Company off New Contact). They share the parent's widget family.
+
+   Opening a panel:
+     WidgetManager.open(sideId, 'Title', html, {
+       width:    425,
+       minWidth: 360,
+       autoHeight: true,
+       top:   mainTop + 30,
+       left:  mainLeft + el.offsetWidth,   // opens to the right of parent
+       panel:    true,                     // marks as panel; hides minimize button
+       parentId: widgetId,                 // links to parent; required for family behavior
+     });
+
+   Rules:
+   - Pass parentId: always — this registers the panel in parent's panelIds array
+   - Clicking a panel keeps is-active on the parent (WidgetManager handles this)
+   - Panels are always z-indexed above their parent automatically
+   - If the panel would overflow the workspace right edge, WidgetManager shifts
+     the entire family (parent + sibling panels) left to fit
+
+   KEYBOARD SHORTCUTS
+   ──────────────────
+   These are wired globally in WidgetManager — no per-widget code needed.
+
+   Tab / Shift+Tab
+     Cycles through all focusable elements across the active parent widget AND
+     all of its open panels as one continuous tab order. Wraps at each end.
+
+   Ctrl+Q
+     Cycles keyboard focus through the active widget's family:
+       - If the active parent has open panels → cycles parent → panel 1 → panel 2
+         → … → back to parent. Each step brings that widget visually to the front.
+       - If no panels are open → cycles through all open non-panel widgets by z-index.
+     Each step focuses the first focusable field in the target widget.
+     No per-widget code needed — WidgetManager handles all families automatically.
 
    BOILERPLATE — LIST WIDGET
    ──────────────────────────

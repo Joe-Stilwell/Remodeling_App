@@ -891,9 +891,18 @@ const CRM = (function () {
         <div data-container="additional-companies" data-business-only></div>
 
         <!-- Actions -->
-        <div class="form-row" style="align-items:center;justify-content:flex-end">
+        <div class="form-row" style="align-items:center;justify-content:flex-end;position:relative;overflow:visible">
           <button class="btn-secondary" data-action="cancel" style="margin-left:6px">Cancel</button>
-          <button class="btn-primary" data-action="save" style="margin-left:6px" disabled>Save</button>
+          <div class="split-btn" style="margin-left:6px">
+            <button class="btn-primary split-btn-main" data-action="save" disabled>Save</button><button class="btn-primary split-btn-toggle" data-action="save-menu" tabindex="-1" disabled>&#9660;</button>
+            <div class="split-btn-dropdown" hidden>
+              <button class="split-btn-item" data-action="save-new">Save &amp; New</button>
+              <div class="split-btn-sep"></div>
+              <button class="split-btn-item" data-action="save-event" disabled>Save &#8212; Create Event</button>
+              <button class="split-btn-item" data-action="save-workorder" disabled>Save &#8212; New Work Order</button>
+              <button class="split-btn-item" data-action="save-estimate" disabled>Save &#8212; New Estimate</button>
+            </div>
+          </div>
         </div>
 
       </div>
@@ -939,13 +948,16 @@ const CRM = (function () {
     // Track any open panel so parent Cancel can close it
 
     // Save disabled until First Name + Last Name + at least one Phone or Email
-    const saveBtn = el.querySelector('[data-action="save"]');
+    const saveBtn     = el.querySelector('[data-action="save"]');
+    const saveMenuBtn = el.querySelector('[data-action="save-menu"]');
     function _updateSaveBtn() {
       const hasFirst = !!el.querySelector('[data-field="first-name"]').value.trim();
       const hasLast  = !!el.querySelector('[data-field="last-name"]').value.trim();
       const hasPhone = [...el.querySelectorAll('input[data-phone]')].some(i => i.value.trim());
       const hasEmail = [...el.querySelectorAll('input[data-email]')].some(i => i.value.trim());
-      saveBtn.disabled = !(hasFirst && hasLast && (hasPhone || hasEmail));
+      const enabled  = hasFirst && hasLast && (hasPhone || hasEmail);
+      saveBtn.disabled     = !enabled;
+      saveMenuBtn.disabled = !enabled;
     }
     el.querySelector('[data-field="first-name"]').addEventListener('input', _updateSaveBtn);
     el.querySelector('[data-field="last-name"]').addEventListener('input', _updateSaveBtn);
@@ -1029,9 +1041,30 @@ const CRM = (function () {
       _bindCompanySideWidget(sideId, el, addCompanyBtn, () => {});
     });
 
-    // Save
-    el.querySelector('[data-action="save"]').addEventListener('click', () => {
-      _saveNewClient(el, widgetId);
+    // Split save — dropdown toggle
+    const saveDropdown = el.querySelector('.split-btn-dropdown');
+    saveMenuBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      if (!saveDropdown.hasAttribute('hidden')) { saveDropdown.setAttribute('hidden', ''); return; }
+      const rect = saveMenuBtn.getBoundingClientRect();
+      saveDropdown.removeAttribute('hidden');
+      saveDropdown.style.top  = (rect.bottom + 2) + 'px';
+      saveDropdown.style.left = (rect.right - saveDropdown.offsetWidth) + 'px';
+    });
+    function _closeSaveMenu(e) {
+      if (!document.contains(el)) { document.removeEventListener('click', _closeSaveMenu); return; }
+      if (!el.querySelector('.split-btn').contains(e.target)) saveDropdown.setAttribute('hidden', '');
+    }
+    document.addEventListener('click', _closeSaveMenu);
+
+    saveBtn.addEventListener('click', () => {
+      document.removeEventListener('click', _closeSaveMenu);
+      _saveNewClient(el, widgetId, null);
+    });
+    el.querySelector('[data-action="save-new"]').addEventListener('click', () => {
+      saveDropdown.setAttribute('hidden', '');
+      document.removeEventListener('click', _closeSaveMenu);
+      _saveNewClient(el, widgetId, () => openNewContact());
     });
   }
 
@@ -1352,7 +1385,7 @@ const CRM = (function () {
   }
 
   /* ── Save new client to localStorage ─────────────────────── */
-  function _saveNewClient(el, widgetId) {
+  function _saveNewClient(el, widgetId, afterSave) {
     const firstName = el.querySelector('[data-field="first-name"]').value.trim();
     const lastName  = el.querySelector('[data-field="last-name"]').value.trim();
 
@@ -1456,6 +1489,7 @@ const CRM = (function () {
     _setData(KEYS.links, links);
 
     WidgetManager.close(widgetId);
+    if (afterSave) afterSave();
   }
 
   /* ── Profile widget helpers ──────────────────────────────── */
@@ -2445,13 +2479,23 @@ const CRM = (function () {
     });
 
     // Row click — timer separates single-click (profile toggle) from double-click (no-op / future edit)
-    let _pbClickTimer = null;
+    let _pbClickTimer  = null;
+    let _lastPbProfile = null;
     const pbList = el.querySelector('.pb-list');
     pbList.addEventListener('click', function (e) {
       const row = e.target.closest('.pb-row');
       if (!row) return;
       const type = row.dataset.type;
       const id   = row.dataset.id;
+      // Capture position at click time — row may scroll before timer fires
+      const ws        = document.querySelector('.workspace');
+      const wsRect    = ws.getBoundingClientRect();
+      const rowRect   = row.getBoundingClientRect();
+      const nameCell  = row.querySelector('.pb-cell');
+      const posOpts   = {
+        top:  Math.round(rowRect.top  - wsRect.top),
+        left: Math.round((nameCell ? nameCell.getBoundingClientRect().right : rowRect.right) - wsRect.left),
+      };
       clearTimeout(_pbClickTimer);
       _pbClickTimer = setTimeout(() => {
         _pbClickTimer = null;
@@ -2459,8 +2503,15 @@ const CRM = (function () {
         const profileId = `profile-${type}-${id}`;
         if (WidgetManager.isOpen(profileId)) {
           WidgetManager.close(profileId);
+          _lastPbProfile = null;
         } else {
-          openProfile(type, id);
+          // Close previous card if it hasn't been moved by the user
+          if (_lastPbProfile && _lastPbProfile !== profileId &&
+              WidgetManager.isOpen(_lastPbProfile) && !WidgetManager.hasMoved(_lastPbProfile)) {
+            WidgetManager.close(_lastPbProfile);
+          }
+          openProfile(type, id, posOpts);
+          _lastPbProfile = profileId;
         }
       }, 220);
     });
@@ -2596,22 +2647,29 @@ const CRM = (function () {
   function openPhonebook(opts = {}) {
     const editMode = !!opts.editMode;
     const widgetId = editMode ? 'phonebook-edit' : 'phonebook';
-    const title    = editMode ? 'Edit Contact' : 'Phone Book';
+    const title    = editMode ? 'Edit Contact' : 'Contacts';
     if (WidgetManager.open(widgetId, title, _phonebookHTML(), {
       width: 720, minWidth: 500, height: 480, minHeight: 360,
     }) !== false) _bindPhonebook(widgetId, editMode);
   }
 
   /* ── Public: open profile widget ─────────────────────────── */
-  function openProfile(type, id) {
+  function openProfile(type, id, posOpts) {
     const widgetId = `profile-${type}-${id}`;
+    const cardW    = 300;
+    const pos      = {};
+    if (posOpts) {
+      const ws   = document.querySelector('.workspace');
+      pos.top  = posOpts.top;
+      pos.left = Math.min(posOpts.left, (ws ? ws.clientWidth : 9999) - cardW - 8);
+    }
 
     if (type === 'person') {
       const person = (AppData.tables['DB_People'] || []).find(p => p.People_ID === id);
       if (!person) return;
       const title = `${person.People_Last_Name}, ${person.People_First_Name}`;
       if (WidgetManager.open(widgetId, title, _personProfileHTML(person), {
-        width: 300, minWidth: 260, autoHeight: true, noDock: true,
+        width: cardW, minWidth: 260, autoHeight: true, noDock: true, ...pos,
       }) !== false) _bindProfileWidget(widgetId);
 
     } else if (type === 'company') {
@@ -2619,7 +2677,7 @@ const CRM = (function () {
       if (!company) return;
       const title = company.Company_DBA || company.Company_Name;
       if (WidgetManager.open(widgetId, title, _companyProfileHTML(company), {
-        width: 300, minWidth: 260, autoHeight: true, noDock: true,
+        width: cardW, minWidth: 260, autoHeight: true, noDock: true, ...pos,
       }) !== false) _bindProfileWidget(widgetId);
 
     } else if (type === 'property') {
@@ -2627,7 +2685,7 @@ const CRM = (function () {
       if (!property) return;
       const title = property.Address_Street_1;
       if (WidgetManager.open(widgetId, title, _propertyProfileHTML(property), {
-        width: 300, minWidth: 260, autoHeight: true, noDock: true,
+        width: cardW, minWidth: 260, autoHeight: true, noDock: true, ...pos,
       }) !== false) _bindProfileWidget(widgetId);
     }
   }

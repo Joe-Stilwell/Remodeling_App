@@ -132,7 +132,7 @@ const WidgetManager = (function () {
       _initDrag(widget, id);
       _initResize(widget, id);
     }
-    state[id] = { el: widget, dockIcon, isMinimized: false, preMaximize: null, panelIds: [], parentId: options.parentId || null, isResizing: false, userResized: false };
+    state[id] = { el: widget, dockIcon, isMinimized: false, preMaximize: null, panelIds: [], parentId: options.parentId || null, isResizing: false, userResized: false, userMoved: false };
 
     if (options.parentId && state[options.parentId]) {
       state[options.parentId].panelIds.push(id);
@@ -696,6 +696,11 @@ const WidgetManager = (function () {
         document.body.classList.remove('is-dragging');
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('mouseup',   onUp);
+        const movedLeft = parseInt(widget.style.left) || 0;
+        const movedTop  = parseInt(widget.style.top)  || 0;
+        if (movedLeft !== startLeft || movedTop !== startTop) {
+          if (state[id]) state[id].userMoved = true;
+        }
       }
 
       document.addEventListener('mousemove', onMove);
@@ -833,28 +838,65 @@ const WidgetManager = (function () {
     }
   });
 
-  /* ── Ctrl+Q cycles through open non-panel widgets ────────────── */
+  /* ── Ctrl+Q: cycle within panel family, or all widgets if no panels ── */
   document.addEventListener('keydown', function (e) {
     if (!e.ctrlKey || e.code !== 'KeyQ') return;
     e.preventDefault();
     e.stopPropagation();
 
-    // Collect all visible, non-panel, non-minimized widgets ordered by z-index
+    const FOCUSABLE = 'input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled])';
+
+    // Find the active parent widget
+    const activeEntry = Object.entries(state).find(([, s]) =>
+      !s.el.classList.contains('is-panel') && s.el.classList.contains('is-active')
+    );
+
+    if (activeEntry) {
+      const [parentId, parentState] = activeEntry;
+      const openPanels = parentState.panelIds.filter(pid => state[pid]);
+
+      if (openPanels.length > 0) {
+        // Build family: parent first, then panels in order
+        const family = [
+          { id: parentId, el: parentState.el },
+          ...openPanels.map(pid => ({ id: pid, el: state[pid].el })),
+        ];
+        // Determine which family member currently contains keyboard focus
+        const focused  = document.activeElement;
+        let currentIdx = family.findIndex(f => f.el.contains(focused));
+        if (currentIdx === -1) currentIdx = 0;
+        const next = family[(currentIdx + 1) % family.length];
+
+        // Bring parent to front (sets is-active + base z-order for all panels)
+        _bringToFront(parentState.el);
+        // If the target is a panel, boost it above its siblings
+        if (next.id !== parentId) {
+          const maxZ = Math.max(...[...document.querySelectorAll('.widget')].map(w => parseInt(w.style.zIndex) || 100));
+          next.el.style.zIndex = maxZ + 1;
+        }
+
+        const firstInput = next.el.querySelector(FOCUSABLE);
+        if (firstInput) firstInput.focus();
+        return;
+      }
+    }
+
+    // No panels open — cycle all non-panel, non-minimized widgets by z-index
     const candidates = Object.entries(state)
       .filter(([, s]) => !s.isMinimized && !s.el.classList.contains('is-panel'))
       .sort(([, a], [, b]) => (parseInt(a.el.style.zIndex) || 100) - (parseInt(b.el.style.zIndex) || 100));
 
     if (candidates.length < 2) return;
 
-    // Find the current active one and activate the next (wraps around)
     const activeIdx = candidates.findIndex(([, s]) => s.el.classList.contains('is-active'));
     const nextIdx   = (activeIdx + 1) % candidates.length;
     _bringToFront(candidates[nextIdx][1].el);
   });
 
-  function isOpen(id) { return !!state[id]; }
-  function getOpenIds() { return Object.keys(state); }
+  function isOpen(id)    { return !!state[id]; }
+  function hasMoved(id)  { return !!(state[id]?.userMoved); }
+  function getOpenIds()  { return Object.keys(state); }
 
-  return { open, close, minimize, restore, resizeToContent, isOpen, getOpenIds };
+  return { open, close, minimize, restore, resizeToContent, isOpen, hasMoved, getOpenIds };
 
 })();
