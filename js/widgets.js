@@ -188,7 +188,7 @@ const WidgetManager = (function () {
         const formH   = _measureBodyContent(body, form);
         const statusbar = widget.querySelector('.widget-statusbar');
         const afterH    = isPanel ? 0 : (statusbar ? statusbar.offsetHeight : 25);
-        const natural = headerH + padTop + formH + padBot + afterH + 6; // buffer prevents scrollbar from pixel rounding
+        const natural = headerH + padTop + formH + padBot + afterH + 8;
         const maxH    = workspace.clientHeight - top;
         widget.style.height      = Math.min(natural, maxH) + 'px';
         if (options.autoMinHeight) widget.style.minHeight = Math.round(natural * options.autoMinHeight) + 'px';
@@ -721,8 +721,9 @@ const WidgetManager = (function () {
     const padTop    = parseInt(getComputedStyle(body).paddingTop)    || 0;
     const padBot    = parseInt(getComputedStyle(body).paddingBottom) || 0;
     const formH     = _measureBodyContent(body, form);
-    const afterH    = isPanel ? 0 : 16;
-    const natural   = headerH + padTop + formH + padBot + afterH + 6;
+    const statusbar2 = widget.querySelector('.widget-statusbar');
+    const afterH     = isPanel ? 0 : (statusbar2 ? statusbar2.offsetHeight : 25);
+    const natural    = headerH + padTop + formH + padBot + afterH + 8;
     const top       = parseInt(widget.style.top) || 0;
     const maxH      = workspace.clientHeight - top;
     const clamped   = Math.min(natural, maxH);
@@ -896,6 +897,13 @@ const WidgetManager = (function () {
   function hasMoved(id)  { return !!(state[id]?.userMoved); }
   function getOpenIds()  { return Object.keys(state); }
 
-  return { open, close, minimize, restore, resizeToContent, isOpen, hasMoved, getOpenIds };
+  function focusWidget(id) {
+    if (!state[id]) return false;
+    if (state[id].isMinimized) restore(id);
+    else _bringToFront(state[id].el);
+    return true;
+  }
+
+  return { open, close, minimize, restore, focusWidget, resizeToContent, isOpen, hasMoved, getOpenIds };
 
 })();

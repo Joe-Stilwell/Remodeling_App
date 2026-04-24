@@ -142,6 +142,7 @@ const Estimating = (function () {
       // Vendor, lock, archived state, dates
       priceLocked: _truthy(row.Price_Locked),
       isArchived:  _truthy(row.Is_Archived),
+      clientView:  row.Client_View === undefined ? true : _truthy(row.Client_View),
       entrySource: String(row.Entry_Source || '').trim(),
       dateCreated:  String(row.Date_Created  || '').trim(),
       dateModified: String(row.Date_Modified || '').trim(),
@@ -277,12 +278,15 @@ const Estimating = (function () {
           <button class="btn-secondary sp-btn sp-edit-ctrl" data-action="edit-done">&#9664; Done</button>
           <button class="btn-secondary sp-btn sp-edit-ctrl" data-action="edit-expand-all">Expand All</button>
           <button class="btn-primary sp-btn sp-edit-ctrl" data-action="add-div">+ Add Division</button>
-          <button class="btn-secondary sp-btn sp-normal-ctrl" data-action="toggle-expand-all">Expand All</button>
+          <button class="btn-secondary sp-btn sp-normal-ctrl" data-action="expand-all">Expand</button>
+          <button class="btn-secondary sp-btn sp-normal-ctrl" data-action="collapse-all">Collapse</button>
           <input class="cb-nav-search sp-normal-ctrl" type="text" placeholder="Search items..." autocomplete="off">
           <button class="btn-secondary sp-btn sp-btn-icon cb-undo-btn sp-normal-ctrl" data-action="cb-undo" disabled title="Undo">&#8617;</button>
           <button class="btn-secondary sp-btn sp-btn-icon cb-redo-btn sp-normal-ctrl" data-action="cb-redo" disabled title="Redo">&#8618;</button>
           <button class="btn-secondary sp-btn sp-btn-icon sp-normal-ctrl" data-action="cb-print" title="Print">&#9113;</button>
           <button class="btn-secondary sp-btn sp-btn-icon sp-normal-ctrl" data-action="cb-refresh" title="Refresh">&#8635;</button>
+          <button class="btn-secondary sp-btn sp-normal-ctrl" data-action="open-estimate">Open Estimate</button>
+          <button class="btn-secondary sp-btn sp-normal-ctrl" data-action="new-estimate">New Estimate</button>
           <button class="btn-primary sp-btn sp-normal-ctrl" data-action="transfer" disabled>Transfer</button>
           <span class="cb-tag-count sp-normal-ctrl" data-count="0"></span>
         </div>
@@ -352,7 +356,7 @@ const Estimating = (function () {
     function _applyTagState() {
       const hasEstimate = _getOpenEstimates().length > 0;
       el.querySelectorAll('.cb-tag-item').forEach(cb => { cb.disabled = !hasEstimate; });
-      headerInfo.innerHTML = hasEstimate
+      headerInfo.innerHTML = hasEstimate || el.querySelector('.cb-widget')?.classList.contains('cb-edit-mode')
         ? ''
         : '<span class="widget-header-warning">Open an estimate to enable item selection</span>';
       _updateTagCount();
@@ -362,6 +366,12 @@ const Estimating = (function () {
     function _notifyCostbookTagStateLocal() { _applyTagState(); }
     if (!window._cbTagListeners) window._cbTagListeners = [];
     window._cbTagListeners.push(_notifyCostbookTagStateLocal);
+
+    /* Reset all tags after a transfer */
+    el.addEventListener('cb:reset-tags', () => {
+      el.querySelectorAll('.cb-tag-item:checked').forEach(cb => { cb.checked = false; });
+      _updateTagCount();
+    });
 
     _applyTagState();
 
@@ -456,6 +466,12 @@ const Estimating = (function () {
       _updateTagCount();
     });
 
+    /* Open Estimate → launch the estimate list picker */
+    el.querySelector('[data-action="open-estimate"]').addEventListener('click', () => openEstimateList());
+
+    /* New Estimate → open a blank estimate settings form */
+    el.querySelector('[data-action="new-estimate"]').addEventListener('click', () => openEstimateSettings(null));
+
     /* Transfer button → open Transfer widget */
     transferBtn.addEventListener('click', () => {
       const tagged = [...el.querySelectorAll('.cb-tag-item:checked')].map(cb => ({
@@ -464,35 +480,32 @@ const Estimating = (function () {
       openTransfer(tagged, 'costbook');
     });
 
-    /* --- Expand All / Collapse All toggle --- */
-    el.querySelector('[data-action="toggle-expand-all"]').addEventListener('click', function () {
-      const allDivs  = [...el.querySelectorAll('.cb-row-div')];
-      const expanding = allDivs.some(r => r.dataset.expanded !== 'true');
-      if (expanding) {
-        allDivs.forEach(row => {
-          row.dataset.expanded = 'true';
-          row.querySelector('.cgrid-expand').classList.add('is-open');
-        });
-        el.querySelectorAll('.cb-row-sub').forEach(row => {
-          row.style.display = '';
-          row.dataset.expanded = 'true';
-          row.querySelector('.cgrid-expand').classList.add('is-open');
-        });
-        el.querySelectorAll('.cb-row-item, .cb-row-hdr').forEach(row => row.style.display = '');
-        this.textContent = 'Collapse All';
-      } else {
-        allDivs.forEach(row => {
-          row.dataset.expanded = 'false';
-          row.querySelector('.cgrid-expand').classList.remove('is-open');
-        });
-        el.querySelectorAll('.cb-row-sub').forEach(row => {
-          row.style.display = 'none';
-          row.dataset.expanded = 'false';
-          row.querySelector('.cgrid-expand').classList.remove('is-open');
-        });
-        el.querySelectorAll('.cb-row-item, .cb-row-hdr').forEach(row => row.style.display = 'none');
-        this.textContent = 'Expand All';
-      }
+    /* --- Expand All --- */
+    el.querySelector('[data-action="expand-all"]').addEventListener('click', function () {
+      el.querySelectorAll('.cb-row-div').forEach(row => {
+        row.dataset.expanded = 'true';
+        row.querySelector('.cgrid-expand').classList.add('is-open');
+      });
+      el.querySelectorAll('.cb-row-sub').forEach(row => {
+        row.style.display = '';
+        row.dataset.expanded = 'true';
+        row.querySelector('.cgrid-expand').classList.add('is-open');
+      });
+      el.querySelectorAll('.cb-row-item, .cb-row-hdr').forEach(row => row.style.display = '');
+    });
+
+    /* --- Collapse All --- */
+    el.querySelector('[data-action="collapse-all"]').addEventListener('click', function () {
+      el.querySelectorAll('.cb-row-div').forEach(row => {
+        row.dataset.expanded = 'false';
+        row.querySelector('.cgrid-expand').classList.remove('is-open');
+      });
+      el.querySelectorAll('.cb-row-sub').forEach(row => {
+        row.style.display = 'none';
+        row.dataset.expanded = 'false';
+        row.querySelector('.cgrid-expand').classList.remove('is-open');
+      });
+      el.querySelectorAll('.cb-row-item, .cb-row-hdr').forEach(row => row.style.display = 'none');
     });
 
     /* --- Left nav: click division → scroll grid to that division row --- */
@@ -932,6 +945,7 @@ const Estimating = (function () {
 
     function _enterEditMode() {
       widgetEl.classList.add('cb-edit-mode');
+      _applyTagState();
       el.querySelectorAll('.cb-row-div, .cb-row-sub').forEach(r => r.setAttribute('draggable', 'true'));
       // Collapse all divisions on entry
       el.querySelectorAll('.cb-row-div').forEach(r => {
@@ -944,6 +958,7 @@ const Estimating = (function () {
     function _exitEditMode() {
       _hideTip();
       widgetEl.classList.remove('cb-edit-mode');
+      _applyTagState();
       el.querySelectorAll('.cb-row-div, .cb-row-sub').forEach(r => r.removeAttribute('draggable'));
       // Rebuild nav from current div rows
       navListEl.innerHTML = [...rowsEl.querySelectorAll('.cb-row-div')].map(r => `
@@ -1164,7 +1179,7 @@ const Estimating = (function () {
   }
 
   function _subOpts(subs, sel) {
-    if (!subs.length) return '<option value="">— select division first —</option>';
+    if (!subs.length) return '<option value="">select division first</option>';
     return '<option value="">— select —</option>' +
       subs.map(s => `<option value="${s.num}"${s.num === sel ? ' selected' : ''}>${s.name}</option>`).join('');
   }
@@ -1249,6 +1264,10 @@ const Estimating = (function () {
                   data-field="laborHours" value="${nv(item.laborHours)}" placeholder="0.00">
               </div>
               <div class="eci-row">
+                <span class="eci-label">Client View</span>
+                <input type="checkbox" data-field="clientView"${item.clientView ? ' checked' : ''}>
+              </div>
+              <div class="eci-row">
                 <span class="eci-label">Date Created</span>
                 <span class="eci-date-val">${item.dateCreated || '—'}</span>
               </div>
@@ -1320,7 +1339,7 @@ const Estimating = (function () {
               ${aliasRowsHTML}
               <div class="eci-alias-add-row" style="display:none">
                 <select class="eci-select eci-alias-div-sel" style="margin:3px 0">${_divOpts(divs, '')}</select>
-                <select class="eci-select eci-alias-sub-sel" style="margin:3px 0"><option value="">— select division —</option></select>
+                <select class="eci-select eci-alias-sub-sel" style="margin:3px 0"><option value="">select division</option></select>
                 <input class="eci-input eci-alias-desc-inp" type="text" style="margin:3px 0" placeholder="Description (optional)">
                 <input class="eci-input eci-alias-specs-inp" type="text" style="margin:3px 0" placeholder="Specs (optional)">
                 <span></span>
@@ -1353,8 +1372,72 @@ const Estimating = (function () {
   }
 
   function _bindECI(wid, item, allItems) {
-    const el = document.getElementById(wid);
+    const el = document.getElementById('widget-' + wid);
     if (!el) return;
+
+    /* ── Collect form → sheet-row object ───────────────────── */
+    function _collectRow() {
+      const num = f => parseFloat(el.querySelector(`[data-field="${f}"]`)?.value) || 0;
+      const chk = f => el.querySelector(`[data-field="${f}"]`)?.checked ? 'TRUE' : 'FALSE';
+      return {
+        Div_ID:              el.querySelector('.eci-div-sel')?.value || '',
+        Div_Name:            el.querySelector('.eci-div-sel option:checked')?.text || '',
+        Subdiv_ID:           el.querySelector('.eci-sub-sel')?.value || '',
+        Subdiv_Name:         el.querySelector('.eci-sub-sel option:checked')?.text || '',
+        Sort_Weight:         0,
+        Item_Description:    el.querySelector('[data-field="description"]')?.value.trim() || '',
+        Unit_Of_Measure:     el.querySelector('.eci-uom-sel')?.value || 'EA',
+        Cost_Labor:          num('labor'),
+        Cost_Material:       num('material'),
+        Cost_Sub:            num('sub'),
+        Cost_Equipment:      num('equipment'),
+        Cost_Other:          num('other'),
+        Labor_Hours:         num('laborHours'),
+        Master_Item_ID:      '',
+        Item_Specifications: el.querySelector('[data-field="specs"]')?.value.trim() || '',
+        Adj_Material:        num('adjMaterial'),
+        Adj_Labor:           num('adjLabor'),
+        Adj_Sub:             num('adjSub'),
+        Adj_Equipment:       num('adjEquipment'),
+        Adj_Other:           num('adjOther'),
+        Allow_Material:      chk('allowMaterial'),
+        Allow_Labor:         chk('allowLabor'),
+        Allow_Sub:           chk('allowSub'),
+        Allow_Equipment:     chk('allowEquipment'),
+        Allow_Other:         chk('allowOther'),
+        Tax_Pct:             num('tax'),
+        Client_View:         chk('clientView'),
+        Price_Locked:        'FALSE',
+        Is_Archived:         chk('isArchived'),
+        Entry_Source:        'Manual',
+        Date_Modified:       _fmtDate(new Date()),
+      };
+    }
+
+    function _validate(row) {
+      if (!row.Item_Description) { Dialog.alert('Item Description is required.'); return false; }
+      if (!row.Div_ID)           { Dialog.alert('Division is required.');         return false; }
+      if (!row.Subdiv_ID)        { Dialog.alert('Sub-Division is required.');     return false; }
+      return true;
+    }
+
+    function _nextItemId(divNum, subNum) {
+      const seqs = AppData.get('DB_Costbook_Items')
+        .filter(r => String(r.Div_ID || '').trim() === divNum && String(r.Subdiv_ID || '').trim() === subNum)
+        .map(r => parseInt(String(r.Item_ID || '').split('.').pop()) || 0);
+      const next = (seqs.length ? Math.max(...seqs) : 0) + 1;
+      return `${divNum}.${subNum}.${String(next).padStart(4, '0')}`;
+    }
+
+    function _doSave() {
+      const row = _collectRow();
+      if (!_validate(row)) return null;
+      const isNew = !item.itemId;
+      row.Item_ID     = isNew ? _nextItemId(row.Div_ID, row.Subdiv_ID) : item.itemId;
+      row.Date_Created = isNew ? _fmtDate(new Date()) : (item.dateCreated || _fmtDate(new Date()));
+      AppData.upsert('DB_Costbook_Items', row, 'Item_ID');
+      return row;
+    }
 
     /* Live total recalculation — mirrors _eciCalcTotal but reads from DOM */
     function _recalc() {
@@ -1439,7 +1522,7 @@ const Estimating = (function () {
       el.querySelector('.eci-alias-desc-inp').value  = '';
       el.querySelector('.eci-alias-specs-inp').value = '';
       aliasDivSel.value = '';
-      aliasSubSel.innerHTML = '<option value="">— select division —</option>';
+      aliasSubSel.innerHTML = '<option value="">select division</option>';
       _showAliasForm(false);
     });
 
@@ -1462,23 +1545,35 @@ const Estimating = (function () {
     });
 
     el.querySelector('.eci-copy-btn')?.addEventListener('click', () => {
-      /* TODO: open new ECI pre-filled as an independent copy */
+      const row      = _collectRow();
+      const copyItem = _mapRow({ ...row, Item_ID: '', Date_Created: '', Date_Modified: '' });
+      WidgetManager.close(wid);
+      openEditCostItem(null, parentWidgetId, copyItem);
+    });
+
+    el.querySelector('.eci-delete-btn')?.addEventListener('click', async () => {
+      if (!item.itemId) { WidgetManager.close(wid); return; }
+      const ok = await Dialog.confirmDelete(`Delete "${item.description}"?`);
+      if (!ok) return;
+      const tbl = AppData.get('DB_Costbook_Items');
+      AppData.set('DB_Costbook_Items', tbl.filter(r =>
+        r.Item_ID !== item.itemId && r.Master_Item_ID !== item.itemId
+      ));
+      Toast.show('✓ Deleted');
       WidgetManager.close(wid);
     });
 
-    el.querySelector('.eci-delete-btn')?.addEventListener('click', () => {
-      /* TODO: confirm + delete from sheet */
-    });
-
     el.querySelector('.eci-save-close-btn')?.addEventListener('click', () => {
-      /* TODO: persist to Sheets */
+      if (!_doSave()) return;
+      Toast.show('✓ Saved');
       WidgetManager.close(wid);
     });
 
     el.querySelector('.eci-save-new-btn')?.addEventListener('click', () => {
-      /* TODO: persist to Sheets, then open blank */
+      if (!_doSave()) return;
+      Toast.show('✓ Saved');
       WidgetManager.close(wid);
-      openEditCostItem(null, 'costbook');
+      openEditCostItem(null, parentWidgetId);
     });
 
     el.querySelector('.eci-cancel-btn')?.addEventListener('click', () => {
@@ -1486,26 +1581,27 @@ const Estimating = (function () {
     });
   }
 
-  function openEditCostItem(itemId, parentWidgetId) {
+  function openEditCostItem(itemId, parentWidgetId, copyItem) {
     const raw      = AppData.get('DB_Costbook_Items');
     const allItems = raw.filter(r => r.Item_Description).map(_mapRow);
 
     let item;
     if (!itemId) {
-      // New blank item
       const today = _fmtDate(new Date());
-      item = {
-        divNum: '', divName: '', subNum: '', subName: '',
-        sortWeight: 0, itemId: '',
-        description: '', uom: 'EA',
-        labor: 0, material: 0, sub: 0, equipment: 0, other: 0,
-        laborHours: 0, masterItemId: '', specs: '',
-        adjMaterial: 0, adjLabor: 0, adjSub: 0, adjEquipment: 0, adjOther: 0,
-        allowMaterial: false, allowLabor: false, allowSub: false,
-        allowEquipment: false, allowOther: false,
-        tax: 0, vendor: '', priceLocked: false, isArchived: false,
-        entrySource: 'Manual', dateCreated: today, dateModified: today,
-      };
+      item = copyItem
+        ? { ...copyItem, itemId: '', dateCreated: today, dateModified: today }
+        : {
+            divNum: '', divName: '', subNum: '', subName: '',
+            sortWeight: 0, itemId: '',
+            description: '', uom: 'EA',
+            labor: 0, material: 0, sub: 0, equipment: 0, other: 0,
+            laborHours: 0, masterItemId: '', specs: '',
+            adjMaterial: 0, adjLabor: 0, adjSub: 0, adjEquipment: 0, adjOther: 0,
+            allowMaterial: false, allowLabor: false, allowSub: false,
+            allowEquipment: false, allowOther: false,
+            tax: 0, vendor: '', priceLocked: false, isArchived: false, clientView: true,
+            entrySource: 'Manual', dateCreated: today, dateModified: today,
+          };
     } else {
       item = allItems.find(i => i.itemId === itemId);
       if (!item) return;
@@ -1516,11 +1612,10 @@ const Estimating = (function () {
       item = allItems.find(i => i.itemId === item.masterItemId) || item;
     }
 
-    const aliases = allItems.filter(i => i.masterItemId === item.itemId);
+    const aliases = item.itemId ? allItems.filter(i => i.masterItemId === item.itemId) : [];
 
     const wid   = 'edit-cost-item';
-    const title = itemId ? 'Edit Cost Item' : 'New Cost Item';
-    if (WidgetManager.open(wid, title, _eciHTML(item, aliases), {
+    if (WidgetManager.open(wid, 'Cost Item', _eciHTML(item, aliases), {
       width: 550, height: 650, minWidth: 550, minHeight: 500, category: 'estimating',
       centeredOn: parentWidgetId,
     }) !== false) {
@@ -1539,7 +1634,7 @@ const Estimating = (function () {
     const id   = 'costbook';
     const tree = _buildTree(data);
     if (WidgetManager.open(id, 'Costbook', _costbookHTML(tree), {
-      width: 700, height: 620, minWidth: 600, minHeight: 400, category: 'estimating',
+      width: 1050, height: 620, minWidth: 600, minHeight: 400, category: 'estimating',
     }) !== false) {
       _bindCostbook(id);
     }
@@ -3338,7 +3433,7 @@ const Estimating = (function () {
       openEstimateSettings(est.estimateId || null, wid);
     });
     el.querySelector('[data-action="est-costbook"]').addEventListener('click', () => {
-      openCostbook();
+      if (!WidgetManager.focusWidget('costbook')) openCostbook();
     });
     /* Overflow menu */
     const overflowBtn  = el.querySelector('.est-overflow-btn');
@@ -3572,6 +3667,7 @@ const Estimating = (function () {
         console.log('Transfer', tagged.length, 'items to', destinations);
         Toast.show(`✓ Transferred ${tagged.length} item${tagged.length === 1 ? '' : 's'} to ${destinations.length} phase${destinations.length === 1 ? '' : 's'}.`);
         WidgetManager.close(widgetId);
+        document.getElementById('widget-costbook')?.dispatchEvent(new CustomEvent('cb:reset-tags'));
       }
     });
   }
@@ -4064,6 +4160,7 @@ const Estimating = (function () {
     _openEstimates.set(id, est);
     if (WidgetManager.open(id, 'Estimate', _estHTML(est), {
       width: 813, height: 680, minWidth: 600, minHeight: 500, category: 'estimate',
+      onClose: () => { _openEstimates.delete(id); _notifyCostbookTagState(); },
     }) !== false) {
       _bindEstimate(id, est);
     }
@@ -4146,6 +4243,11 @@ const Estimating = (function () {
     const id = 'estimate-list';
     if (WidgetManager.open(id, 'Estimate List', _estListHTML(), {
       width: 760, height: 500, minWidth: 600, minHeight: 360, category: 'estimating',
+      onClose: () => {
+        WidgetManager.getOpenIds()
+          .filter(wid => wid.startsWith('estimate-summary-'))
+          .forEach(wid => WidgetManager.close(wid));
+      },
     }) !== false) {
       _bindEstimateList(id);
     }
