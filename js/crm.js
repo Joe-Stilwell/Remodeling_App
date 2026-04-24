@@ -1961,8 +1961,8 @@ const CRM = (function () {
     });
 
     // Delete
-    el.querySelector('[data-action="delete-record"]').addEventListener('click', () => {
-      if (!confirm(`Delete ${person.People_Last_Name}, ${person.People_First_Name}? This cannot be undone.`)) return;
+    el.querySelector('[data-action="delete-record"]').addEventListener('click', async () => {
+      if (!await Dialog.confirmDelete(`Delete ${person.People_Last_Name}, ${person.People_First_Name}? This cannot be undone.`)) return;
       const people = AppData.get('DB_People');
       const idx    = people.findIndex(p => p.People_ID === person.People_ID);
       if (idx !== -1) people.splice(idx, 1);
@@ -2118,8 +2118,8 @@ const CRM = (function () {
       WidgetManager.close(widgetId);
     });
 
-    el.querySelector('[data-action="delete-record"]').addEventListener('click', () => {
-      if (!confirm(`Delete ${company.Company_DBA || company.Company_Name}? This cannot be undone.`)) return;
+    el.querySelector('[data-action="delete-record"]').addEventListener('click', async () => {
+      if (!await Dialog.confirmDelete(`Delete ${company.Company_DBA || company.Company_Name}? This cannot be undone.`)) return;
       const companies = AppData.get('DB_Company');
       const idx = companies.findIndex(c => c.Company_ID === company.Company_ID);
       if (idx !== -1) companies.splice(idx, 1);
@@ -2149,6 +2149,114 @@ const CRM = (function () {
     });
   }
 
+  /* ── Edit Property ──────────────────────────────────────── */
+  function _editPropertyHTML(property) {
+    const propTypes = ['Single Family', 'Multi-Family', 'Condo', 'Townhouse', 'Commercial', 'Other'];
+    const propUses  = ['Primary Residence', 'Rental', 'Vacation', 'Investment', 'Commercial', 'Other'];
+    function _opts(list, selected) {
+      return `<option value=""></option>` + list.map(o => `<option${o === selected ? ' selected' : ''}>${o}</option>`).join('');
+    }
+    return `<div class="widget-form">
+      <div class="form-row">
+        <div class="form-group f-grow">
+          <label class="form-label">Street Address</label>
+          <input class="form-input" data-field="street1" type="text"
+                 value="${property.Address_Street_1 || ''}" autocomplete="off">
+        </div>
+        <div class="btn-spacer"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group f-grow">
+          <label class="form-label">Unit / Suite</label>
+          <input class="form-input" data-field="street2" type="text"
+                 value="${property.Address_Street_2 || ''}" autocomplete="off">
+        </div>
+        <div class="btn-spacer"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group f-grow">
+          <label class="form-label">City</label>
+          <input class="form-input" data-field="city" type="text"
+                 value="${property.Address_City || ''}" autocomplete="off">
+        </div>
+        <div class="form-group f-sm">
+          <label class="form-label">State</label>
+          <input class="form-input" data-field="state" type="text"
+                 value="${property.Address_State || ''}" autocomplete="off" maxlength="2">
+        </div>
+        <div class="form-group f-sm">
+          <label class="form-label">Zip</label>
+          <input class="form-input" data-field="zip" type="text"
+                 value="${property.Address_Zip || ''}" autocomplete="off">
+        </div>
+        <div class="btn-spacer"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group f-grow">
+          <label class="form-label">Property Type</label>
+          <select class="form-select" data-field="prop-type">
+            ${_opts(propTypes, property.Property_Type || '')}
+          </select>
+        </div>
+        <div class="form-group f-grow">
+          <label class="form-label">Property Use</label>
+          <select class="form-select" data-field="prop-use">
+            ${_opts(propUses, property.Property_Use || '')}
+          </select>
+        </div>
+        <div class="btn-spacer"></div>
+      </div>
+      ${_notesRowHTML('data-field="prop-notes"', 'Notes', { value: property.Address_Notes || '' })}
+      <div class="widget-footer">
+        <button class="btn-danger" data-action="delete">Delete</button>
+        <button class="btn-secondary" data-action="cancel">Cancel</button>
+        <button class="btn-primary" data-action="save">Save</button>
+      </div>
+    </div>`;
+  }
+
+  function _bindEditPropertyForm(property, widgetId) {
+    const el = document.getElementById('widget-' + widgetId);
+    if (!el) return;
+
+    el.querySelector('[data-field="state"]').addEventListener('input', _formatState);
+    el.querySelector('[data-field="zip"]').addEventListener('input', _formatZip);
+
+    el.querySelector('[data-action="cancel"]').addEventListener('click', () => {
+      WidgetManager.close(widgetId);
+    });
+
+    el.querySelector('[data-action="delete"]').addEventListener('click', async () => {
+      if (!await Dialog.confirmDelete(`Delete ${property.Address_Street_1}? This cannot be undone.`)) return;
+      const props = AppData.get('DB_Property');
+      const idx   = props.findIndex(p => p.Property_ID === property.Property_ID);
+      if (idx !== -1) props.splice(idx, 1);
+      WidgetManager.close(widgetId);
+      const profileId = `profile-property-${property.Property_ID}`;
+      if (document.getElementById('widget-' + profileId)) WidgetManager.close(profileId);
+    });
+
+    el.querySelector('[data-action="save"]').addEventListener('click', () => {
+      const street1 = el.querySelector('[data-field="street1"]').value.trim();
+      if (!street1) { el.querySelector('[data-field="street1"]').focus(); return; }
+      const rec = (AppData.get('DB_Property')).find(p => p.Property_ID === property.Property_ID);
+      if (rec) {
+        rec.Address_Street_1 = street1;
+        rec.Address_Street_2 = el.querySelector('[data-field="street2"]').value.trim();
+        rec.Address_City     = el.querySelector('[data-field="city"]').value.trim();
+        rec.Address_State    = el.querySelector('[data-field="state"]').value.trim().toUpperCase();
+        rec.Address_Zip      = el.querySelector('[data-field="zip"]').value.trim();
+        rec.Property_Type    = el.querySelector('[data-field="prop-type"]').value;
+        rec.Property_Use     = el.querySelector('[data-field="prop-use"]').value;
+        rec.Address_Notes    = el.querySelector('[data-field="prop-notes"]').value.trim();
+        rec.Full_Address_Search = [rec.Address_Street_1, rec.Address_Street_2, rec.Address_City,
+                                   rec.Address_State, rec.Address_Zip].filter(Boolean).join(' ');
+      }
+      Toast.show('✓ Saved');
+      WidgetManager.close(widgetId);
+    });
+  }
+
   function openEditContact(type, id) {
     if (type === 'person') {
       const person = (AppData.get('DB_People')).find(p => p.People_ID === id);
@@ -2167,6 +2275,15 @@ const CRM = (function () {
       if (WidgetManager.open(widgetId, title, _editCompanyHTML(company), {
         width: 425, minWidth: 380, autoHeight: true, category: 'contact',
       }) !== false) _bindEditCompanyForm(company, widgetId);
+
+    } else if (type === 'property') {
+      const property = (AppData.get('DB_Property')).find(p => p.Property_ID === id);
+      if (!property) return;
+      const widgetId = `edit-property-${id}`;
+      const title    = `Edit — ${property.Address_Street_1 || 'Property'}`;
+      if (WidgetManager.open(widgetId, title, _editPropertyHTML(property), {
+        width: 380, minWidth: 320, autoHeight: true, category: 'contact',
+      }) !== false) _bindEditPropertyForm(property, widgetId);
     }
   }
 
@@ -2639,13 +2756,10 @@ const CRM = (function () {
 
     _updateLabels();
     const _pbListEl = el.querySelector('.pb-list');
+    function _pbShowError() { UIState.error(_pbListEl, "Couldn't load your data", _pbRetry); }
+    function _pbRetry()     { UIState.loading(_pbListEl); AppData.refresh().then(render).catch(_pbShowError); }
     UIState.loading(_pbListEl);
-    AppData.ready.then(() => render()).catch(() => {
-      UIState.error(_pbListEl, "Couldn't load your data", () => {
-        UIState.loading(_pbListEl);
-        AppData.refresh().then(render).catch(() => UIState.error(_pbListEl, "Couldn't load your data"));
-      });
-    });
+    AppData.ready.then(render).catch(_pbShowError);
   }
 
   /* ── Public: open phone book widget ──────────────────────── */
@@ -2703,6 +2817,11 @@ const CRM = (function () {
     const title    = editMode ? 'Edit Contact' : 'Contacts';
     if (WidgetManager.open(widgetId, title, _phonebookHTML(), {
       width: 720, minWidth: 500, height: 480, minHeight: 360,
+      onClose: () => {
+        WidgetManager.getOpenIds()
+          .filter(id => /^profile-(person|company|property)-/.test(id))
+          .forEach(id => WidgetManager.close(id));
+      },
     }) !== false) _bindPhonebook(widgetId, editMode);
   }
 
@@ -3153,13 +3272,10 @@ const CRM = (function () {
     });
 
     _vmRenderHeaders(headersEl, 'credentials');
+    function _vmShowError() { UIState.error(listEl, "Couldn't load your data", _vmRetry); }
+    function _vmRetry()     { UIState.loading(listEl); AppData.refresh().then(render).catch(_vmShowError); }
     UIState.loading(listEl);
-    AppData.ready.then(() => render()).catch(() => {
-      UIState.error(listEl, "Couldn't load your data", () => {
-        UIState.loading(listEl);
-        AppData.refresh().then(render).catch(() => UIState.error(listEl, "Couldn't load your data"));
-      });
-    });
+    AppData.ready.then(render).catch(_vmShowError);
   }
 
   /* ── Print / Export / More Menu utilities ────────────────── */

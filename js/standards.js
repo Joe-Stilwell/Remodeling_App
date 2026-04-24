@@ -813,6 +813,14 @@ function _bindXxxGrid(widgetId) {
        return;
      }
 
+   Dialog — modal overlay for confirms, alerts, and "coming soon" stubs.
+     NEVER use browser alert() or confirm() — always use Dialog.
+     await Dialog.alert('Something went wrong.', 'Optional Title')
+     if (!await Dialog.confirm('Proceed?')) return;
+     if (!await Dialog.confirmDelete('Delete "Item Name"?')) return;
+     Dialog.stub('Duplicate Estimate');   // "Full Build Feature" notice
+     Callers must be async. Use: element.addEventListener('click', async () => { ... })
+
    Toast  — activity bar notification, auto-dismisses in 3 s.
      Toast.show('✓ Saved')
      Toast.show('✓ Exported to CSV')

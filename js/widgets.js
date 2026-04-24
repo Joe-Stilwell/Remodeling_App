@@ -46,15 +46,19 @@ const WidgetManager = (function () {
       return false;
     }
 
-    const w          = options.width  || 320;
+    let w            = options.width  || 320;
     const autoHeight = !!options.autoHeight;
-    const h          = autoHeight ? 0 : (options.height || 400);
+    let h            = autoHeight ? 0 : (options.height || 400);
 
     const widget = document.createElement('div');
     widget.className = 'widget';
     if (options.category) widget.classList.add('widget--' + options.category);
     widget.id = 'widget-' + id;
     const workspace = WORKSPACE();
+    if (!options.panel) {
+      w = Math.min(w, workspace.clientWidth);
+      if (!autoHeight) h = Math.min(h, workspace.clientHeight);
+    }
     let top, left;
     if (options.top !== undefined && options.left !== undefined) {
       top  = options.top;
@@ -81,12 +85,6 @@ const WidgetManager = (function () {
     }
 
     const isPanel = !!options.panel;
-
-    // Check workspace has room for the widget before opening
-    if (!isPanel && (w > workspace.clientWidth || (autoHeight ? MIN_HEIGHT : h) > workspace.clientHeight)) {
-      _showToast('Not enough room — please widen the workspace or close other windows.');
-      return false;
-    }
 
     widget.style.cssText = `width:${w}px; height:${autoHeight ? workspace.clientHeight + 'px' : h + 'px'}; top:${top}px; left:${left}px;`;
     if (options.minWidth)  widget.style.minWidth  = options.minWidth  + 'px';
@@ -147,7 +145,7 @@ const WidgetManager = (function () {
       _initDrag(widget, id);
       _initResize(widget, id);
     }
-    state[id] = { el: widget, dockIcon, isMinimized: false, preMaximize: null, panelIds: [], parentId: options.parentId || null, isResizing: false, userResized: false, userMoved: false };
+    state[id] = { el: widget, dockIcon, isMinimized: false, preMaximize: null, panelIds: [], parentId: options.parentId || null, isResizing: false, userResized: false, userMoved: false, onClose: options.onClose || null };
 
     if (options.parentId && state[options.parentId]) {
       state[options.parentId].panelIds.push(id);
@@ -162,14 +160,10 @@ const WidgetManager = (function () {
         const newLeft    = Math.max(0, parentLeft - overflow);
         const dx         = newLeft - parentLeft;
 
-        // If even pushing to left:0 isn't enough, workspace is too narrow — abort
+        // If even pushing to left:0 isn't enough, clamp the panel width to remaining space
         if (newLeft === 0 && parentEl.offsetWidth + w > ww) {
-          state[options.parentId].panelIds = state[options.parentId].panelIds.filter(pid => pid !== id);
-          _updateMaximizeBtn(options.parentId);
-          widget.remove();
-          delete state[id];
-          _showToast('Not enough room — please widen the workspace or close other windows.');
-          return false;
+          w = Math.max(0, ww - parentEl.offsetWidth);
+          widget.style.width = w + 'px';
         }
 
         parentEl.style.left = newLeft + 'px';
@@ -192,7 +186,8 @@ const WidgetManager = (function () {
         const padTop  = parseInt(getComputedStyle(body).paddingTop)    || 0;
         const padBot  = parseInt(getComputedStyle(body).paddingBottom) || 0;
         const formH   = _measureBodyContent(body, form);
-        const afterH  = isPanel ? 0 : 16; // panels have no ::after chrome strip
+        const statusbar = widget.querySelector('.widget-statusbar');
+        const afterH    = isPanel ? 0 : (statusbar ? statusbar.offsetHeight : 25);
         const natural = headerH + padTop + formH + padBot + afterH + 6; // buffer prevents scrollbar from pixel rounding
         const maxH    = workspace.clientHeight - top;
         widget.style.height      = Math.min(natural, maxH) + 'px';
@@ -225,7 +220,7 @@ const WidgetManager = (function () {
   /* ── Public: close ────────────────────────────────────────── */
   function close(id) {
     if (!state[id]) return;
-    const { parentId, panelIds } = state[id];
+    const { parentId, panelIds, onClose } = state[id];
     const wasActive = state[id].el.classList.contains('is-active');
 
     // Close all attached panels first
@@ -234,6 +229,7 @@ const WidgetManager = (function () {
     state[id].el.remove();
     if (state[id].dockIcon) state[id].dockIcon.remove();
     delete state[id];
+    if (onClose) onClose();
     if (parentId && state[parentId]) {
       state[parentId].panelIds = state[parentId].panelIds.filter(pid => pid !== id);
       _updateMaximizeBtn(parentId);
@@ -313,18 +309,6 @@ const WidgetManager = (function () {
     });
   }
 
-  /* ── Private: toast notification ────────────────────────────── */
-  function _showToast(message) {
-    const toast = document.createElement('div');
-    toast.className = 'widget-toast';
-    toast.textContent = message;
-    WORKSPACE().appendChild(toast);
-    requestAnimationFrame(() => toast.classList.add('widget-toast-visible'));
-    setTimeout(() => {
-      toast.classList.remove('widget-toast-visible');
-      toast.addEventListener('transitionend', () => toast.remove(), { once: true });
-    }, 5000);
-  }
 
   /* ── Private: dock icon ───────────────────────────────────── */
   function _createDockIcon(id, title, category) {

@@ -332,6 +332,7 @@ const Estimating = (function () {
     const rowsEl      = el.querySelector('.cb-rows');
     const tagCountEl  = el.querySelector('.cb-tag-count');
     const transferBtn = el.querySelector('[data-action="transfer"]');
+    const headerInfo  = el.querySelector('.widget-header-info');
 
     /* --- Panel resize handle --- */
     SplitPanel.bindDivider(el.querySelector('.cb-panel-resize'), {
@@ -350,10 +351,10 @@ const Estimating = (function () {
 
     function _applyTagState() {
       const hasEstimate = _getOpenEstimates().length > 0;
-      el.querySelectorAll('.cb-tag-item').forEach(cb => {
-        cb.disabled = !hasEstimate;
-        cb.title    = hasEstimate ? '' : 'Open an estimate to enable transfer';
-      });
+      el.querySelectorAll('.cb-tag-item').forEach(cb => { cb.disabled = !hasEstimate; });
+      headerInfo.innerHTML = hasEstimate
+        ? ''
+        : '<span class="widget-header-warning">Open an estimate to enable item selection</span>';
       _updateTagCount();
     }
 
@@ -1078,7 +1079,7 @@ const Estimating = (function () {
     }
 
     /* --- Delete Division or Sub-Division --- */
-    function _deleteDivision(divRow) {
+    async function _deleteDivision(divRow) {
       const divId     = divRow.dataset.div;
       const subCount  = rowsEl.querySelectorAll(`.cb-row-sub[data-div="${divId}"]`).length;
       const itemCount = rowsEl.querySelectorAll(`.cb-row-item[data-div="${divId}"]`).length;
@@ -1089,11 +1090,11 @@ const Estimating = (function () {
         if (itemCount) msg += ` and ${itemCount} item${itemCount !== 1 ? 's' : ''}`;
         msg += '.';
       }
-      if (!confirm(msg)) return;
+      if (!await Dialog.confirmDelete(msg)) return;
       rowsEl.querySelectorAll(`.cb-row[data-div="${divId}"]`).forEach(r => r.remove());
     }
 
-    function _deleteSubDivision(subRow) {
+    async function _deleteSubDivision(subRow) {
       const divId     = subRow.dataset.div;
       const subId     = subRow.dataset.sub;
       const itemCount = rowsEl.querySelectorAll(
@@ -1102,7 +1103,7 @@ const Estimating = (function () {
       const name = subRow.querySelector('.cb-row-sub-name').textContent.trim();
       let msg = `Delete sub-division "${name}"?`;
       if (itemCount) msg += `\n\nThis will also remove ${itemCount} item${itemCount !== 1 ? 's' : ''}.`;
-      if (!confirm(msg)) return;
+      if (!await Dialog.confirmDelete(msg)) return;
       rowsEl.querySelectorAll(
         `.cb-row-item[data-div="${divId}"][data-sub="${subId}"], .cb-row-hdr[data-div="${divId}"][data-sub="${subId}"]`
       ).forEach(r => r.remove());
@@ -1530,7 +1531,7 @@ const Estimating = (function () {
   /* ── Public: open costbook widget ────────────────────────── */
 
   async function openCostbook() {
-    await AppData.ready;
+    await AppData.ready.catch(() => {});
     const raw  = AppData.get('DB_Costbook_Items');
     const data = raw.length
       ? raw.filter(r => r.Item_Description && !_truthy(r.Is_Archived)).map(_mapRow)
@@ -1538,7 +1539,7 @@ const Estimating = (function () {
     const id   = 'costbook';
     const tree = _buildTree(data);
     if (WidgetManager.open(id, 'Costbook', _costbookHTML(tree), {
-      width: 1060, height: 620, minWidth: 600, minHeight: 400, category: 'estimating',
+      width: 700, height: 620, minWidth: 600, minHeight: 400, category: 'estimating',
     }) !== false) {
       _bindCostbook(id);
     }
@@ -2297,7 +2298,7 @@ const Estimating = (function () {
       _plStartRename(subRow.querySelector('.pl-er-name'));
     }
 
-    function _plDeleteCat(catRow) {
+    async function _plDeleteCat(catRow) {
       const catId     = catRow.dataset.catId;
       const name      = catRow.querySelector('.pl-er-name').textContent.trim();
       const subCount  = treeEl.querySelectorAll(`.pl-er-sub[data-cat-id="${catId}"]`).length;
@@ -2308,12 +2309,12 @@ const Estimating = (function () {
         if (itemCount) msg += ` and ${itemCount} item${itemCount !== 1 ? 's' : ''}`;
         msg += '.';
       }
-      if (!confirm(msg)) return;
+      if (!await Dialog.confirmDelete(msg)) return;
       treeEl.querySelectorAll(`.pl-er-sub[data-cat-id="${catId}"]`).forEach(r => r.remove());
       catRow.remove();
     }
 
-    function _plDeleteSub(subRow) {
+    async function _plDeleteSub(subRow) {
       const catId  = subRow.dataset.catId;
       const catRow = treeEl.querySelector(`.pl-er-cat[data-cat-id="${catId}"]`);
       const catName = catRow ? catRow.querySelector('.pl-er-name').textContent.trim() : '';
@@ -2321,7 +2322,7 @@ const Estimating = (function () {
       const itemCount = items.filter(i => i.category === catName && i.subCategory === name).length;
       let msg = `Delete sub-category "${name}"?`;
       if (itemCount) msg += `\n\nThis contains ${itemCount} item${itemCount !== 1 ? 's' : ''}.`;
-      if (!confirm(msg)) return;
+      if (!await Dialog.confirmDelete(msg)) return;
       subRow.remove();
     }
 
@@ -2504,7 +2505,7 @@ const Estimating = (function () {
       if (!ctxMenu.contains(e.target)) ctxMenu.style.display = 'none';
     });
 
-    ctxMenu.addEventListener('click', function (e) {
+    ctxMenu.addEventListener('click', async function (e) {
       const action = e.target.closest('[data-action]')?.dataset.action;
       ctxMenu.style.display = 'none';
       if (!action || !ctxItemId) return;
@@ -2523,7 +2524,7 @@ const Estimating = (function () {
         localStorage.setItem('pl_price_items', JSON.stringify(stored));
         render();
       } else if (action === 'ctx-delete') {
-        if (!item || !confirm(`Delete "${item.itemName}"?`)) return;
+        if (!item || !await Dialog.confirmDelete(`Delete "${item.itemName}"?`)) return;
         const stored = JSON.parse(localStorage.getItem('pl_price_items') || '[]');
         localStorage.setItem('pl_price_items', JSON.stringify(stored.filter(s => s.itemId !== item.itemId)));
         AppData.set('DB_Price_List', AppData.get('DB_Price_List').filter(r => r.Item_ID !== item.itemId));
@@ -2755,7 +2756,7 @@ const Estimating = (function () {
       openEditPriceItem(next.itemId, undefined, 'price-list');
     }
 
-    el.querySelector('.plei-toolbar').addEventListener('click', function (e) {
+    el.querySelector('.plei-toolbar').addEventListener('click', async function (e) {
       const action = e.target.closest('[data-action]')?.dataset.action;
       if (!action) return;
       if (action === 'plei-cancel') { WidgetManager.close(widgetId); return; }
@@ -2788,7 +2789,7 @@ const Estimating = (function () {
       }
       if (action === 'plei-delete') {
         if (!editing) return;
-        if (!confirm(`Delete "${editing.itemName}"?`)) return;
+        if (!await Dialog.confirmDelete(`Delete "${editing.itemName}"?`)) return;
         const stored = JSON.parse(localStorage.getItem('pl_price_items') || '[]');
         localStorage.setItem('pl_price_items', JSON.stringify(stored.filter(s => s.itemId !== editing.itemId)));
         const tbl = AppData.get('DB_Price_List');
@@ -2805,7 +2806,7 @@ const Estimating = (function () {
   }
 
   async function openPriceList() {
-    await AppData.ready;
+    await AppData.ready.catch(() => {});
     _plSeedData();
     const id = 'price-list';
     if (WidgetManager.open(id, 'Price List', _priceListHTML(), {
@@ -3116,7 +3117,7 @@ const Estimating = (function () {
     function _close() { menu.remove(); document.removeEventListener('mousedown', _close, true); }
     document.addEventListener('mousedown', _close, true);
     menu.addEventListener('mousedown', ev => ev.stopPropagation());
-    menu.addEventListener('click', ev => {
+    menu.addEventListener('click', async ev => {
       const btn = ev.target.closest('[data-action]');
       if (!btn) return;
       _close();
@@ -3128,13 +3129,13 @@ const Estimating = (function () {
       } else if (action === 'rename' && tab) {
         tab.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
       } else if (action === 'delete') {
-        if (confirm(`Delete "${phase?.name || phaseId}"?`)) {
+        if (await Dialog.confirmDelete(`Delete "${phase?.name || phaseId}"?`)) {
           const idx = _EST_MOCK.phases.findIndex(p => p.phaseId === phaseId);
           if (idx >= 0) _EST_MOCK.phases.splice(idx, 1);
           tab?.remove();
         }
       } else if (action === 'add-phase' || action === 'add-subphase' || action === 'add-co') {
-        alert('Add phase: wired in full-stack build.');
+        Dialog.stub('Add phase');
       }
     });
   }
@@ -3351,15 +3352,15 @@ const Estimating = (function () {
     });
     el.querySelector('[data-action="est-duplicate"]').addEventListener('click', () => {
       overflowMenu.style.display = 'none';
-      alert('Duplicate Estimate: wired in full-stack build.');
+      Dialog.stub('Duplicate Estimate');
     });
     el.querySelector('[data-action="est-save-template"]').addEventListener('click', () => {
       overflowMenu.style.display = 'none';
-      alert('Save as Template: wired in full-stack build.');
+      Dialog.stub('Save as Template');
     });
     el.querySelector('[data-action="est-refresh"]').addEventListener('click', () => {
-      // TODO: re-fetch DB_Estimates data when live DB is wired
-      alert('Refresh: wired in full-stack build.');
+      overflowMenu.style.display = 'none';
+      Dialog.stub('Refresh from database');
     });
 
     /* Collapse All / Expand All button */
@@ -3483,7 +3484,7 @@ const Estimating = (function () {
 
   function openTransfer(tagged, parentWidgetId) {
     const openEsts = _getOpenEstimates();
-    if (!openEsts.length) { alert('No estimates are open.'); return; }
+    if (!openEsts.length) { Dialog.alert('No estimates are open. Open an estimate first, then transfer items to it.', 'Transfer to Estimate'); return; }
     const id = 'transfer';
     if (WidgetManager.open(id, 'Transfer to Estimate', _transferHTML(tagged, openEsts), {
       width: 300, autoHeight: true, minWidth: 260, category: 'estimating',
@@ -3569,7 +3570,7 @@ const Estimating = (function () {
         });
         if (!destinations.length) return;
         console.log('Transfer', tagged.length, 'items to', destinations);
-        alert(`Transferred ${tagged.length} item${tagged.length === 1 ? '' : 's'} to ${destinations.length} phase${destinations.length === 1 ? '' : 's'}.`);
+        Toast.show(`✓ Transferred ${tagged.length} item${tagged.length === 1 ? '' : 's'} to ${destinations.length} phase${destinations.length === 1 ? '' : 's'}.`);
         WidgetManager.close(widgetId);
       }
     });
@@ -3890,7 +3891,7 @@ const Estimating = (function () {
     });
 
     el.querySelector('.est-add-prop-btn').addEventListener('click', () => {
-      alert('Add New Property: wired in full-stack build.');
+      Dialog.stub('Add New Property');
     });
 
     const taxRates = AppData.get('DB_Tax_Rates');
@@ -4258,9 +4259,10 @@ const Estimating = (function () {
       const row = e.target.closest('.el-row');
       if (!row) return;
       openEstimate(row.dataset.id);
+      WidgetManager.close(widgetId);
     });
 
-    el.addEventListener('click', e => {
+    el.addEventListener('click', async e => {
       const action = e.target.closest('[data-action]')?.dataset.action;
       if (!action) return;
       if (action === 'el-new') { openEstimateSettings(null, widgetId); return; }
@@ -4289,13 +4291,13 @@ const Estimating = (function () {
       }
       if (action === 'el-delete-sel') {
         const ids = [...el.querySelectorAll('.el-row-chk:checked')].map(cb => cb.dataset.id);
-        if (ids.length && confirm(`Delete ${ids.length} estimate${ids.length === 1 ? '' : 's'}?`)) {
+        if (ids.length && await Dialog.confirmDelete(`Delete ${ids.length} estimate${ids.length === 1 ? '' : 's'}?`)) {
           ids.forEach(id => { const i = _EST_LIST_MOCK.findIndex(x => x.estimateId === id); if (i >= 0) _EST_LIST_MOCK.splice(i, 1); });
           groupSelect = false; el.classList.remove('is-group-select'); actionBar.style.display = 'none'; _render();
         }
         return;
       }
-      if (action === 'el-filter') { alert('Filter: wired in full-stack build.'); return; }
+      if (action === 'el-filter') { Dialog.stub('Filter'); return; }
     });
   }
 
@@ -4358,14 +4360,14 @@ const Estimating = (function () {
   function _bindEstimateSummary(widgetId, est) {
     const el = document.getElementById('widget-' + widgetId);
     if (!el) return;
-    el.addEventListener('click', e => {
+    el.addEventListener('click', async e => {
       const action = e.target.closest('[data-action]')?.dataset.action;
       if (!action) return;
-      if (action === 'esc-open')     { openEstimate(est.estimateId); WidgetManager.close(widgetId); return; }
+      if (action === 'esc-open')     { openEstimate(est.estimateId); WidgetManager.close(widgetId); WidgetManager.close('estimate-list'); return; }
       if (action === 'esc-settings') { openEstimateSettings(est.estimateId, widgetId); return; }
       if (action === 'esc-archive')  { est.status = 'Archived'; WidgetManager.close(widgetId); return; }
       if (action === 'esc-delete')   {
-        if (confirm(`Delete "${est.estimateName}"?`)) {
+        if (await Dialog.confirmDelete(`Delete "${est.estimateName}"?`)) {
           const i = _EST_LIST_MOCK.findIndex(x => x.estimateId === est.estimateId);
           if (i >= 0) _EST_LIST_MOCK.splice(i, 1);
           WidgetManager.close(widgetId);

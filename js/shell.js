@@ -25,6 +25,7 @@
     dockAside.style.minWidth  = w + 'px';
     dockAside.style.flexBasis = w + 'px';
     dockAside.classList.toggle('dock-wide', w > 165);
+    document.documentElement.style.setProperty('--dock-width', w + 'px');
   }
 
   // Restore persisted width (always a snap point)
@@ -552,4 +553,99 @@ const Toast = (function () {
   }
 
   return { show };
+}());
+
+/* ── Dialog — styled confirm / alert overlay ────────────────────
+   Usage:
+     await Dialog.alert('Something went wrong.')
+     if (!await Dialog.confirm('Are you sure?')) return;
+     if (!await Dialog.confirmDelete('Delete "Item Name"?')) return;
+     Dialog.stub('Duplicate Estimate');   // "Full Build Feature" notice
+   ────────────────────────────────────────────────────────────── */
+const Dialog = (function () {
+  let _overlay = null;
+
+  function _getOverlay() {
+    if (!_overlay) {
+      _overlay = document.createElement('div');
+      _overlay.className = 'dialog-overlay';
+      document.body.appendChild(_overlay);
+    }
+    return _overlay;
+  }
+
+  function show(opts) {
+    return new Promise(resolve => {
+      const overlay = _getOverlay();
+      const btns = opts.buttons || [{ label: 'OK', action: 'ok', primary: true }];
+      overlay.innerHTML = `
+        <div class="dialog-box" role="dialog" aria-modal="true">
+          ${opts.title ? `<div class="dialog-header">${opts.title}</div>` : ''}
+          <div class="dialog-body">${opts.message}</div>
+          <div class="dialog-footer">
+            ${btns.map(b =>
+              `<button class="dialog-btn ${b.primary ? 'btn-primary' : b.danger ? 'btn-danger' : 'btn-secondary'}"
+                       data-action="${b.action}">${b.label}</button>`
+            ).join('')}
+          </div>
+        </div>`;
+      overlay.classList.add('is-visible');
+
+      function _dismiss(action) {
+        overlay.classList.remove('is-visible');
+        document.removeEventListener('keydown', _onKey);
+        resolve(action);
+      }
+      function _onKey(e) {
+        if (e.key === 'Escape') { e.preventDefault(); _dismiss('cancel'); }
+        if (e.key === 'Enter')  {
+          e.preventDefault();
+          const primary = overlay.querySelector('.btn-primary');
+          if (primary) _dismiss(primary.dataset.action);
+        }
+      }
+      document.addEventListener('keydown', _onKey);
+      overlay.querySelectorAll('.dialog-btn').forEach(btn =>
+        btn.addEventListener('click', () => _dismiss(btn.dataset.action))
+      );
+      requestAnimationFrame(() => overlay.querySelector('.dialog-btn')?.focus());
+    });
+  }
+
+  async function alert(message, title) {
+    await show({ title, message, buttons: [{ label: 'OK', action: 'ok', primary: true }] });
+  }
+
+  async function confirm(message, title) {
+    const r = await show({
+      title, message,
+      buttons: [
+        { label: 'Cancel', action: 'cancel' },
+        { label: 'OK',     action: 'ok', primary: true },
+      ],
+    });
+    return r === 'ok';
+  }
+
+  async function confirmDelete(message) {
+    const r = await show({
+      title: 'Confirm Delete',
+      message,
+      buttons: [
+        { label: 'Delete', action: 'ok', danger: true },
+        { label: 'Cancel', action: 'cancel' },
+      ],
+    });
+    return r === 'ok';
+  }
+
+  async function stub(feature) {
+    await show({
+      title: 'Full Build Feature',
+      message: `${feature} will be available in the full build.`,
+      buttons: [{ label: 'OK', action: 'ok', primary: true }],
+    });
+  }
+
+  return { show, alert, confirm, confirmDelete, stub };
 }());
