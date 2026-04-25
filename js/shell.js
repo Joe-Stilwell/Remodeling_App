@@ -314,6 +314,8 @@ const WIDGET_ROUTES = {
   'phonebook':      () => CRM.openPhonebook(),
   'new-contact':    () => CRM.openNewContact(),
   'vendor-mgmt':    () => CRM.openVendorMgmt(),
+  'lead-pipeline':  () => Leads.openKanban(),
+  'new-lead':       () => Leads.openNewLead(),
   'workorder':      () => WorkOrders.openWorkOrderList(),
   'new-workorder':  () => WorkOrders.openNewWorkOrder(null),
   'estimating':     () => Estimating.openEstimateList(),
@@ -324,8 +326,10 @@ const WIDGET_ROUTES = {
 };
 
 const WIDGET_CATEGORIES = {
-  'phonebook':     'contact',
-  'new-contact':   'contact',
+  'phonebook':      'contact',
+  'new-contact':    'contact',
+  'lead-pipeline':  'contact',
+  'new-lead':       'contact',
   'costbook':      'estimating',
   'price-list':    'estimating',
   'documents':     'documents',
@@ -362,6 +366,8 @@ const SUBMENUS = {
       { title: 'New Contact',       widget: 'new-contact' },
       { title: 'Contact List',      widget: 'phonebook' },
       { title: 'Vendor Management', widget: 'vendor-mgmt' },
+      { title: 'Lead Pipeline',     widget: 'lead-pipeline' },
+      { title: 'New Lead',          widget: 'new-lead' },
     ],
   },
   workorder: {
