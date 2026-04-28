@@ -667,14 +667,26 @@ const CRM = (function () {
           <div class="btn-spacer"></div>
         </div>
 
-        <!-- Row 5: Phone -->
-        <div data-container="co-phones">
-          ${_phoneRowHTML(0, true)}
+        <!-- Row 5: Main Phone / Main Email -->
+        <div class="form-row">
+          <div class="form-group f-grow">
+            <label class="form-label">Main Phone</label>
+            <input class="form-input" data-co="main-phone" type="text" autocomplete="off">
+          </div>
+          <div class="form-group f-grow">
+            <label class="form-label">Main Email</label>
+            <input class="form-input" data-co="main-email" type="email" autocomplete="off">
+          </div>
+          <div class="btn-spacer"></div>
         </div>
 
-        <!-- Row 6: Email -->
-        <div data-container="co-emails">
-          ${_emailRowHTML(0, true)}
+        <!-- Row 6: Website -->
+        <div class="form-row">
+          <div class="form-group" style="flex:1">
+            <label class="form-label">Website</label>
+            <input class="form-input" data-co="website" type="text" autocomplete="off" placeholder="https://...">
+          </div>
+          <div class="btn-spacer"></div>
         </div>
 
         <!-- Row 7: Job Title / Department -->
@@ -1166,28 +1178,22 @@ const CRM = (function () {
 
     function _reEnable() { addCompanyBtn.disabled = false; if (onClose) onClose(); }
 
-    // Autofill phone, email, and address from parent contact form
-    const parentPhone = mainEl.querySelector('input[data-phone]')?.value.trim();
-    const parentEmail = mainEl.querySelector('input[data-email]')?.value.trim();
-    if (parentPhone) sideEl.querySelector('input[data-phone]').value = parentPhone;
-    if (parentEmail) sideEl.querySelector('input[data-email]').value = parentEmail;
-
     ['street1', 'street2', 'city', 'state', 'zip'].forEach(field => {
       const val = mainEl.querySelector(`[data-addr="${field}"]`)?.value.trim();
       if (val) sideEl.querySelector(`[data-co="${field}"]`).value = val;
     });
 
-    // Save disabled until Company Name + (Phone OR Email)
+    // Save disabled until Company Name + (Main Phone OR Main Email)
     const companySaveBtn = sideEl.querySelector('[data-action="save"]');
     function _updateCompanySaveBtn() {
       const hasName  = !!sideEl.querySelector('[data-co="name"]').value.trim();
-      const hasPhone = [...sideEl.querySelectorAll('input[data-phone]')].some(i => i.value.trim());
-      const hasEmail = [...sideEl.querySelectorAll('input[data-email]')].some(i => i.value.trim());
+      const hasPhone = !!sideEl.querySelector('[data-co="main-phone"]').value.trim();
+      const hasEmail = !!sideEl.querySelector('[data-co="main-email"]').value.trim();
       companySaveBtn.disabled = !(hasName && (hasPhone || hasEmail));
     }
     sideEl.querySelector('[data-co="name"]').addEventListener('input', _updateCompanySaveBtn);
     sideEl.addEventListener('input', e => {
-      if (e.target.dataset.phone !== undefined || e.target.dataset.email !== undefined) _updateCompanySaveBtn();
+      if (e.target.dataset.co === 'main-phone' || e.target.dataset.co === 'main-email') _updateCompanySaveBtn();
     });
     _updateCompanySaveBtn(); // run once in case autofill already satisfies phone/email
 
@@ -1291,9 +1297,10 @@ const CRM = (function () {
         zip:        sideEl.querySelector('[data-co="zip"]').value.trim(),
         jobTitle:   sideEl.querySelector('[data-co="job-title"]').value.trim(),
         department: sideEl.querySelector('[data-co="department"]').value.trim(),
+        mainPhone:  sideEl.querySelector('[data-co="main-phone"]').value.trim(),
+        mainEmail:  sideEl.querySelector('[data-co="main-email"]').value.trim(),
+        website:    sideEl.querySelector('[data-co="website"]').value.trim(),
         notes:      sideEl.querySelector('[data-co="notes"]').value.trim(),
-        phones:     _collectPhones(sideEl),
-        emails:     _collectEmails(sideEl),
         isExisting: !!_selectedCompanyId,
       };
 
