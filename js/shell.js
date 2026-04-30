@@ -317,6 +317,7 @@ const WIDGET_ROUTES = {
   'lead-pipeline':  () => Leads.openKanban(),
   'new-lead':       () => Leads.openNewLead(),
   'workorder':      () => WorkOrders.openWorkOrderList(),
+  'wo-intake':      () => WorkOrders.openWorkOrderIntake(),
   'new-workorder':  () => WorkOrders.openNewWorkOrder(null),
   'estimating':     () => Estimating.openEstimateList(),
   'new-estimate':   () => Estimating.openEstimateSettings(null, null),
@@ -335,6 +336,7 @@ const WIDGET_CATEGORIES = {
   'documents':     'documents',
   'vendor-mgmt':   'contact',
   'workorder':     'workorder',
+  'wo-intake':     'workorder',
   'new-workorder': 'workorder',
   'estimating':    'estimate',
   'new-estimate':  'estimate',
@@ -374,7 +376,7 @@ const SUBMENUS = {
     label: 'Work Order',
     items: [
       { title: 'Work Orders',    widget: 'workorder' },
-      { title: 'New Work Order', widget: 'new-workorder' },
+      { title: 'New Work Order', widget: 'wo-intake' },
     ],
   },
   estimating: {

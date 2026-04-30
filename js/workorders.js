@@ -40,10 +40,18 @@ const WorkOrders = (() => {
     ],
   };
 
-  const _WO_TYPES      = ['Repair', 'Service Call', 'Installation', 'Inspection', 'Warranty', 'Estimate Walk', 'Other'];
+  const _WO_TYPES      = ['Water Heater', 'Water Softener', 'Water Leak — Interior', 'Fixture Replacement', 'Sewer Line Repair', 'HVAC', 'Electrical', 'Roof Repair', 'Door / Window', 'General Repair', 'Inspection', 'Other'];
   const _WO_STATUSES   = ['Open', 'Closed'];
   const _TASK_STATUSES = ['Open', 'Closed'];
   const _EMPLOYEES     = ['Mike Johnson', 'Dave Wilson', 'Tom Davis', 'Sarah Brooks'];
+
+  const _PEOPLE_MOCK = [
+    { peopleId: 'PER-0001', displayName: 'John & Mary Smith',  phone: '(615) 555-0101', email: 'john.smith@email.com',    properties: ['1824 Millbrook Dr, Nashville TN 37215'] },
+    { peopleId: 'PER-0002', displayName: 'Robert Johnson',      phone: '(615) 555-0102', email: 'rjohnson@email.com',      properties: ['456 Elm Ave, Franklin TN 37064'] },
+    { peopleId: 'PER-0003', displayName: 'Patricia & Tom Ward', phone: '(615) 555-0103', email: 'pward@email.com',         properties: ['892 Crestview Ln, Brentwood TN 37027', '210 Lake Shore Dr, Brentwood TN 37027'] },
+    { peopleId: 'PER-0004', displayName: 'David Chen',          phone: '(615) 555-0104', email: 'david.chen@email.com',   properties: ['3301 Highland Ave, Nashville TN 37212'] },
+    { peopleId: 'PER-0005', displayName: 'Susan & Mark Torres', phone: '(615) 555-0105', email: 'storres@email.com',       properties: ['711 Maple St, Hendersonville TN 37075'] },
+  ];
 
   /* ── Work Order List ───────────────────────────────────────── */
 
@@ -433,6 +441,579 @@ const WorkOrders = (() => {
     el.querySelector('[data-action="wo-refresh"]').addEventListener('click', () => Toast.show('Refreshed.'));
   }
 
-  return { openWorkOrderList, openWorkOrder, openNewWorkOrder };
+  /* ── Work Order Intake Form ─────────────────────────────────── */
+
+  function _woPersonSideWidgetHTML() {
+    const phoneOpts = '<option>Mobile</option><option>Home</option><option>Work</option><option>Other</option>';
+    return `
+      <div class="widget-form">
+        <div class="form-row">
+          <div class="form-group f-title">
+            <label class="form-label">Title</label>
+            <select class="form-select" data-ap="title">
+              <option value=""></option>
+              <option>Mr.</option><option>Mrs.</option><option>Ms.</option>
+              <option>Dr.</option><option>Prof.</option>
+            </select>
+          </div>
+          <div class="form-group f-grow">
+            <label class="form-label">First Name</label>
+            <input class="form-input" data-ap="first-name" type="text" autocomplete="off">
+          </div>
+          <div class="form-group f-grow">
+            <label class="form-label">Last Name</label>
+            <input class="form-input" data-ap="last-name" type="text" autocomplete="off">
+          </div>
+          <div class="btn-spacer"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group f-grow">
+            <label class="form-label">Phone</label>
+            <input class="form-input" data-ap="phone" type="tel" autocomplete="off">
+          </div>
+          <div class="form-group f-sm">
+            <label class="form-label">Type</label>
+            <select class="form-select" data-ap="phoneType">${phoneOpts}</select>
+          </div>
+          <div class="btn-spacer"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group f-grow">
+            <label class="form-label">Email</label>
+            <input class="form-input" data-ap="email" type="email" autocomplete="off">
+          </div>
+          <div class="btn-spacer"></div>
+        </div>
+        <div class="widget-footer">
+          <button class="btn-secondary" data-action="cancel">Cancel</button>
+          <button class="btn-primary" data-action="save" disabled>Save</button>
+        </div>
+      </div>`;
+  }
+
+  function _bindWoPersonSideWidget(sideId, mainEl, onSave) {
+    const sideEl = document.getElementById('widget-' + sideId);
+    if (!sideEl) return;
+
+    const firstNameInp = sideEl.querySelector('[data-ap="first-name"]');
+    const lastNameInp  = sideEl.querySelector('[data-ap="last-name"]');
+    const phoneInp     = sideEl.querySelector('[data-ap="phone"]');
+    const emailInp     = sideEl.querySelector('[data-ap="email"]');
+    const saveBtn      = sideEl.querySelector('[data-action="save"]');
+
+    firstNameInp.addEventListener('input', () => {
+      saveBtn.disabled = !firstNameInp.value.trim();
+    });
+
+    sideEl.querySelector('[data-action="cancel"]').addEventListener('click', () => {
+      WidgetManager.close(sideId);
+    });
+
+    saveBtn.addEventListener('click', () => {
+      const title       = sideEl.querySelector('[data-ap="title"]').value.trim();
+      const firstName   = firstNameInp.value.trim();
+      const lastName    = lastNameInp.value.trim();
+      const phone       = phoneInp.value.trim();
+      const email       = emailInp.value.trim();
+      const displayName = [title, firstName, lastName].filter(Boolean).join(' ');
+      onSave({ displayName, firstName, lastName, phone, email, title });
+      WidgetManager.close(sideId);
+    });
+  }
+
+  function _woAddressSideWidgetHTML() {
+    return `
+      <div class="widget-form">
+        <div class="form-row">
+          <div class="form-group f-grow">
+            <label class="form-label">Street Address</label>
+            <input class="form-input" data-addr="street" type="text" autocomplete="off">
+          </div>
+          <div class="form-group f-unit">
+            <label class="form-label">Unit / PO Box</label>
+            <input class="form-input" data-addr="unit" type="text" autocomplete="off">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group f-grow">
+            <label class="form-label">City</label>
+            <input class="form-input" data-addr="city" type="text" autocomplete="off">
+          </div>
+          <div class="form-group f-state">
+            <label class="form-label form-label-center">State</label>
+            <input class="form-input" data-addr="state" type="text" maxlength="3" autocomplete="off">
+          </div>
+          <div class="form-group f-sm">
+            <label class="form-label">Zip</label>
+            <input class="form-input" data-addr="zip" type="text" maxlength="10" autocomplete="off">
+          </div>
+        </div>
+        <div class="widget-footer">
+          <button class="btn-secondary" data-action="cancel">Cancel</button>
+          <button class="btn-primary" data-action="save" disabled>Save</button>
+        </div>
+      </div>`;
+  }
+
+  function _bindWoAddressSideWidget(sideId, mainEl, onSave) {
+    const sideEl = document.getElementById('widget-' + sideId);
+    if (!sideEl) return;
+
+    const streetInp = sideEl.querySelector('[data-addr="street"]');
+    const saveBtn   = sideEl.querySelector('[data-action="save"]');
+
+    streetInp.addEventListener('input', () => {
+      saveBtn.disabled = !streetInp.value.trim();
+    });
+
+    sideEl.querySelector('[data-action="cancel"]').addEventListener('click', () => {
+      WidgetManager.close(sideId);
+    });
+
+    saveBtn.addEventListener('click', () => {
+      const street = streetInp.value.trim();
+      const unit   = sideEl.querySelector('[data-addr="unit"]').value.trim();
+      const city   = sideEl.querySelector('[data-addr="city"]').value.trim();
+      const state  = sideEl.querySelector('[data-addr="state"]').value.trim();
+      const zip    = sideEl.querySelector('[data-addr="zip"]').value.trim();
+      const streetLine = [street, unit].filter(Boolean).join(', ');
+      const cityLine   = [city, state].filter(Boolean).join(' ');
+      const address    = [streetLine, cityLine, zip].filter(Boolean).join(', ');
+      mainEl.querySelector('.wi-addr-inp').value = address;
+      onSave({ street, unit, city, state, zip, address });
+      WidgetManager.close(sideId);
+    });
+  }
+
+  function _woIntakeHTML() {
+    const typeOpts = '<option value="">— Select Type —</option>' +
+      _WO_TYPES.map(t => `<option>${t}</option>`).join('');
+    const phoneOpts = '<option>Mobile</option><option>Home</option><option>Work</option><option>Other</option>';
+    const emailOpts = '<option>Home</option><option>Work</option><option>Other</option>';
+    return `<div class="sp-widget wi-widget">
+      <div class="sp-toolbar">
+        <div class="sp-toolbar-spacer"></div>
+        <span class="wi-status-pill">Unscheduled</span>
+      </div>
+      <div class="wi-form-wrap">
+        <div class="wi-main">
+          <div class="widget-form">
+
+            <div class="wi-emergency-row">
+              <input type="checkbox" class="wi-emerg-chk" id="wi-emergency" data-field="emergency">
+              <label class="wi-emerg-label" for="wi-emergency">Emergency</label>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group f-grow">
+                <label class="form-label">Client Name</label>
+                <div class="wi-search-wrap">
+                  <input class="form-input wi-client-search" type="search"
+                         placeholder="Search / Filter and + Client" autocomplete="off">
+                  <div class="wi-search-results" style="display:none"></div>
+                  <div class="wi-sel-chip" style="display:none">
+                    <span class="wi-sel-name"></span>
+                    <button class="wi-sel-clear" title="Clear">&#215;</button>
+                  </div>
+                </div>
+              </div>
+              <div class="form-group f-grow">
+                <label class="form-label">Phone</label>
+                <input class="form-input" type="tel" data-field="phone"
+                       placeholder="Autofill &amp; Overwriteable">
+              </div>
+              <div class="form-group f-sm">
+                <label class="form-label">Type</label>
+                <select class="form-select" data-field="phoneType">${phoneOpts}</select>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group f-grow">
+                <label class="form-label">Address</label>
+                <select class="form-select wi-addr-sel" style="display:none"></select>
+                <input class="form-input wi-addr-inp" type="text"
+                       placeholder="Filtered List by Client and + Address">
+              </div>
+              <div class="form-group f-grow">
+                <label class="form-label">Email</label>
+                <input class="form-input" type="email" data-field="email"
+                       placeholder="Autofill &amp; Overwriteable">
+              </div>
+              <div class="form-group f-sm">
+                <label class="form-label">Type</label>
+                <select class="form-select" data-field="emailType">${emailOpts}</select>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group f-grow">
+                <label class="form-label">Jobsite Contact</label>
+                <input class="form-input" type="text" data-field="jobsiteContact"
+                       placeholder="If Different — Text Field">
+              </div>
+              <div class="form-group f-grow">
+                <label class="form-label">Contact Phone</label>
+                <input class="form-input" type="tel" data-field="jobsiteContactPhone"
+                       placeholder="If Different — Text Field">
+              </div>
+              <div class="form-group f-sm">
+                <label class="form-label">Type</label>
+                <select class="form-select" data-field="jobsitePhoneType">${phoneOpts}</select>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group f-grow">
+                <label class="form-label">W.O. Type</label>
+                <select class="form-select" data-field="workOrderType">${typeOpts}</select>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group f-grow">
+                <label class="form-label">Special Instructions</label>
+                <textarea class="form-textarea" data-field="specialInstructions" rows="2"
+                          placeholder="Gate code, key location, dogs, parking…"></textarea>
+              </div>
+            </div>
+
+            <div class="wi-task-section">
+              <div class="wi-task-hdr-row">
+                <div class="wi-task-drag-ph"></div>
+                <span class="wi-task-col-lbl" style="flex:1">Task</span>
+                <span class="wi-task-col-lbl" style="flex:1">Notes</span>
+                <div class="wi-task-del-ph"></div>
+              </div>
+              <div class="wi-tasks-list">
+                <div class="wi-task-row">
+                  <span class="wi-task-drag">&#10303;</span>
+                  <input class="form-input wi-task-inp" type="text" placeholder="Type task…">
+                  <input class="form-input wi-task-notes-inp" type="text" placeholder="Notes…">
+                  <button class="wi-task-del" type="button" title="Delete row">&#215;</button>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+      <div class="wi-footer">
+        <button class="btn-secondary sp-btn" data-action="wi-cancel">Cancel</button>
+        <div class="split-btn" style="width:auto">
+          <button class="btn-primary split-btn-main" data-action="wi-save-close">Save &amp; Close</button><button class="btn-primary split-btn-toggle" data-action="wi-save-menu" tabindex="-1">&#9660;</button>
+          <div class="split-btn-dropdown" hidden>
+            <button class="split-btn-item" data-action="wi-save-new">Save &amp; New</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  function openWorkOrderIntake() {
+    const id = 'wo-intake';
+    if (WidgetManager.open(id, 'New Work Order', _woIntakeHTML(), {
+      width: 640, height: 560, minWidth: 520, minHeight: 460, category: 'workorder',
+    }) !== false) {
+      _bindWorkOrderIntake(id);
+    }
+  }
+
+  function _bindWorkOrderIntake(widgetId) {
+    const el = document.getElementById('widget-' + widgetId);
+    if (!el) return;
+
+    let _selectedPerson  = null;
+    let _isNewPerson     = false;
+    let _newPersonData   = null;
+    let _selectedAddress = null;
+    let _isNewAddress    = false;
+
+    const searchInp     = el.querySelector('.wi-client-search');
+    const searchResults = el.querySelector('.wi-search-results');
+    const selChip       = el.querySelector('.wi-sel-chip');
+    const addrSel       = el.querySelector('.wi-addr-sel');
+    const addrInp       = el.querySelector('.wi-addr-inp');
+    const phoneInp      = el.querySelector('[data-field="phone"]');
+    const emailInp      = el.querySelector('[data-field="email"]');
+
+    function _clearClient() {
+      _selectedPerson  = null;
+      _isNewPerson     = false;
+      _newPersonData   = null;
+      _selectedAddress = null;
+      _isNewAddress    = false;
+      searchInp.value              = '';
+      searchInp.style.display      = '';
+      searchResults.style.display  = 'none';
+      searchResults.innerHTML      = '';
+      selChip.style.display        = 'none';
+      phoneInp.value               = '';
+      emailInp.value               = '';
+      addrSel.style.display        = 'none';
+      addrSel.innerHTML            = '';
+      addrInp.style.display        = '';
+      addrInp.value                = '';
+    }
+
+    function _selectPerson(person) {
+      _selectedPerson = person;
+      _isNewPerson    = false;
+      searchInp.style.display     = 'none';
+      searchResults.style.display = 'none';
+      selChip.style.display       = '';
+      selChip.querySelector('.wi-sel-name').textContent = person.displayName;
+      phoneInp.value = person.phone;
+      emailInp.value = person.email || '';
+      addrInp.style.display = 'none';
+      addrSel.innerHTML =
+        '<option value="__new__">+ New Address…</option>' +
+        person.properties.map(a => `<option value="${a}">${a}</option>`).join('');
+      addrSel.style.display = '';
+      if (person.properties.length) {
+        _selectedAddress = person.properties[0];
+        addrSel.value    = person.properties[0];
+      }
+    }
+
+    function _openAddressSideWidget() {
+      const sideId   = 'wo-address-' + Date.now();
+      const mainLeft = parseInt(el.style.left) || 0;
+      const mainTop  = parseInt(el.style.top)  || 0;
+      const opened   = WidgetManager.open(sideId, 'New Address', _woAddressSideWidgetHTML(), {
+        width: 360, minWidth: 300, autoHeight: true,
+        top: mainTop + 60, left: mainLeft + el.offsetWidth,
+        panel: true, parentId: widgetId,
+      });
+      if (opened === false) return;
+      _bindWoAddressSideWidget(sideId, el, function (addrData) {
+        _isNewAddress    = true;
+        addrInp.value    = addrData.address;
+      });
+    }
+
+    function _selectNewPerson() {
+      _selectedPerson = null;
+      _isNewPerson    = true;
+      _newPersonData  = null;
+      searchInp.style.display     = 'none';
+      searchResults.style.display = 'none';
+      selChip.style.display       = '';
+      selChip.querySelector('.wi-sel-name').textContent = 'New Client';
+      phoneInp.value = '';
+      emailInp.value = '';
+      addrSel.style.display = 'none';
+      addrInp.style.display = '';
+      addrInp.value = '';
+
+      const sideId   = 'wo-person-' + Date.now();
+      const mainLeft = parseInt(el.style.left) || 0;
+      const mainTop  = parseInt(el.style.top)  || 0;
+      const opened   = WidgetManager.open(sideId, 'New Client', _woPersonSideWidgetHTML(), {
+        width: 400, minWidth: 340, autoHeight: true,
+        top: mainTop, left: mainLeft + el.offsetWidth,
+        panel: true, parentId: widgetId,
+      });
+      if (opened === false) return;
+      _bindWoPersonSideWidget(sideId, el, function (personData) {
+        _newPersonData = personData;
+        selChip.querySelector('.wi-sel-name').textContent = personData.displayName;
+        if (personData.phone) phoneInp.value = personData.phone;
+        _openAddressSideWidget();
+      });
+    }
+
+    /* Client search */
+    searchInp.addEventListener('input', function () {
+      const q = this.value.trim().toLowerCase();
+      if (!q) { searchResults.style.display = 'none'; searchResults.innerHTML = ''; return; }
+      const matches = _PEOPLE_MOCK.filter(p =>
+        p.displayName.toLowerCase().includes(q) || p.phone.includes(q)
+      );
+      const matchHTML = matches.map(p => `
+        <div class="wi-result-row" data-people-id="${p.peopleId}">
+          <span class="wi-result-name">${p.displayName}</span>
+          <span class="wi-result-phone">${p.phone}</span>
+        </div>`).join('');
+      searchResults.innerHTML =
+        '<div class="wi-result-row wi-result-row--add" data-people-id="__new__">+ New Client</div>' +
+        (matches.length ? matchHTML : '<div class="wi-result-empty">No matches</div>');
+      searchResults.style.display = '';
+    });
+
+    searchResults.addEventListener('click', e => {
+      const row = e.target.closest('.wi-result-row');
+      if (!row) return;
+      if (row.dataset.peopleId === '__new__') {
+        _selectNewPerson();
+      } else {
+        const person = _PEOPLE_MOCK.find(p => p.peopleId === row.dataset.peopleId);
+        if (person) _selectPerson(person);
+      }
+    });
+
+    selChip.querySelector('.wi-sel-clear').addEventListener('click', _clearClient);
+
+    /* Address dropdown — existing client */
+    addrSel.addEventListener('change', function () {
+      if (this.value === '__new__') {
+        _isNewAddress    = true;
+        _selectedAddress = null;
+        addrSel.style.display = 'none';
+        addrInp.style.display = '';
+        addrInp.value = '';
+        _openAddressSideWidget();
+      } else {
+        _isNewAddress    = false;
+        _selectedAddress = this.value;
+      }
+    });
+
+    /* Task rows */
+    function _createTaskRow() {
+      const row = document.createElement('div');
+      row.className = 'wi-task-row';
+      row.innerHTML = `
+        <span class="wi-task-drag">&#10303;</span>
+        <input class="form-input wi-task-inp" type="text" placeholder="Add another task…">
+        <input class="form-input wi-task-notes-inp" type="text" placeholder="Notes…">
+        <button class="wi-task-del" type="button" title="Delete row">&#215;</button>`;
+      return row;
+    }
+
+    function _bindTaskRow(row) {
+      const taskInp = row.querySelector('.wi-task-inp');
+      const delBtn  = row.querySelector('.wi-task-del');
+
+      taskInp.addEventListener('blur', function () {
+        if (!this.value.trim()) return;
+        const list = el.querySelector('.wi-tasks-list');
+        if (row === list.lastElementChild) {
+          const newRow = _createTaskRow();
+          list.appendChild(newRow);
+          _bindTaskRow(newRow);
+        }
+      });
+
+      delBtn.addEventListener('click', function () {
+        const list = el.querySelector('.wi-tasks-list');
+        if (list.children.length <= 1) {
+          taskInp.value = '';
+          row.querySelector('.wi-task-notes-inp').value = '';
+        } else {
+          row.remove();
+        }
+      });
+    }
+
+    _bindTaskRow(el.querySelector('.wi-task-row'));
+
+    /* Split save button */
+    const saveDropdown = el.querySelector('.split-btn-dropdown');
+    const saveMenuBtn  = el.querySelector('[data-action="wi-save-menu"]');
+
+    saveMenuBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (!saveDropdown.hasAttribute('hidden')) { saveDropdown.setAttribute('hidden', ''); return; }
+      saveDropdown.removeAttribute('hidden');
+      const rect = this.getBoundingClientRect();
+      saveDropdown.style.top  = (rect.top - saveDropdown.offsetHeight - 2) + 'px';
+      saveDropdown.style.left = (rect.right - saveDropdown.offsetWidth)    + 'px';
+    });
+
+    el.addEventListener('click', e => {
+      if (!e.target.closest('.split-btn')) saveDropdown.setAttribute('hidden', '');
+    });
+
+    /* Collect and save */
+    function _collectAndSave() {
+      let clientName = '';
+      if (_isNewPerson) {
+        if (!_newPersonData) { Toast.show('Complete the new client form.'); return null; }
+        clientName = _newPersonData.displayName;
+      } else if (_selectedPerson) {
+        clientName = _selectedPerson.displayName;
+      } else {
+        Toast.show('Select a client or add a new one.'); return null;
+      }
+
+      let address = '';
+      if (_isNewAddress) {
+        address = addrInp.value.trim();
+        if (!address) { Toast.show('Enter an address.'); return null; }
+      } else if (_selectedAddress) {
+        address = _selectedAddress;
+      } else {
+        address = addrInp.value.trim();
+      }
+
+      const tasks = [...el.querySelectorAll('.wi-task-row')]
+        .map(r => ({
+          description: r.querySelector('.wi-task-inp').value.trim(),
+          taskNotes:   r.querySelector('.wi-task-notes-inp').value.trim(),
+        }))
+        .filter(t => t.description);
+
+      if (!tasks.length) { Toast.show('Enter at least one task.'); return null; }
+
+      const newId = 'WO-' + String(_WO_MOCK.length + 1).padStart(4, '0');
+      _WO_MOCK.push({
+        workOrderId:         newId,
+        clientName,
+        address:             address || '—',
+        workOrderType:       el.querySelector('[data-field="workOrderType"]').value,
+        workOrderStatus:     'Open',
+        workOrderStage:      'Unscheduled',
+        priority:            el.querySelector('[data-field="emergency"]').checked ? 'Urgent' : 'Normal',
+        assignedTo:          '',
+        dateScheduled:       '',
+        dateStarted:         '',
+        dateCompleted:       '',
+        specialInstructions: el.querySelector('[data-field="specialInstructions"]').value.trim(),
+      });
+
+      _WO_TASKS_MOCK[newId] = tasks.map((t, i) => ({
+        taskId:       'WOT-new-' + Date.now() + '-' + i,
+        sortWeight:   (i + 1) * 10,
+        description:  t.description,
+        instructions: '',
+        status:       'Open',
+        taskNotes:    t.taskNotes,
+      }));
+
+      Toast.show('✓ Work Order ' + newId + ' created.');
+
+      const listWrap = document.querySelector('#widget-work-order-list .wo-list');
+      if (listWrap) listWrap.innerHTML = _woBuildRows(_WO_MOCK, 'clientName', 'asc', false, '', false);
+
+      return newId;
+    }
+
+    el.querySelector('[data-action="wi-save-close"]').addEventListener('click', () => {
+      if (_collectAndSave() !== null) WidgetManager.close('wo-intake');
+    });
+
+    el.querySelector('[data-action="wi-save-new"]').addEventListener('click', () => {
+      saveDropdown.setAttribute('hidden', '');
+      if (_collectAndSave() === null) return;
+      _clearClient();
+      const tasksList = el.querySelector('.wi-tasks-list');
+      [...tasksList.querySelectorAll('.wi-task-row')].forEach((r, i) => { if (i > 0) r.remove(); });
+      const firstRow = tasksList.querySelector('.wi-task-row');
+      if (firstRow) {
+        firstRow.querySelector('.wi-task-inp').value       = '';
+        firstRow.querySelector('.wi-task-notes-inp').value = '';
+      }
+      el.querySelector('[data-field="workOrderType"]').value       = '';
+      el.querySelector('[data-field="specialInstructions"]').value = '';
+      el.querySelector('[data-field="emergency"]').checked         = false;
+    });
+
+    el.querySelector('[data-action="wi-cancel"]').addEventListener('click', () => {
+      WidgetManager.close('wo-intake');
+    });
+  }
+
+  return { openWorkOrderList, openWorkOrder, openNewWorkOrder, openWorkOrderIntake };
 
 })();
