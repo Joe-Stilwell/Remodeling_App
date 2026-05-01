@@ -71,6 +71,15 @@
    These classes live in input.css and apply to ALL widgets.
    The 32px row pitch is automatic — do not add margins between rows.
 
+   FORM WIDGET PADDING:
+     widget-body default: padding 6px 12px 25px — left/right is 12px.
+     Simple form widgets (autoHeight, no custom footer) use this automatically.
+     Widgets with a custom scroll wrapper or fixed footer must strip widget-body
+     padding with a :has() rule — otherwise padding doubles:
+       .widget-body:has(.xxx-widget) { padding: 0; overflow: hidden; }
+     Then manage padding in the inner scroll container (e.g. 10px 12px) so
+     content still gets 12px left/right to match standard forms.
+
    CONTAINER HIERARCHY:
      .widget-form          flex column, gap:8px  (outermost form wrapper)
        .form-section       section header rule
@@ -120,14 +129,27 @@
 /* ----------------------------------------------------------------
    BUTTON TYPES
    ----------------------------------------------------------------
-   .btn-action      Standard: tint bg, dark border, 80px, 22px tall.
-   .btn-primary     Identical — use for the main CTA.
-   .btn-secondary   Identical — use for secondary actions.
+   Three sizes:
+   LARGE  .btn-action / .btn-primary / .btn-secondary
+            80px wide, 22px tall, 11px font.
+            Use for: main entry form footers (New Contact, etc.)
+   MEDIUM add .sp-btn to the above
+            60px wide, 22px tall, 12px font.
+            Use for: panel sub-widget footers (+ Person, + Property),
+            and action buttons inside contact rows (+ Phone, + Email).
+   SMALL  .btn-remove
+            18×18 ghost ✕ — inline row-level removal only.
+
+   Also:
    .btn-danger      Red outline, margin-right:auto (left-justifies).
                     Use for Delete / destructive actions in footers.
-   .btn-remove      18×18 ghost ✕ — inline row-level removal.
-   .sp-btn          Toolbar variant: 22px tall, 12px font, auto width.
-   .sp-btn-icon     Toolbar icon button: 26px wide, 14px font.
+   .sp-btn-icon     Icon-only toolbar button: 26px wide, 14px font.
+
+   BTN-SPACER RULE — spacer width must match button width in the same widget:
+     Rows without a button use .btn-spacer to hold the column width.
+     Default btn-spacer = 80px (matches LARGE buttons).
+     In panel sub-widgets that use MEDIUM (sp-btn) buttons, override:
+       <div class="btn-spacer" style="width:60px"></div>
 
    Three-state interaction (all action buttons):
      default  →  dark border
@@ -713,6 +735,12 @@ function _bindXxxGrid(widgetId) {
    - Panels are always z-indexed above their parent automatically
    - If the panel would overflow the workspace right edge, WidgetManager shifts
      the entire family (parent + sibling panels) left to fit
+
+   BUTTON SIZES IN PANEL SUB-WIDGETS:
+   - Footer Cancel/Save: use MEDIUM (btn-secondary sp-btn / btn-primary sp-btn)
+   - contact-row action buttons (+ Phone, + Email, + Property): use MEDIUM (btn-action sp-btn)
+   - btn-spacer on rows without a button: use style="width:60px" to align with MEDIUM buttons
+   - The panel boilerplate footer below already reflects this.
 
    DATA ACCESS — AppData API
    ─────────────────────────

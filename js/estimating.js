@@ -377,47 +377,8 @@ const Estimating = (function () {
 
     /* --- Column resize with localStorage persistence --- */
     const mainEl = el.querySelector('.cb-main');
-    const CB_COL_KEY  = 'cb-col-widths';
-    const CB_COL_VARS = ['--cb-w-desc','--cb-w-uom','--cb-w-labor','--cb-w-mat','--cb-w-subc','--cb-w-equip','--cb-w-other','--cb-w-unit','--cb-w-specs'];
-
-    // Restore saved widths on load
-    try {
-      const saved = JSON.parse(localStorage.getItem(CB_COL_KEY) || '{}');
-      CB_COL_VARS.forEach(v => { if (saved[v]) mainEl.style.setProperty(v, saved[v]); });
-    } catch (err) { /* ignore */ }
-
-    function _saveColWidths() {
-      try {
-        const widths = {};
-        CB_COL_VARS.forEach(v => {
-          const val = mainEl.style.getPropertyValue(v);
-          if (val) widths[v] = val;
-        });
-        localStorage.setItem(CB_COL_KEY, JSON.stringify(widths));
-      } catch (err) { /* ignore */ }
-    }
-
-    el.querySelectorAll('.cb-col-resize').forEach(handle => {
-      handle.addEventListener('mousedown', function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-        const headerCell = this.closest('[data-col]');
-        const colVar     = headerCell.dataset.col;
-        const startX     = e.clientX;
-        const startW     = headerCell.offsetWidth; // actual rendered px, not CSS var value
-        document.body.classList.add('is-dragging');
-        function onMove(e) {
-          mainEl.style.setProperty(colVar, Math.max(40, startW + (e.clientX - startX)) + 'px');
-        }
-        function onUp() {
-          document.body.classList.remove('is-dragging');
-          document.removeEventListener('mousemove', onMove);
-          document.removeEventListener('mouseup', onUp);
-          _saveColWidths();
-        }
-        document.addEventListener('mousemove', onMove);
-        document.addEventListener('mouseup', onUp);
-      });
+    ColResize.bind(mainEl, el.querySelector('.cb-header'), 'cb-col-widths', {
+      handleSel: '.cb-col-resize', colAttr: 'data-col', minWidth: 40,
     });
 
     /* --- Expand / collapse a division row --- */
@@ -4268,35 +4229,8 @@ const Estimating = (function () {
     let groupSelect = false;
 
     /* ── Column resize ── */
-    const EL_COL_KEY    = 'el-col-widths';
-    const EL_COL_VARS   = ['--el-w-client','--el-w-name','--el-w-addr','--el-w-status','--el-w-price','--el-w-date'];
-    const elContent     = el.querySelector('.el-widget');  // CSS vars must be set here, not on the outer container
-    try {
-      const saved = JSON.parse(localStorage.getItem(EL_COL_KEY) || '{}');
-      EL_COL_VARS.forEach(v => { if (saved[v]) elContent.style.setProperty(v, saved[v]); });
-    } catch (_) {}
-
-    colHdrs.addEventListener('mousedown', e => {
-      const handle = e.target.closest('.el-col-resize');
-      if (!handle) return;
-      e.preventDefault();
-      const hdr      = handle.closest('.el-hdr');
-      const varName  = hdr.dataset.colVar;
-      const startX   = e.clientX;
-      const startW   = hdr.offsetWidth;
-      function onMove(e) {
-        elContent.style.setProperty(varName, Math.max(50, startW + e.clientX - startX) + 'px');
-      }
-      function onUp() {
-        const widths = {};
-        EL_COL_VARS.forEach(v => { const val = elContent.style.getPropertyValue(v); if (val) widths[v] = val; });
-        localStorage.setItem(EL_COL_KEY, JSON.stringify(widths));
-        document.removeEventListener('mousemove', onMove);
-        document.removeEventListener('mouseup', onUp);
-      }
-      document.addEventListener('mousemove', onMove);
-      document.addEventListener('mouseup', onUp);
-    });
+    const elContent = el.querySelector('.el-widget');
+    ColResize.bind(elContent, colHdrs, 'el-col-widths', { handleSel: '.el-col-resize', minWidth: 50 });
 
     function _render() {
       listEl.innerHTML = _elBuildRows(_EST_LIST_MOCK, sortCol, sortDir, showArchived, search, groupSelect);

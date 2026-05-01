@@ -2256,7 +2256,7 @@ body.using-mouse .profile-entity-pill:focus-visible:not(:hover), body.using-mous
   overflow: hidden;
 }
 .pb-col-header:hover {
-  color: var(--color-brand-dark);
+  color: var(--color-brand-accent);
 }
 .pb-col-header:not(:last-child) {
   border-right: 1px solid var(--color-border-slate);
@@ -2274,8 +2274,7 @@ body.using-mouse .profile-entity-pill:focus-visible:not(:hover), body.using-mous
   background: transparent;
 }
 .pb-col-resize:hover {
-  background: var(--color-brand-primary);
-  opacity: 0.35;
+  background: var(--color-brand-accent);
 }
 .phonebook-widget.pb-hide-email .pb-col-headers, .phonebook-widget.pb-hide-email .pb-row {
   grid-template-columns: var(--pb-w-name) var(--pb-w-phone);
@@ -3414,7 +3413,7 @@ body.is-dragging .widget {
   font-weight: 400;
   padding: 0 5px;
   white-space: nowrap;
-  width: auto;
+  width: 60px;
 }
 .sp-btn-icon {
   width: 26px;
@@ -5347,7 +5346,7 @@ body.is-dragging .widget {
   overflow: hidden;
 }
 .el-hdr:hover {
-  color: var(--color-brand-dark);
+  color: var(--color-brand-accent);
 }
 .el-hdr:not(:last-child) {
   border-right: 1px solid var(--color-border-slate);
@@ -5366,8 +5365,7 @@ body.is-dragging .widget {
   background: transparent;
 }
 .el-col-resize:hover {
-  background: var(--color-brand-primary);
-  opacity: 0.35;
+  background: var(--color-brand-accent);
 }
 .el-list-wrap {
   flex: 1;
@@ -5991,7 +5989,7 @@ body.is-dragging .widget {
   overflow: hidden;
 }
 .wo-hdr:hover {
-  color: var(--color-brand-dark);
+  color: var(--color-brand-accent);
 }
 .wo-hdr:not(:last-child) {
   border-right: 1px solid var(--color-border-slate);
@@ -6009,8 +6007,7 @@ body.is-dragging .widget {
   cursor: col-resize;
 }
 .wo-col-resize:hover {
-  background: var(--color-brand-primary);
-  opacity: 0.35;
+  background: var(--color-brand-accent);
 }
 .wo-list-wrap {
   flex: 1;
@@ -6628,6 +6625,10 @@ body.is-dragging .widget {
   margin-top: auto;
   flex-shrink: 0;
 }
+.widget-body:has(.wi-widget) {
+  padding: 0;
+  overflow: hidden;
+}
 .wi-widget {
   display: flex;
   flex-direction: column;
@@ -6641,7 +6642,7 @@ body.is-dragging .widget {
 .wi-main {
   flex: 1;
   overflow-y: auto;
-  padding: 10px 14px;
+  padding: 10px 12px;
 }
 .wi-status-pill {
   font-size: 10px;
@@ -6659,7 +6660,7 @@ body.is-dragging .widget {
   position: absolute;
   top: 100%;
   left: 0;
-  right: 0;
+  min-width: 300px;
   background: white;
   border: 1px solid var(--color-border-slate);
   border-radius: 3px;
@@ -6675,6 +6676,7 @@ body.is-dragging .widget {
   padding: 5px 8px;
   font-size: 12px;
   cursor: pointer;
+  white-space: nowrap;
 }
 .wi-result-row:hover {
   background: var(--color-brand-tint);
@@ -6696,38 +6698,6 @@ body.is-dragging .widget {
   padding: 6px 8px;
   font-size: 12px;
   color: #666;
-}
-.wi-sel-chip {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  height: 22px;
-  background: var(--color-brand-tint);
-  border: 1px solid var(--color-ink-light);
-  border-radius: 3px;
-  padding: 0 6px;
-  font-size: 13px;
-}
-.wi-sel-name {
-  font-weight: 600;
-  color: var(--color-ink-dark);
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.wi-sel-clear {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 14px;
-  color: #999;
-  padding: 0;
-  line-height: 1;
-  flex-shrink: 0;
-}
-.wi-sel-clear:hover {
-  color: var(--color-ink-dark);
 }
 .wi-tasks-list {
   display: flex;
@@ -6846,13 +6816,25 @@ body.is-dragging .widget {
   align-items: center;
   justify-content: flex-end;
   gap: 6px;
-  padding: 6px 10px;
+  padding: 6px 12px;
   border-top: 1px solid var(--color-border-slate);
   background: var(--color-brand-tint);
   flex-shrink: 0;
 }
 .wi-footer .split-btn {
   width: auto;
+}
+.wi-footer .btn-primary, .wi-footer .btn-secondary {
+  height: 26px;
+}
+.wi-footer .btn-secondary {
+  font-size: 12px;
+  padding: 0 12px;
+  width: auto;
+}
+.wi-footer .split-btn-main {
+  font-size: 12px;
+  padding: 0 12px;
 }
 .wi-emergency-row {
   display: flex;
@@ -6872,6 +6854,18 @@ body.is-dragging .widget {
   color: var(--color-ink-dark);
   cursor: pointer;
   user-select: none;
+}
+.wi-stage-lbl {
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-ink-mid);
+  margin-right: 4px;
+}
+.wi-stage-sel {
+  width: 110px;
+  flex-shrink: 0;
 }
 .wi-task-section {
   display: flex;
@@ -6904,7 +6898,7 @@ body.is-dragging .widget {
 }
 .wi-task-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 4px;
   margin-bottom: 3px;
 }
@@ -6917,6 +6911,7 @@ body.is-dragging .widget {
   text-align: center;
   user-select: none;
   line-height: 1;
+  padding-top: 5px;
 }
 .wi-task-drag:active {
   cursor: grabbing;
@@ -6932,6 +6927,7 @@ body.is-dragging .widget {
   font-size: 15px;
   padding: 0;
   line-height: 1;
+  margin-top: 2px;
   display: flex;
   align-items: center;
   justify-content: center;

@@ -202,7 +202,7 @@ const CRM = (function () {
           </select>
         </div>
         ${includeAddBtn
-          ? `<button class="btn-action" data-action="add-phone" tabindex="-1" disabled>+ Phone</button>`
+          ? `<button class="btn-action sp-btn" data-action="add-phone" tabindex="-1" disabled>+ Phone</button>`
           : `<div class="btn-remove-col"><button class="btn-remove" type="button" title="Remove">&#10005;</button></div>`}
       </div>
     `;
@@ -226,21 +226,21 @@ const CRM = (function () {
           </select>
         </div>
         ${includeAddBtn
-          ? `<button class="btn-action" data-action="add-email" tabindex="-1" disabled>+ Email</button>`
+          ? `<button class="btn-action sp-btn" data-action="add-email" tabindex="-1" disabled>+ Email</button>`
           : `<div class="btn-remove-col"><button class="btn-remove" type="button" title="Remove">&#10005;</button></div>`}
       </div>
     `;
   }
 
   /* ── Reusable notes row HTML ─────────────────────────────── */
-  function _notesRowHTML(dataAttr, label, { spacer = true, value = '' } = {}) {
+  function _notesRowHTML(dataAttr, label, { spacer = true, value = '', spacerWidth = 'var(--btn-col)' } = {}) {
     return `
       <div class="form-row">
         <div class="form-group" style="flex:1">
           <label class="form-label">${label}</label>
           <textarea class="form-textarea" ${dataAttr} maxlength="2000" placeholder="">${value}</textarea>
         </div>
-        ${spacer ? '<div class="btn-spacer"></div>' : ''}
+        ${spacer ? `<div class="btn-spacer" style="width:${spacerWidth}"></div>` : ''}
       </div>
     `;
   }
@@ -438,145 +438,6 @@ const CRM = (function () {
           <div class="btn-spacer"></div>
         </div>
         ${_notesRowHTML('data-addr="notes"', 'Property Notes', { value: notes })}
-      </div>
-    `;
-  }
-
-  /* ── Person side widget HTML ──────────────────────────────── */
-  function _personSideWidgetHTML(uid = Date.now()) {
-    return `
-      <div class="widget-form">
-
-        <!-- Row 1: Title / First Name / Last Name -->
-        <div class="form-row">
-          <div class="form-group f-title">
-            <label class="form-label">Title</label>
-            <select class="form-select" data-ap="title">
-              <option value=""></option>
-              <option>Mr.</option>
-              <option>Mrs.</option>
-              <option>Ms.</option>
-              <option>Dr.</option>
-              <option>Prof.</option>
-            </select>
-          </div>
-          <div class="form-group f-grow">
-            <label class="form-label">First Name</label>
-            <input class="form-input" data-ap="first-name" type="text"
-                   placeholder="" autocomplete="off">
-          </div>
-          <div class="form-group f-grow">
-            <label class="form-label">Last Name</label>
-            <input class="form-input" data-ap="last-name" type="text"
-                   placeholder="" autocomplete="off">
-          </div>
-          <div class="btn-spacer"></div>
-        </div>
-
-        <!-- Row 2: Phone -->
-        <div data-container="ap-phones">
-          ${_phoneRowHTML(0, true)}
-        </div>
-
-        <!-- Row 3: Email -->
-        <div data-container="ap-emails">
-          ${_emailRowHTML(0, true)}
-        </div>
-
-        <!-- Row 4: Comm Preference -->
-        <div class="form-row">
-          <div class="form-group" style="flex:1">
-            <label class="form-label">Comm. Preference</label>
-            <div class="comm-pref-options">
-              <label class="comm-pref-option"><input type="radio" name="ap-comm-pref-${uid}" data-ap="comm-pref" value="Email"> Email</label>
-              <label class="comm-pref-option"><input type="radio" name="ap-comm-pref-${uid}" data-ap="comm-pref" value="Text"> Text</label>
-              <label class="comm-pref-option"><input type="radio" name="ap-comm-pref-${uid}" data-ap="comm-pref" value="Phone"> Phone</label>
-            </div>
-          </div>
-          <div class="btn-spacer"></div>
-        </div>
-
-        <!-- Row 5: Contact Notes -->
-        ${_notesRowHTML('data-ap="notes"', 'Contact Notes')}
-
-        <!-- Row 6: Relationship / Cancel / Save -->
-        <div class="form-row" style="align-items:flex-start">
-          <div class="form-group" style="flex:1">
-            <label class="form-label">Relationship</label>
-            <select class="form-select" data-ap="relationship">
-              <option value="">-- Select --</option>
-              <option>Spouse</option>
-              <option>Partner</option>
-              <option>Co-owner</option>
-              <option>Other</option>
-            </select>
-          </div>
-          <button class="btn-secondary" data-action="cancel" style="margin-left:6px;margin-top:10px">Cancel</button>
-          <button class="btn-primary" data-action="save" style="margin-left:6px;margin-top:10px" disabled>Save</button>
-        </div>
-
-      </div>
-    `;
-  }
-
-  /* ── Address side widget HTML ─────────────────────────────── */
-  function _addressSideWidgetHTML() {
-    return `
-      <div class="widget-form">
-
-        <!-- Row 1: Street Address / Unit -->
-        <div class="form-row">
-          <div class="form-group f-grow">
-            <label class="form-label">Street Address</label>
-            <input class="form-input" data-addr="street1" type="text" autocomplete="off">
-          </div>
-          <div class="form-group f-unit">
-            <label class="form-label">Unit / PO Box</label>
-            <input class="form-input" data-addr="street2" type="text" autocomplete="off">
-          </div>
-        </div>
-
-        <!-- Row 2: City / State / Zip -->
-        <div class="form-row">
-          <div class="form-group f-grow">
-            <label class="form-label">City</label>
-            <input class="form-input" data-addr="city" type="text" autocomplete="off">
-          </div>
-          <div class="form-group f-state">
-            <label class="form-label form-label-center">State</label>
-            <input class="form-input" data-addr="state" type="text" maxlength="3" autocomplete="off">
-          </div>
-          <div class="form-group f-sm">
-            <label class="form-label">Zip Code</label>
-            <input class="form-input" data-addr="zip" type="text" maxlength="10" autocomplete="off">
-          </div>
-        </div>
-
-        <!-- Row 3: Property Type / Property Use -->
-        <div class="form-row">
-          <div class="form-group f-grow">
-            <label class="form-label">Property Type</label>
-            <select class="form-select" data-addr="prop-type">
-              ${_options('propertyTypes')}
-            </select>
-          </div>
-          <div class="form-group f-grow">
-            <label class="form-label">Property Use</label>
-            <select class="form-select" data-addr="prop-use">
-              ${_options('propertyUses')}
-            </select>
-          </div>
-        </div>
-
-        <!-- Row 4: Property Notes -->
-        ${_notesRowHTML('data-addr="notes"', 'Property Notes', { spacer: false })}
-
-        <!-- Row 5: Cancel / Save -->
-        <div class="widget-footer">
-          <button class="btn-secondary" data-action="cancel">Cancel</button>
-          <button class="btn-primary" data-action="save" disabled>Save</button>
-        </div>
-
       </div>
     `;
   }
@@ -1004,9 +865,9 @@ const CRM = (function () {
       const sideId   = 'side-person-' + Date.now();
       const mainLeft = parseInt(el.style.left) || 0;
       const mainTop  = parseInt(el.style.top)  || 0;
-      const opened   = WidgetManager.open(sideId, 'Add Person', _personSideWidgetHTML(), {
-        width:      425,
-        minWidth:   360,
+      const opened   = WidgetManager.open(sideId, 'Add Person', SubWidgets.personPanelHTML(), {
+        width:      360,
+        minWidth:   300,
         autoHeight: true,
         top:        mainTop + 30,
         left:       mainLeft + el.offsetWidth,
@@ -1032,7 +893,7 @@ const CRM = (function () {
       const wRect       = workspace.getBoundingClientRect();
       const divider     = el.querySelector('.form-divider');
       const dividerTop  = divider.getBoundingClientRect().top - wRect.top;
-      const opened = WidgetManager.open(sideId, 'Add Address', _addressSideWidgetHTML(), {
+      const opened = WidgetManager.open(sideId, 'Add Address', SubWidgets.addressPanelHTML(), {
         width:      360,
         minWidth:   300,
         autoHeight: true,
@@ -1921,7 +1782,7 @@ const CRM = (function () {
       const wRect      = workspace.getBoundingClientRect();
       const divider    = el.querySelector('.form-divider');
       const dividerTop = divider.getBoundingClientRect().top - wRect.top;
-      const opened = WidgetManager.open(sideId, 'Add Address', _addressSideWidgetHTML(), {
+      const opened = WidgetManager.open(sideId, 'Add Address', SubWidgets.addressPanelHTML(), {
         width: 360, minWidth: 300, autoHeight: true, top: dividerTop,
         left: mainLeft + el.offsetWidth, panel: true, parentId: widgetId,
       });
@@ -1934,8 +1795,8 @@ const CRM = (function () {
     addPersonBtn.addEventListener('click', function () {
       addPersonBtn.disabled = true;
       const sideId = 'side-person-' + Date.now();
-      const opened = WidgetManager.open(sideId, 'Add Person', _personSideWidgetHTML(), {
-        width: 425, minWidth: 360, autoHeight: true,
+      const opened = WidgetManager.open(sideId, 'Add Person', SubWidgets.personPanelHTML(), {
+        width: 360, minWidth: 300, autoHeight: true,
         top: (parseInt(el.style.top) || 0) + 30,
         left: (parseInt(el.style.left) || 0) + el.offsetWidth,
         panel: true, parentId: widgetId,
@@ -2707,36 +2568,9 @@ const CRM = (function () {
     });
 
     // Resizable columns
-    const PB_COL_KEY  = 'pb-col-widths';
-    const PB_COL_VARS = ['--pb-w-name', '--pb-w-phone', '--pb-w-email'];
-    const pbWidget    = el.querySelector('.phonebook-widget');
-    try {
-      const saved = JSON.parse(localStorage.getItem(PB_COL_KEY) || '{}');
-      PB_COL_VARS.forEach(v => { if (saved[v]) pbWidget.style.setProperty(v, saved[v]); });
-    } catch (_) {}
-
+    const pbWidget  = el.querySelector('.phonebook-widget');
     const pbColHdrs = el.querySelector('.pb-col-headers');
-    pbColHdrs.addEventListener('mousedown', e => {
-      const handle = e.target.closest('.pb-col-resize');
-      if (!handle) return;
-      e.preventDefault();
-      const hdr    = handle.closest('.pb-col-header');
-      const varName = hdr.dataset.colVar;
-      const startX  = e.clientX;
-      const startW  = hdr.offsetWidth;
-      function onMove(e) {
-        pbWidget.style.setProperty(varName, Math.max(60, startW + e.clientX - startX) + 'px');
-      }
-      function onUp() {
-        const widths = {};
-        PB_COL_VARS.forEach(v => { const val = pbWidget.style.getPropertyValue(v); if (val) widths[v] = val; });
-        localStorage.setItem(PB_COL_KEY, JSON.stringify(widths));
-        document.removeEventListener('mousemove', onMove);
-        document.removeEventListener('mouseup', onUp);
-      }
-      document.addEventListener('mousemove', onMove);
-      document.addEventListener('mouseup', onUp);
-    });
+    ColResize.bind(pbWidget, pbColHdrs, 'pb-col-widths', { handleSel: '.pb-col-resize' });
 
     // Hide email column when main panel is too narrow for it
     const mainEl = el.querySelector('.pb-main');
