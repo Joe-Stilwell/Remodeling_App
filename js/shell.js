@@ -319,6 +319,7 @@ const WIDGET_ROUTES = {
   'workorder':      () => WorkOrders.openWorkOrderList(),
   'wo-intake':      () => WorkOrders.openWorkOrderIntake(),
   'new-workorder':  () => WorkOrders.openNewWorkOrder(null),
+  'dispatch-board': () => Dispatch.openDispatch(),
   'estimating':     () => Estimating.openEstimateList(),
   'new-estimate':   () => Estimating.openEstimateSettings(null, null),
   'costbook':       () => Estimating.openCostbook(),
@@ -335,9 +336,10 @@ const WIDGET_CATEGORIES = {
   'price-list':    'estimating',
   'documents':     'documents',
   'vendor-mgmt':   'contact',
-  'workorder':     'workorder',
-  'wo-intake':     'workorder',
-  'new-workorder': 'workorder',
+  'workorder':      'workorder',
+  'wo-intake':      'workorder',
+  'new-workorder':  'workorder',
+  'dispatch-board': 'workorder',
   'estimating':    'estimate',
   'new-estimate':  'estimate',
 };
@@ -377,6 +379,7 @@ const SUBMENUS = {
     items: [
       { title: 'Work Orders',    widget: 'workorder' },
       { title: 'New Work Order', widget: 'wo-intake' },
+      { title: 'Dispatch Board', widget: 'dispatch-board' },
     ],
   },
   estimating: {

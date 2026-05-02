@@ -904,6 +904,23 @@ const WidgetManager = (function () {
     return true;
   }
 
-  return { open, close, minimize, restore, focusWidget, resizeToContent, isOpen, hasMoved, getOpenIds };
+  /* ── Keep maximized widgets filling the workspace on browser resize ── */
+  requestAnimationFrame(() => {
+    const ws = WORKSPACE();
+    if (!ws) return;
+    new ResizeObserver(() => {
+      const workspace = WORKSPACE();
+      const ww = workspace.clientWidth;
+      const wh = workspace.clientHeight;
+      Object.values(state).forEach(s => {
+        if (s.preMaximize) {
+          s.el.style.width  = ww + 'px';
+          s.el.style.height = wh + 'px';
+        }
+      });
+    }).observe(ws);
+  });
+
+  return { open, close, minimize, restore, focusWidget, resizeToContent, isOpen, hasMoved, getOpenIds, toggleMaximize };
 
 })();

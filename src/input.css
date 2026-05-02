@@ -1733,7 +1733,7 @@ body.using-mouse .btn-secondary:focus-visible:not(:hover) {
 }
 
 .pb-search {
-  width: 260px;
+  width: 175px;
   height: 24px;
   padding: 0 8px;
   font-size: 12px;
@@ -3111,6 +3111,11 @@ body.is-dragging .widget {
   padding: 0 5px;
   white-space: nowrap;
   width: 60px;
+}
+
+.sp-btn-wide {
+  width: auto;
+  padding: 0 10px;
 }
 
 .sp-btn-icon {
@@ -6419,60 +6424,6 @@ body.is-dragging .widget {
 
 /* ── Lead Detail / New Lead (ld-) ───────────────────────────── */
 
-.ld-widget {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  overflow-y: auto;
-  padding: 12px 14px;
-  gap: 10px;
-}
-
-.ld-header-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.ld-client-name {
-  flex: 1;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--color-ink-dark);
-}
-
-.ld-name-inp {
-  flex: 1;
-  height: 26px;
-  font-size: 13px;
-  font-weight: 700;
-  border: 1px solid var(--color-border-slate);
-  border-radius: 3px;
-  padding: 0 7px;
-  color: var(--color-ink-dark);
-}
-
-.ld-name-inp:focus { outline: none; border-color: var(--color-brand-primary); }
-
-.ld-header-right {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
-.ld-stage-sel {
-  height: 24px;
-  font-size: 11px;
-  border: 1px solid var(--color-border-slate);
-  border-radius: 3px;
-  padding: 0 4px;
-  background: white;
-  color: var(--color-ink-dark);
-}
-
-.ld-stage-sel:focus { outline: none; border-color: var(--color-brand-primary); }
-
 .ld-archived-badge {
   font-size: 9px;
   font-weight: 700;
@@ -6483,95 +6434,6 @@ body.is-dragging .widget {
   border: 1px solid #ddd;
   border-radius: 3px;
   white-space: nowrap;
-}
-
-.ld-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-
-.ld-section {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.ld-sec-label {
-  font-size: 9px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--color-brand-primary);
-  border-bottom: 1px solid var(--color-brand-accent);
-  padding-bottom: 2px;
-  margin-bottom: 2px;
-}
-
-.ld-row {
-  display: grid;
-  grid-template-columns: 72px 1fr;
-  align-items: center;
-  gap: 5px;
-  min-height: 22px;
-}
-
-.ld-lbl {
-  font-size: 11px;
-  color: #666;
-  white-space: nowrap;
-}
-
-.ld-val {
-  font-size: 12px;
-  color: var(--color-ink-dark);
-}
-
-.ld-field-inp, .ld-field-sel {
-  height: 22px;
-  font-size: 11px;
-  border: 1px solid var(--color-border-slate);
-  border-radius: 3px;
-  padding: 0 5px;
-  background: white;
-  color: var(--color-ink-dark);
-  width: 100%;
-}
-
-.ld-field-inp:focus, .ld-field-sel:focus {
-  outline: none;
-  border-color: var(--color-brand-primary);
-}
-
-.ld-full-row {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.ld-textarea {
-  width: 100%;
-  font-size: 11px;
-  font-family: inherit;
-  border: 1px solid var(--color-border-slate);
-  border-radius: 3px;
-  padding: 5px 7px;
-  background: white;
-  color: var(--color-ink-dark);
-  resize: vertical;
-  line-height: 1.4;
-}
-
-.ld-textarea:focus { outline: none; border-color: var(--color-brand-primary); }
-
-.ld-footer {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding-top: 8px;
-  border-top: 1px solid var(--color-border-slate);
-  margin-top: auto;
-  flex-shrink: 0;
 }
 
 /* ── Work Order Intake Form (wi-) ──────────────────────────────── */
@@ -6639,7 +6501,8 @@ body.is-dragging .widget {
   white-space: nowrap;
 }
 
-.wi-result-row:hover { background: var(--color-brand-tint); }
+.wi-result-row:hover,
+.wi-result-row.is-highlighted { background: var(--color-brand-tint); }
 
 .wi-result-row--add {
   font-weight: 700;
@@ -6949,4 +6812,328 @@ body.is-dragging .widget {
   .pf-table th { text-align: left; padding: 4px 8px; border-bottom: 2px solid #333; font-weight: 700; }
   .pf-table td { padding: 3px 8px; border-bottom: 1px solid #ddd; }
   .pf-table tr:last-child td { border-bottom: none; }
+}
+
+/* ============================================================
+   DISPATCH BOARD  (db-)
+   ============================================================ */
+
+.widget-body:has(.db-widget) { padding: 0; overflow: hidden; }
+
+.db-widget {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* ── Body row ── */
+.db-body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* ── Unscheduled + On Hold lanes ── */
+.db-unscheduled,
+.db-onhold {
+  width: 140px;
+  min-width: 90px;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  background: var(--color-brand-tint);
+}
+
+.db-unscheduled { border-right: 2px solid var(--color-brand-primary); }
+.db-onhold      { border-left:  2px solid var(--color-brand-primary); }
+.db-lane--drop  { background: var(--color-brand-tint) !important; }
+
+.db-lane-hdr {
+  height: 52px; /* matches day-hdr + tech-hdr combined */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-brand-primary);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  flex-shrink: 0;
+}
+
+.db-lane-cards {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+/* ── Lane resize handles ── */
+.db-lane-handle {
+  width: 5px;
+  flex-shrink: 0;
+  cursor: col-resize;
+  background: transparent;
+  transition: background 0.15s;
+}
+.db-lane-handle:hover { background: var(--color-brand-accent); }
+
+/* ── Grid scroll container ── */
+.db-grid-scroll {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.db-grid-scroll::-webkit-scrollbar { display: none; }
+
+/* ── Grid inner (CSS Grid) ── */
+.db-grid-inner {
+  display: grid;
+  position: relative; /* anchor for now-line */
+}
+
+/* ── Corner cells (sticky top-left) ── */
+.db-corner {
+  position: sticky;
+  top: 0;
+  left: 0;
+  z-index: 5;
+  background: var(--color-brand-primary);
+  height: 28px;
+  border-bottom: 1px solid rgba(255,255,255,0.2);
+}
+
+.db-tech-corner {
+  position: sticky;
+  top: 28px;
+  left: 0;
+  z-index: 4;
+  background: var(--color-brand-tint);
+  height: 24px;
+  border-right: 1px solid var(--color-border-slate);
+  border-bottom: 2px solid var(--color-brand-primary);
+}
+
+/* ── Day headers (row 1, sticky top) ── */
+.db-day-hdr {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--color-brand-primary);
+  color: #fff;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  font-size: 11px;
+  font-weight: 700;
+  border-right: 1px solid rgba(255,255,255,0.2);
+  border-bottom: 1px solid rgba(255,255,255,0.15);
+}
+
+.db-day-hdr.is-today { background: var(--color-brand-accent); color: var(--color-ink-dark); }
+
+.db-day-label { flex: 1; }
+
+/* Day column resize handle */
+.db-day-resize {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  cursor: col-resize;
+  z-index: 1;
+}
+.db-day-resize:hover { background: var(--color-brand-accent); }
+
+/* ── Tech sub-headers (row 2, sticky below day row) ── */
+.db-tech-hdr {
+  position: sticky;
+  top: 28px;
+  z-index: 2;
+  background: var(--color-brand-tint);
+  height: 24px;
+  display: flex;
+  align-items: center;
+  padding: 0 6px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-brand-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-right: 1px solid var(--color-border-slate);
+  border-bottom: 2px solid var(--color-brand-primary);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+/* ── Time column (sticky left) ── */
+.db-time-cell {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--color-brand-tint);
+  height: 52px;
+  display: flex;
+  align-items: flex-start;
+  padding: 3px 5px 0;
+  border-right: 1px solid var(--color-border-slate);
+  border-bottom: 1px solid #dde6ee;
+  position: relative;
+  white-space: nowrap;
+}
+
+.db-time-label {
+  font-size: 10px;
+  color: var(--color-ink-mid);
+  flex: 1;
+  cursor: pointer;
+  user-select: none;
+}
+.db-time-label:hover { color: var(--color-brand-accent); }
+
+/* Hour row resize handle */
+.db-row-resize {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  cursor: row-resize;
+  z-index: 2;
+}
+.db-row-resize:hover { background: var(--color-brand-accent); opacity: 0.5; }
+
+/* ── Grid cells ── */
+.db-cell {
+  height: 52px;
+  background: #fff;
+  border-right: 1px solid #e4edf4;
+  border-bottom: 1px solid #e4edf4;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.db-cell:hover { background: var(--color-brand-tint); }
+
+/* Darker border between day groups */
+.db-day-last { border-right: 2px solid var(--color-brand-primary) !important; }
+
+/* ── Cards ── */
+.db-card {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  border-radius: 3px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.18);
+  overflow: hidden;
+  cursor: pointer;
+  z-index: 6;
+  box-sizing: border-box;
+  border-left: 3px solid transparent;
+}
+
+.db-card--open {
+  background: var(--color-brand-primary);
+  border-left-color: var(--color-brand-accent);
+  color: #fff;
+}
+
+.db-card--complete {
+  background: #eaf4ea;
+  border-left-color: var(--color-success);
+  color: var(--color-ink-mid);
+  opacity: 0.8;
+  cursor: default;
+}
+
+.db-card-body {
+  flex: 1;
+  padding: 3px 5px 2px;
+  overflow: hidden;
+}
+
+.db-card-name {
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+
+.db-card-phone {
+  font-size: 10px;
+  opacity: 0.85;
+  white-space: nowrap;
+}
+
+.db-card-type {
+  font-size: 10px;
+  opacity: 0.75;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.db-card-body { cursor: grab; user-select: none; }
+.db-card--dragging { opacity: 0.6; z-index: 50; }
+.db-card--dragging .db-card-body { cursor: grabbing; }
+
+.db-card-drop-indicator {
+  position: absolute;
+  border: 2px dashed var(--color-brand-accent);
+  border-radius: 3px;
+  background: rgba(255,255,255,0.06);
+  pointer-events: none;
+  z-index: 49;
+  box-sizing: border-box;
+}
+
+/* Bottom drag handle — shows on open cards for duration resize */
+.db-card-drag-handle {
+  height: 5px;
+  cursor: s-resize;
+  background: rgba(0,0,0,0.18);
+  flex-shrink: 0;
+}
+.db-card-drag-handle:hover { background: rgba(0,0,0,0.35); }
+.db-card--complete .db-card-drag-handle { display: none; }
+
+/* Cards in the unscheduled / on-hold lanes — normal flow, not absolute */
+.db-card--lane {
+  position: relative;
+  margin-bottom: 4px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* ── Now line ── */
+.db-now-line {
+  position: absolute;
+  left: 62px; /* matches _TIME_W */
+  right: 0;
+  height: 2px;
+  background: var(--color-brand-orange);
+  z-index: 10;
+  pointer-events: none;
+}
+.db-now-line::before {
+  content: '';
+  position: absolute;
+  left: -5px;
+  top: -4px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-brand-orange);
+}
+
+/* ── Toolbar week button ── */
+.db-week-btn {
+  min-width: 150px;
+  text-align: center;
 }

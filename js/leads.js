@@ -104,7 +104,7 @@ const Leads = (() => {
     const html = `
       <div class="lk-widget">
         <div class="sp-toolbar">
-          <button class="btn-primary sp-btn" data-action="new-lead">+ New Lead</button>
+          <button class="btn-primary sp-btn sp-btn-wide" data-action="new-lead">+ New Lead</button>
           <div style="flex:1"></div>
           <input type="search" class="sp-search lk-search" placeholder="Search leads…" autocomplete="off">
         </div>
@@ -173,69 +173,84 @@ const Leads = (() => {
     const stageOpts  = _STAGES .map(s => `<option value="${s}"${l.leadStage  === s ? ' selected' : ''}>${s}</option>`).join('');
     const sourceOpts = _SOURCES.map(s => `<option value="${s}"${l.leadSource === s ? ' selected' : ''}>${s}</option>`).join('');
 
-    const nameBlock = isNew
-      ? `<input class="ld-name-inp" data-field="clientName" placeholder="Client name…" value="">`
-      : `<span class="ld-client-name">${l.clientName}</span>`;
-
-    const addrBlock = isNew
-      ? `<input class="ld-field-inp" data-field="propertyAddr" placeholder="Street address…" value="">`
-      : `<span class="ld-val">${l.propertyAddr || '—'}</span>`;
-
     return `
-      <div class="ld-widget">
-        <div class="ld-header-row">
-          ${nameBlock}
-          <div class="ld-header-right">
-            <select class="ld-stage-sel" data-field="leadStage">${stageOpts}</select>
-            ${!isNew && l.isArchived ? '<span class="ld-archived-badge">Archived</span>' : ''}
+      <div class="widget-form">
+
+        <div class="form-row">
+          <div class="form-group f-grow">
+            <label class="form-label">Client Name</label>
+            <input class="form-input" data-field="clientName" type="text"
+                   value="${l.clientName || ''}" autocomplete="off"${isNew ? ' placeholder="First and last name…"' : ''}>
+          </div>
+          <div class="form-group f-grow">
+            <label class="form-label">Stage</label>
+            <select class="form-select" data-field="leadStage">${stageOpts}</select>
+          </div>
+          ${!isNew && l.isArchived ? '<div class="form-group" style="flex:0;align-self:flex-end;padding-bottom:2px"><span class="ld-archived-badge">Archived</span></div>' : ''}
+        </div>
+
+        <div class="form-row">
+          <div class="form-group f-grow">
+            <label class="form-label">Property Address</label>
+            <input class="form-input" data-field="propertyAddr" type="text"
+                   value="${l.propertyAddr || ''}" autocomplete="off"${isNew ? ' placeholder="Street address…"' : ''}>
+          </div>
+          <div class="form-group f-md">
+            <label class="form-label">Client Type</label>
+            <select class="form-select" data-field="clientType">
+              <option value="Residential"${l.clientType === 'Residential' ? ' selected' : ''}>Residential</option>
+              <option value="Commercial"${l.clientType  === 'Commercial'  ? ' selected' : ''}>Commercial</option>
+            </select>
           </div>
         </div>
 
-        <div class="ld-grid">
-          <div class="ld-section">
-            <div class="ld-sec-label">Property</div>
-            <div class="ld-row"><span class="ld-lbl">Address</span>${addrBlock}</div>
-            <div class="ld-row"><span class="ld-lbl">Client Type</span>
-              <select class="ld-field-sel" data-field="clientType">
-                <option value="Residential"${l.clientType === 'Residential' ? ' selected' : ''}>Residential</option>
-                <option value="Commercial"${l.clientType  === 'Commercial'  ? ' selected' : ''}>Commercial</option>
-              </select>
-            </div>
+        <div class="form-row">
+          <div class="form-group f-grow">
+            <label class="form-label">Lead Source</label>
+            <select class="form-select" data-field="leadSource">${sourceOpts}</select>
           </div>
-
-          <div class="ld-section">
-            <div class="ld-sec-label">Lead Info</div>
-            <div class="ld-row"><span class="ld-lbl">Source</span>
-              <select class="ld-field-sel" data-field="leadSource">${sourceOpts}</select>
-            </div>
-            <div class="ld-row"><span class="ld-lbl">Referral From</span>
-              <input class="ld-field-inp" data-field="referralSource" value="${l.referralSource || ''}" placeholder="Name or leave blank">
-            </div>
-            <div class="ld-row"><span class="ld-lbl">Est. Value</span>
-              <input type="number" class="ld-field-inp" data-field="estimatedValue" value="${l.estimatedValue || ''}">
-            </div>
-            <div class="ld-row"><span class="ld-lbl">Follow-Up</span>
-              <input type="date" class="ld-field-inp" data-field="followUpDate" value="${l.followUpDate || ''}">
-            </div>
+          <div class="form-group f-grow">
+            <label class="form-label">Referred By</label>
+            <input class="form-input" data-field="referralSource" type="text"
+                   value="${l.referralSource || ''}" autocomplete="off">
           </div>
         </div>
 
-        <div class="ld-full-row">
-          <div class="ld-sec-label">Project Description</div>
-          <textarea class="ld-textarea" data-field="projectDescription" rows="3" placeholder="Brief description of the project…">${l.projectDescription || ''}</textarea>
+        <div class="form-row">
+          <div class="form-group f-grow">
+            <label class="form-label">Est. Value</label>
+            <input class="form-input" data-field="estimatedValue" type="number"
+                   value="${l.estimatedValue || ''}">
+          </div>
+          <div class="form-group f-grow">
+            <label class="form-label">Follow-Up Date</label>
+            <input class="form-input" data-field="followUpDate" type="date"
+                   value="${l.followUpDate || ''}">
+          </div>
         </div>
 
-        <div class="ld-full-row">
-          <div class="ld-sec-label">Notes</div>
-          <textarea class="ld-textarea" data-field="notes" rows="2" placeholder="Internal notes…">${l.notes || ''}</textarea>
+        <div class="form-row">
+          <div class="form-group" style="flex:1">
+            <label class="form-label">Project Description</label>
+            <textarea class="form-textarea" data-field="projectDescription"
+                      maxlength="2000">${l.projectDescription || ''}</textarea>
+          </div>
         </div>
 
-        <div class="ld-footer">
-          ${!isNew ? `<button class="btn-secondary sp-btn" data-action="archive">${l.isArchived ? 'Unarchive' : 'Archive'}</button>` : ''}
-          <div style="flex:1"></div>
+        <div class="form-row">
+          <div class="form-group" style="flex:1">
+            <label class="form-label">Notes</label>
+            <textarea class="form-textarea" data-field="notes"
+                      maxlength="2000">${l.notes || ''}</textarea>
+          </div>
+        </div>
+
+        <div class="widget-footer">
+          ${!isNew ? `<button class="btn-secondary sp-btn" data-action="archive">${l.isArchived ? 'Unarchive' : 'Archive'}</button><div style="flex:1"></div>` : ''}
           <button class="btn-secondary sp-btn" data-action="cancel">Cancel</button>
-          <button class="btn-primary sp-btn"   data-action="save">Save</button>
+          <button class="btn-primary   sp-btn" data-action="save"${isNew ? ' disabled' : ''}>Save</button>
         </div>
+
       </div>`;
   }
 
@@ -256,9 +271,7 @@ const Leads = (() => {
 
     WidgetManager.open(wid, 'Lead — ' + l.clientName, _detailHTML(l, false), {
       category: 'contact',
-      width:    520,
-      height:   500,
-      minWidth: 420,
+      width: 440, minWidth: 360, autoHeight: true,
     });
 
     const el = document.getElementById('widget-' + wid);
@@ -293,13 +306,15 @@ const Leads = (() => {
 
     WidgetManager.open(wid, 'New Lead', _detailHTML(blank, true), {
       category: 'contact',
-      width:    520,
-      height:   500,
-      minWidth: 420,
+      width: 440, minWidth: 360, autoHeight: true,
     });
 
-    const el = document.getElementById('widget-' + wid);
-    el.querySelector('[data-action="save"]').addEventListener('click', () => {
+    const el      = document.getElementById('widget-' + wid);
+    const saveBtn = el.querySelector('[data-action="save"]');
+    el.querySelector('[data-field="clientName"]').addEventListener('input', function () {
+      saveBtn.disabled = !this.value.trim();
+    });
+    saveBtn.addEventListener('click', () => {
       _collectFields(el, blank);
       if (!blank.clientName.trim()) {
         Toast.show('⚠ Client name is required', { warn: true });

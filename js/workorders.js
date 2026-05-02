@@ -92,7 +92,8 @@ const WorkOrders = (() => {
   function _woListHTML() {
     return `<div class="sp-widget wo-widget">
       <div class="sp-toolbar wo-toolbar">
-        <button class="btn-primary sp-btn" data-action="wo-new">+ New Work Order</button>
+        <button class="btn-primary sp-btn sp-btn-wide" data-action="wo-new">+Work Order</button>
+        <button class="btn-secondary sp-btn sp-btn-wide" data-action="wo-dispatch">Dispatch Board</button>
         <input class="sp-search wo-search" type="search" placeholder="Search…" autocomplete="off">
         <div class="wo-toolbar-spacer"></div>
         <label class="wo-closed-lbl">
@@ -203,6 +204,9 @@ const WorkOrders = (() => {
 
     /* New Work Order */
     el.querySelector('[data-action="wo-new"]').addEventListener('click', () => openNewWorkOrder(widgetId));
+
+    /* Dispatch Board */
+    el.querySelector('[data-action="wo-dispatch"]').addEventListener('click', () => Dispatch.openDispatch());
   }
 
   /* ── Work Order Detail ─────────────────────────────────────── */
@@ -631,6 +635,7 @@ const WorkOrders = (() => {
     let _newPersonData   = null;
     let _selectedAddress = null;
     let _isNewAddress    = false;
+    let _highlightIdx    = -1;
 
     const searchInp     = el.querySelector('.wi-client-search');
     const searchResults = el.querySelector('.wi-search-results');
@@ -744,6 +749,7 @@ const WorkOrders = (() => {
         addrInp.style.display        = '';
         addrInp.value                = '';
       }
+      _highlightIdx = -1;
       const q = this.value.trim().toLowerCase();
       if (!q) { searchResults.style.display = 'none'; searchResults.innerHTML = ''; return; }
       const matches = _PEOPLE_MOCK.filter(p =>
@@ -768,6 +774,33 @@ const WorkOrders = (() => {
       } else {
         const person = _PEOPLE_MOCK.find(p => p.peopleId === row.dataset.peopleId);
         if (person) _selectPerson(person);
+      }
+    });
+
+    function _setHighlight(idx) {
+      const rows = [...searchResults.querySelectorAll('.wi-result-row')];
+      rows.forEach(r => r.classList.remove('is-highlighted'));
+      _highlightIdx = (idx >= 0 && idx < rows.length) ? idx : -1;
+      if (_highlightIdx >= 0) rows[_highlightIdx].classList.add('is-highlighted');
+    }
+
+    searchInp.addEventListener('keydown', function (e) {
+      if (searchResults.style.display === 'none') return;
+      const rows = [...searchResults.querySelectorAll('.wi-result-row')];
+      if (!rows.length) return;
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        _setHighlight(Math.min(_highlightIdx + 1, rows.length - 1));
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        _setHighlight(Math.max(_highlightIdx - 1, 0));
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (_highlightIdx >= 0) rows[_highlightIdx].click();
+      } else if (e.key === 'Escape') {
+        searchResults.style.display = 'none';
+        searchResults.innerHTML = '';
+        _highlightIdx = -1;
       }
     });
 
@@ -929,6 +962,8 @@ const WorkOrders = (() => {
     el.querySelector('[data-action="wi-cancel"]').addEventListener('click', () => {
       WidgetManager.close('wo-intake');
     });
+
+    requestAnimationFrame(() => searchInp.focus());
   }
 
   return { openWorkOrderList, openWorkOrder, openNewWorkOrder, openWorkOrderIntake };

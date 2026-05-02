@@ -202,7 +202,7 @@ const CRM = (function () {
           </select>
         </div>
         ${includeAddBtn
-          ? `<button class="btn-action sp-btn" data-action="add-phone" tabindex="-1" disabled>+ Phone</button>`
+          ? `<button class="btn-action" data-action="add-phone" tabindex="-1" disabled>+ Phone</button>`
           : `<div class="btn-remove-col"><button class="btn-remove" type="button" title="Remove">&#10005;</button></div>`}
       </div>
     `;
@@ -226,7 +226,7 @@ const CRM = (function () {
           </select>
         </div>
         ${includeAddBtn
-          ? `<button class="btn-action sp-btn" data-action="add-email" tabindex="-1" disabled>+ Email</button>`
+          ? `<button class="btn-action" data-action="add-email" tabindex="-1" disabled>+ Email</button>`
           : `<div class="btn-remove-col"><button class="btn-remove" type="button" title="Remove">&#10005;</button></div>`}
       </div>
     `;
@@ -455,7 +455,6 @@ const CRM = (function () {
                    placeholder="Type to search or enter new" autocomplete="off">
             <div data-co="search-results" class="company-search-results"></div>
           </div>
-          <div class="btn-spacer"></div>
         </div>
 
         <!-- Row 2: DBA -->
@@ -464,7 +463,6 @@ const CRM = (function () {
             <label class="form-label">DBA (Doing Business As)</label>
             <input class="form-input" data-co="dba" type="text" autocomplete="off">
           </div>
-          <div class="btn-spacer"></div>
         </div>
 
         <!-- Row 3: Street / Unit -->
@@ -477,7 +475,6 @@ const CRM = (function () {
             <label class="form-label">Unit / Suite</label>
             <input class="form-input" data-co="street2" type="text" autocomplete="off">
           </div>
-          <div class="btn-spacer"></div>
         </div>
 
         <!-- Row 4: City / State / Zip -->
@@ -494,10 +491,9 @@ const CRM = (function () {
             <label class="form-label">Zip Code</label>
             <input class="form-input" data-co="zip" type="text" maxlength="10" autocomplete="off">
           </div>
-          <div class="btn-spacer"></div>
         </div>
 
-        <!-- Row 3: Company Type / Vendor Category -->
+        <!-- Row 5: Company Type / Vendor Category -->
         <div class="form-row">
           <div class="form-group f-grow">
             <label class="form-label">Company Type</label>
@@ -514,10 +510,9 @@ const CRM = (function () {
               <option value="">-- Select Type first --</option>
             </select>
           </div>
-          <div class="btn-spacer"></div>
         </div>
 
-        <!-- Row 4: Vendor Specialty -->
+        <!-- Row 6: Vendor Specialty -->
         <div class="form-row">
           <div class="form-group" style="flex:1">
             <label class="form-label">Specialty</label>
@@ -525,10 +520,9 @@ const CRM = (function () {
               <option value="">-- Select Category first --</option>
             </select>
           </div>
-          <div class="btn-spacer"></div>
         </div>
 
-        <!-- Row 5: Main Phone / Main Email -->
+        <!-- Row 7: Main Phone / Main Email -->
         <div class="form-row">
           <div class="form-group f-grow">
             <label class="form-label">Main Phone</label>
@@ -538,19 +532,17 @@ const CRM = (function () {
             <label class="form-label">Main Email</label>
             <input class="form-input" data-co="main-email" type="email" autocomplete="off">
           </div>
-          <div class="btn-spacer"></div>
         </div>
 
-        <!-- Row 6: Website -->
+        <!-- Row 8: Website -->
         <div class="form-row">
           <div class="form-group" style="flex:1">
             <label class="form-label">Website</label>
             <input class="form-input" data-co="website" type="text" autocomplete="off" placeholder="https://...">
           </div>
-          <div class="btn-spacer"></div>
         </div>
 
-        <!-- Row 7: Job Title / Department -->
+        <!-- Row 9: Job Title / Department -->
         <div class="form-row">
           <div class="form-group f-grow">
             <label class="form-label">Job Title</label>
@@ -560,7 +552,6 @@ const CRM = (function () {
             <label class="form-label">Department</label>
             <input class="form-input" data-co="department" type="text" autocomplete="off">
           </div>
-          <div class="btn-spacer"></div>
         </div>
 
         <!-- Row 8: Company Notes -->
@@ -913,8 +904,8 @@ const CRM = (function () {
       const mainLeft = parseInt(el.style.left) || 0;
       const mainTop  = parseInt(el.style.top)  || 0;
       const opened   = WidgetManager.open(sideId, 'Add Company', _companySideWidgetHTML(), {
-        width:      425,
-        minWidth:   360,
+        width:      360,
+        minWidth:   300,
         autoHeight: true,
         top:        mainTop + 30,
         left:       mainLeft + el.offsetWidth,
@@ -1814,7 +1805,7 @@ const CRM = (function () {
       addCompanyBtn.disabled = true;
       const sideId = 'side-company-' + Date.now();
       const opened = WidgetManager.open(sideId, 'Add Company', _companySideWidgetHTML(), {
-        width: 425, minWidth: 360, autoHeight: true,
+        width: 360, minWidth: 300, autoHeight: true,
         top: (parseInt(el.style.top) || 0) + 30,
         left: (parseInt(el.style.left) || 0) + el.offsetWidth,
         panel: true, parentId: widgetId,
