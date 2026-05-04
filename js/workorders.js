@@ -9,11 +9,11 @@ const WorkOrders = (() => {
   /* ── Mock Data ─────────────────────────────────────────────── */
 
   const _WO_MOCK = [
-    { workOrderId: 'WO-0001', clientName: 'John & Mary Smith',  address: '1824 Millbrook Dr, Nashville',  workOrderType: 'Repair',       workOrderStatus: 'Open',   assignedTo: 'Mike Johnson', dateScheduled: '2026-04-25T09:00', dateStarted: '',              dateCompleted: '', notes: 'Client mentioned water damage near kitchen window.' },
-    { workOrderId: 'WO-0002', clientName: 'Robert Johnson',      address: '456 Elm Ave, Franklin',         workOrderType: 'Service Call', workOrderStatus: 'Open',   assignedTo: 'Dave Wilson',  dateScheduled: '2026-04-26T13:00', dateStarted: '',              dateCompleted: '', notes: '' },
-    { workOrderId: 'WO-0003', clientName: 'Patricia & Tom Ward', address: '892 Crestview Ln, Brentwood',   workOrderType: 'Installation', workOrderStatus: 'Open',   assignedTo: 'Mike Johnson', dateScheduled: '2026-04-28T07:30', dateStarted: '',              dateCompleted: '', notes: '' },
-    { workOrderId: 'WO-0004', clientName: 'David Chen',          address: '3301 Highland Ave, Nashville',  workOrderType: 'Inspection',   workOrderStatus: 'Closed', assignedTo: 'Dave Wilson',  dateScheduled: '2026-04-18T10:00', dateStarted: '2026-04-18T10:15', dateCompleted: '2026-04-18T11:30', notes: 'Completed. Follow-up estimate requested.' },
-    { workOrderId: 'WO-0005', clientName: 'Susan & Mark Torres', address: '711 Maple St, Hendersonville',  workOrderType: 'Repair',       workOrderStatus: 'Open',   assignedTo: 'Tom Davis',    dateScheduled: '2026-04-30T08:00', dateStarted: '',              dateCompleted: '', notes: '' },
+    { workOrderId: 'WO-0001', clientName: 'John & Mary Smith',  address: '1824 Millbrook Dr, Nashville',  workOrderType: 'Repair',       workOrderStatus: 'Open',   workOrderStage: 'Scheduled',   assignedTo: 'Mike Johnson', dateScheduled: '2026-04-25T09:00', dateStarted: '',              dateCompleted: '', priority: 'Normal', specialInstructions: '' },
+    { workOrderId: 'WO-0002', clientName: 'Robert Johnson',      address: '456 Elm Ave, Franklin',         workOrderType: 'Service Call', workOrderStatus: 'Open',   workOrderStage: 'Scheduled',   assignedTo: 'Dave Wilson',  dateScheduled: '2026-04-26T13:00', dateStarted: '',              dateCompleted: '', priority: 'Normal', specialInstructions: '' },
+    { workOrderId: 'WO-0003', clientName: 'Patricia & Tom Ward', address: '892 Crestview Ln, Brentwood',   workOrderType: 'Installation', workOrderStatus: 'Open',   workOrderStage: 'In Progress', assignedTo: 'Mike Johnson', dateScheduled: '2026-04-28T07:30', dateStarted: '2026-04-28T08:00', dateCompleted: '', priority: 'Normal', specialInstructions: 'Gate code: 7892. Dog on premises.' },
+    { workOrderId: 'WO-0004', clientName: 'David Chen',          address: '3301 Highland Ave, Nashville',  workOrderType: 'Inspection',   workOrderStatus: 'Closed', workOrderStage: 'Complete',    assignedTo: 'Dave Wilson',  dateScheduled: '2026-04-18T10:00', dateStarted: '2026-04-18T10:15', dateCompleted: '2026-04-18T11:30', priority: 'Normal', specialInstructions: '' },
+    { workOrderId: 'WO-0005', clientName: 'Susan & Mark Torres', address: '711 Maple St, Hendersonville',  workOrderType: 'Repair',       workOrderStatus: 'Open',   workOrderStage: 'Unscheduled', assignedTo: 'Tom Davis',    dateScheduled: '',              dateStarted: '',              dateCompleted: '', priority: 'Urgent',  specialInstructions: 'Active water leak — call client on arrival.' },
   ];
 
   const _WO_TASKS_MOCK = {
@@ -40,9 +40,23 @@ const WorkOrders = (() => {
     ],
   };
 
+  const _WO_NOTES_MOCK = {
+    'WO-0001': [
+      { noteId: 'WON-0001', timestamp: '2026-04-24T14:15', note: 'Client confirmed access — side gate, code 4521.' },
+      { noteId: 'WON-0002', timestamp: '2026-04-25T09:12', note: 'Water stain visible on drywall below sill. Ordered replacement sill material, ETA 2 days.' },
+    ],
+    'WO-0003': [
+      { noteId: 'WON-0003', timestamp: '2026-04-28T08:05', note: 'Footings passed inspection. Ready to set posts.' },
+    ],
+    'WO-0004': [
+      { noteId: 'WON-0004', timestamp: '2026-04-18T11:35', note: 'Inspection passed. Client requesting follow-up estimate for kitchen remodel.' },
+    ],
+  };
+
   const _WO_TYPES      = ['Water Heater', 'Water Softener', 'Water Leak — Interior', 'Fixture Replacement', 'Sewer Line Repair', 'HVAC', 'Electrical', 'Roof Repair', 'Door / Window', 'General Repair', 'Inspection', 'Other'];
   const _WO_STATUSES   = ['Open', 'Closed'];
   const _WO_STAGES     = ['Unscheduled', 'Scheduled', 'In Progress', 'On Hold', 'Complete'];
+  const _WO_PRIORITIES = ['Normal', 'Urgent'];
   const _TASK_STATUSES = ['Open', 'Closed'];
   const _EMPLOYEES     = ['Mike Johnson', 'Dave Wilson', 'Tom Davis', 'Sarah Brooks'];
 
@@ -203,180 +217,207 @@ const WorkOrders = (() => {
     });
 
     /* New Work Order */
-    el.querySelector('[data-action="wo-new"]').addEventListener('click', () => openNewWorkOrder(widgetId));
+    el.querySelector('[data-action="wo-new"]').addEventListener('click', () => openWorkOrderIntake());
 
     /* Dispatch Board */
     el.querySelector('[data-action="wo-dispatch"]').addEventListener('click', () => Dispatch.openDispatch());
   }
 
-  /* ── Work Order Detail ─────────────────────────────────────── */
+  /* ── Work Order Detail (wd-) ──────────────────────────────── */
 
-  function _woTaskRowHTML(t, num) {
-    const statusOpts = _TASK_STATUSES.map(s => `<option${s === t.status ? ' selected' : ''}>${s}</option>`).join('');
-    return `<div class="wo-tg-row" data-task-id="${t.taskId}">
-      <div class="wo-tg-cell wo-tg-num">${num}.</div>
-      <div class="wo-tg-cell"><input class="wo-tg-inp" type="text" data-field="description"  value="${(t.description  || '').replace(/"/g, '&quot;')}" placeholder="Task description…"></div>
-      <div class="wo-tg-cell"><input class="wo-tg-inp" type="text" data-field="instructions" value="${(t.instructions || '').replace(/"/g, '&quot;')}" placeholder="Instructions…"></div>
-      <div class="wo-tg-cell"><input class="wo-tg-inp" type="text" data-field="notes"        value="${(t.notes        || '').replace(/"/g, '&quot;')}" placeholder="Notes…"></div>
-      <div class="wo-tg-cell"><select class="wo-tg-status-sel">${statusOpts}</select></div>
-      <div class="wo-tg-cell wo-tg-del-cell"><button class="wo-tg-del-btn" title="Remove">&#215;</button></div>
+  function _wdTaskRowHTML(t) {
+    const opts = _TASK_STATUSES.map(s => `<option${s === (t.status || 'Open') ? ' selected' : ''}>${s}</option>`).join('');
+    return `<div class="wd-tg-row" data-task-id="${t.taskId}">
+      <div class="wd-tg-status-cell"><select class="wd-tg-status-sel">${opts}</select></div>
+      <div class="wd-tg-cell"><input class="wd-tg-inp" type="text" data-field="description" value="${(t.description || '').replace(/"/g, '&quot;')}" placeholder="Task description…"></div>
+      <div class="wd-tg-cell"><input class="wd-tg-inp" type="text" data-field="notes"       value="${(t.notes       || '').replace(/"/g, '&quot;')}" placeholder="Notes…"></div>
+      <div class="wd-tg-del-cell"><button class="wd-tg-del-btn" title="Remove">&#215;</button></div>
     </div>`;
   }
 
-  function _woNewTaskRowHTML() {
-    const statusOpts = _TASK_STATUSES.map(s => `<option>${s}</option>`).join('');
-    return `<div class="wo-tg-row wo-tg-new-row" data-task-id="new">
-      <div class="wo-tg-cell wo-tg-num"></div>
-      <div class="wo-tg-cell"><input class="wo-tg-inp" type="text" data-field="description"  placeholder="Add a task…"></div>
-      <div class="wo-tg-cell"><input class="wo-tg-inp" type="text" data-field="instructions" placeholder="Instructions…"></div>
-      <div class="wo-tg-cell"><input class="wo-tg-inp" type="text" data-field="notes"        placeholder="Notes…"></div>
-      <div class="wo-tg-cell"><select class="wo-tg-status-sel">${statusOpts}</select></div>
-      <div class="wo-tg-cell wo-tg-del-cell"></div>
+  function _wdNewTaskRowHTML() {
+    const opts = _TASK_STATUSES.map(s => `<option>${s}</option>`).join('');
+    return `<div class="wd-tg-row wd-tg-new-row" data-task-id="new">
+      <div class="wd-tg-status-cell"><select class="wd-tg-status-sel">${opts}</select></div>
+      <div class="wd-tg-cell"><input class="wd-tg-inp" type="text" data-field="description" placeholder="Add a task…"></div>
+      <div class="wd-tg-cell"><input class="wd-tg-inp" type="text" data-field="notes"       placeholder="Notes…"></div>
+      <div class="wd-tg-del-cell"></div>
     </div>`;
   }
 
-  function _woTasksGridHTML(tasks) {
-    return `<div class="wo-tasks-grid">
-      <div class="wo-tg-hdr-row">
-        <div class="wo-tg-hdr">#</div>
-        <div class="wo-tg-hdr">Task Description</div>
-        <div class="wo-tg-hdr">Instructions</div>
-        <div class="wo-tg-hdr">Notes</div>
-        <div class="wo-tg-hdr">Status</div>
-        <div class="wo-tg-hdr"></div>
+  function _wdFmtTimestamp(ts) {
+    const d = ts ? new Date(ts) : new Date();
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) +
+           ' ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  }
+
+  function _wdNoteRowHTML(n) {
+    return `<div class="wd-ng-row" data-note-id="${n.noteId}">
+      <div class="wd-ng-cell"><input class="wd-ng-inp" type="text" value="${(n.note || '').replace(/"/g, '&quot;')}"></div>
+      <div class="wd-ng-del-cell"><button class="wd-ng-del-btn" title="Remove">&#215;</button></div>
+    </div>`;
+  }
+
+  function _wdNoteTimestampHTML(ts, noteId) {
+    return `<div class="wd-ng-ts-item" data-note-id="${noteId}">${_wdFmtTimestamp(ts)}</div>`;
+  }
+
+  function _wdNewNoteRowHTML() {
+    return `<div class="wd-ng-row wd-ng-new-row" data-note-id="new">
+      <div class="wd-ng-cell"><input class="wd-ng-inp" type="text" placeholder="Add a note…"></div>
+      <div class="wd-ng-del-cell"></div>
+    </div>`;
+  }
+
+  function _wdDetailHTML(wo, tasks, notes) {
+    const typeOpts     = _WO_TYPES.map(t    => `<option${t === wo.workOrderType          ? ' selected' : ''}>${t}</option>`).join('');
+    const stageOpts    = _WO_STAGES.map(s   => `<option${s === (wo.workOrderStage || 'Unscheduled') ? ' selected' : ''}>${s}</option>`).join('');
+    const priorityOpts = _WO_PRIORITIES.map(p => `<option${p === (wo.priority || 'Normal') ? ' selected' : ''}>${p}</option>`).join('');
+    const assignedOpts = _EMPLOYEES.map(e   => `<option${e === wo.assignedTo                ? ' selected' : ''}>${e}</option>`).join('');
+
+    return `<div class="sp-widget wd-widget">
+      <div class="sp-toolbar">
+        <label class="wd-toolbar-lbl">Status</label>
+        <select class="wd-toolbar-sel" data-field="workOrderStage">${stageOpts}</select>
+        <label class="wd-toolbar-lbl">Priority</label>
+        <select class="wd-toolbar-sel" data-field="priority">${priorityOpts}</select>
+        <span style="margin-left:auto"></span>
+        ${wo.workOrderId ? `<span class="wd-id-badge">${wo.workOrderId}</span>` : ''}
+        <button class="btn-secondary sp-btn sp-btn-icon" data-action="wd-print"   title="Print">&#9113;</button>
+        <button class="btn-secondary sp-btn sp-btn-icon" data-action="wd-refresh" title="Refresh">&#8635;</button>
       </div>
-      ${tasks.map((t, i) => _woTaskRowHTML(t, i + 1)).join('')}
-      ${_woNewTaskRowHTML()}
-    </div>`;
-  }
 
-  function _woDetailHTML(wo, tasks) {
-    const typeOpts     = _WO_TYPES.map(t    => `<option${t === wo.workOrderType   ? ' selected' : ''}>${t}</option>`).join('');
-    const statusOpts   = _WO_STATUSES.map(s => `<option${s === wo.workOrderStatus ? ' selected' : ''}>${s}</option>`).join('');
-    const assignedOpts = _EMPLOYEES.map(e   => `<option${e === wo.assignedTo      ? ' selected' : ''}>${e}</option>`).join('');
+      <div class="wd-body">
+        <div class="widget-form">
 
-    return `<div class="sp-widget wo-detail-widget">
-      <div class="sp-toolbar wo-detail-toolbar">
-        <button class="btn-primary sp-btn"   data-action="wo-save">Save</button>
-        <button class="btn-secondary sp-btn" data-action="wo-new-from-detail">+ New WO</button>
-        <div class="wo-toolbar-spacer"></div>
-        ${wo.workOrderId ? `<span class="wo-id-label">${wo.workOrderId}</span>` : ''}
-        <button class="btn-secondary sp-btn sp-btn-icon" data-action="wo-print"   title="Print">&#9113;</button>
-        <button class="btn-secondary sp-btn sp-btn-icon" data-action="wo-refresh" title="Refresh">&#8635;</button>
-      </div>
+          <div class="form-section">Work Order</div>
 
-      <div class="wo-detail-body">
-
-        <div class="wo-info-grid">
-          <div class="wo-info-col">
-            <div class="wo-field-row">
-              <label class="wo-field-lbl">Client</label>
-              <input class="wo-field-inp" type="text" data-field="clientName" value="${wo.clientName || ''}" placeholder="Client name…">
+          <div class="wd-info-cols">
+            <div class="wd-info-col">
+              <div class="form-group">
+                <label class="form-label">Client</label>
+                <input class="form-input" type="text" data-field="clientName" value="${wo.clientName || ''}" placeholder="Client name…">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Address</label>
+                <input class="form-input" type="text" data-field="address" value="${wo.address || ''}" placeholder="Property address…">
+              </div>
+              <div class="form-group">
+                <label class="form-label">W.O. Type</label>
+                <select class="form-select" data-field="workOrderType">${typeOpts}</select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Assigned To</label>
+                <select class="form-select" data-field="assignedTo">${assignedOpts}</select>
+              </div>
             </div>
-            <div class="wo-field-row">
-              <label class="wo-field-lbl">Address</label>
-              <input class="wo-field-inp" type="text" data-field="address" value="${wo.address || ''}" placeholder="Property address…">
-            </div>
-            <div class="wo-field-row">
-              <label class="wo-field-lbl">WO Type</label>
-              <select class="wo-field-sel" data-field="workOrderType">${typeOpts}</select>
-            </div>
-            <div class="wo-field-row">
-              <label class="wo-field-lbl">Status</label>
-              <select class="wo-field-sel" data-field="workOrderStatus">${statusOpts}</select>
-            </div>
-            <div class="wo-field-row">
-              <label class="wo-field-lbl">Assigned To</label>
-              <select class="wo-field-sel" data-field="assignedTo">${assignedOpts}</select>
+            <div class="wd-info-col wd-dates-col">
+              <div class="form-group">
+                <label class="form-label">Scheduled</label>
+                <input class="form-input" type="datetime-local" data-field="dateScheduled" value="${wo.dateScheduled || ''}">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Started</label>
+                <input class="form-input" type="datetime-local" data-field="dateStarted" value="${wo.dateStarted || ''}">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Completed</label>
+                <input class="form-input" type="datetime-local" data-field="dateCompleted" value="${wo.dateCompleted || ''}">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Duration</label>
+                <input class="form-input wd-duration-inp" type="text" data-field="duration" placeholder="—" readonly>
+              </div>
             </div>
           </div>
 
-          <div class="wo-info-col">
-            <div class="wo-field-row">
-              <label class="wo-field-lbl">Scheduled</label>
-              <input class="wo-field-inp" type="datetime-local" data-field="dateScheduled" value="${wo.dateScheduled || ''}">
-            </div>
-            <div class="wo-field-row">
-              <label class="wo-field-lbl">Started</label>
-              <input class="wo-field-inp" type="datetime-local" data-field="dateStarted" value="${wo.dateStarted || ''}">
-            </div>
-            <div class="wo-field-row">
-              <label class="wo-field-lbl">Completed</label>
-              <input class="wo-field-inp" type="datetime-local" data-field="dateCompleted" value="${wo.dateCompleted || ''}">
-            </div>
-            <div class="wo-field-row wo-notes-row">
-              <label class="wo-field-lbl">Notes</label>
-              <textarea class="wo-field-textarea" data-field="notes" rows="3" placeholder="General notes…">${(wo.notes || '').replace(/</g, '&lt;')}</textarea>
+          <div class="form-row">
+            <div class="form-group f-grow">
+              <label class="form-label">Special Instructions</label>
+              <textarea class="form-textarea" data-field="specialInstructions" rows="2" placeholder="door code, gate code, key location, pets, parking…">${(wo.specialInstructions || '').replace(/</g, '&lt;')}</textarea>
             </div>
           </div>
+
+          <div class="form-section">Tasks</div>
+
+          <div class="wd-tasks-grid">
+            <div class="wd-tg-hdr-row">
+              <div class="wd-tg-hdr">Status</div>
+              <div class="wd-tg-hdr" data-col-var="--wd-tg-w-desc">Task Description<div class="wd-tg-col-resize"></div></div>
+              <div class="wd-tg-hdr">Notes</div>
+              <div class="wd-tg-hdr wd-tg-del-cell"></div>
+            </div>
+            ${tasks.map(t => _wdTaskRowHTML(t)).join('')}
+            ${_wdNewTaskRowHTML()}
+          </div>
+
+          <div class="form-section">Notes</div>
+
+          <div class="wd-notes-area">
+            <div class="wd-notes-grid">
+              <div class="wd-ng-hdr-row">
+                <div class="wd-ng-hdr">Note</div>
+                <div class="wd-ng-hdr wd-ng-del-cell"></div>
+              </div>
+              ${notes.map(n => _wdNoteRowHTML(n)).join('')}
+              ${_wdNewNoteRowHTML()}
+            </div>
+            <div class="wd-ng-ts-col">
+              <div class="wd-ng-ts-spacer"></div>
+              ${notes.map(n => _wdNoteTimestampHTML(n.timestamp, n.noteId)).join('')}
+              <div class="wd-ng-ts-item wd-ng-ts-new"></div>
+            </div>
+          </div>
+
         </div>
+      </div>
 
-        <hr class="wo-sep">
-
-        <div class="wo-tasks-section">
-          <span class="wo-tasks-title">Tasks</span>
-          ${_woTasksGridHTML(tasks)}
+      <div class="wd-footer">
+        <button class="btn-secondary sp-btn" data-action="wd-cancel">Cancel</button>
+        <div class="split-btn" style="margin-left:6px">
+          <button class="btn-primary split-btn-main" data-action="wd-save">Save</button><button class="btn-primary split-btn-toggle" data-action="wd-save-menu" tabindex="-1">&#9660;</button>
+          <div class="split-btn-dropdown" hidden>
+            <button class="split-btn-item" data-action="wd-save-new">Save &amp; New</button>
+          </div>
         </div>
-
       </div>
     </div>`;
   }
 
   function openWorkOrder(workOrderId) {
     const wo    = _WO_MOCK.find(w => w.workOrderId === workOrderId) || {
-      workOrderId: workOrderId, clientName: '', address: '',
+      workOrderId, clientName: '', address: '',
       workOrderType: 'Repair', workOrderStatus: 'Open', assignedTo: _EMPLOYEES[0],
       dateScheduled: '', dateStarted: '', dateCompleted: '', notes: '',
     };
     const tasks = (_WO_TASKS_MOCK[workOrderId] || []).slice();
+    const notes = (_WO_NOTES_MOCK[workOrderId] || []).slice();
     const id    = 'workorder-' + workOrderId;
     const title = 'Work Order' + (workOrderId ? ' — ' + workOrderId : '');
-    if (WidgetManager.open(id, title, _woDetailHTML(wo, tasks), {
-      width: 780, height: 620, minWidth: 600, minHeight: 480, category: 'workorder',
+    if (WidgetManager.open(id, title, _wdDetailHTML(wo, tasks, notes), {
+      width: 780, height: 600, minWidth: 600, minHeight: 440, category: 'workorder',
     }) !== false) {
-      _bindWorkOrder(id, wo, tasks);
+      _bindWdDetail(id, wo, tasks, notes);
     }
   }
 
-  function openNewWorkOrder(parentWidgetId) {
-    const today = new Date().toISOString().slice(0, 16);
-    const wo = {
-      workOrderId: '', clientName: '', address: '',
-      workOrderType: 'Repair', workOrderStatus: 'Open',
-      assignedTo: _EMPLOYEES[0], dateScheduled: today,
-      dateStarted: '', dateCompleted: '', notes: '',
-    };
-    const id = 'workorder-new';
-    if (WidgetManager.open(id, 'Work Order — New', _woDetailHTML(wo, []), {
-      width: 780, height: 620, minWidth: 600, minHeight: 480, category: 'workorder',
-      centeredOn: parentWidgetId,
-    }) !== false) {
-      _bindWorkOrder(id, wo, []);
-    }
-  }
-
-  function _bindWorkOrder(widgetId, wo, initialTasks) {
+  function _bindWdDetail(widgetId, wo, initialTasks, initialNotes) {
     const el = document.getElementById('widget-' + widgetId);
     if (!el) return;
-    const grid   = el.querySelector('.wo-tasks-grid');
-    let _taskSeq = initialTasks.length;
+    const grid      = el.querySelector('.wd-tasks-grid');
+    const notesGrid = el.querySelector('.wd-notes-grid');
+    const tsCol     = el.querySelector('.wd-ng-ts-col');
+    let _taskSeq    = initialTasks.length;
+    let _noteSeq    = (initialNotes || []).length;
 
-    function _allRows()    { return [...grid.querySelectorAll('.wo-tg-row:not(.wo-tg-new-row)')]; }
-    function _getNewRow()  { return grid.querySelector('.wo-tg-new-row'); }
-
-    function _renumber() {
-      _allRows().forEach((row, i) => { row.querySelector('.wo-tg-num').textContent = (i + 1) + '.'; });
-    }
+    function _getNewRow() { return grid.querySelector('.wd-tg-new-row'); }
 
     function _promoteNewRow(newRow) {
       _taskSeq++;
-      const taskId = 'WOT-new-' + _taskSeq;
-      newRow.dataset.taskId = taskId;
-      newRow.classList.remove('wo-tg-new-row');
-      newRow.querySelector('.wo-tg-num').textContent = (_allRows().length) + '.';
-      newRow.querySelector('.wo-tg-del-cell').innerHTML = `<button class="wo-tg-del-btn" title="Remove">&#215;</button>`;
-      // Append a fresh empty row
-      grid.insertAdjacentHTML('beforeend', _woNewTaskRowHTML());
+      newRow.dataset.taskId = 'WOT-new-' + _taskSeq;
+      newRow.classList.remove('wd-tg-new-row');
+      newRow.querySelector('.wd-tg-del-cell').innerHTML = `<button class="wd-tg-del-btn" title="Remove">&#215;</button>`;
+      grid.insertAdjacentHTML('beforeend', _wdNewTaskRowHTML());
       _bindNewRow(_getNewRow());
     }
 
@@ -386,36 +427,100 @@ const WorkOrders = (() => {
       });
     }
 
-    /* Delete — event delegation on grid */
     grid.addEventListener('click', e => {
-      const btn = e.target.closest('.wo-tg-del-btn');
+      const btn = e.target.closest('.wd-tg-del-btn');
       if (!btn) return;
-      btn.closest('.wo-tg-row').remove();
-      _renumber();
+      btn.closest('.wd-tg-row').remove();
     });
 
     _bindNewRow(_getNewRow());
 
-    /* Save */
-    el.querySelector('[data-action="wo-save"]').addEventListener('click', () => {
+    ColResize.bind(grid, grid.querySelector('.wd-tg-hdr-row'), 'wd_tg_col_widths_v2', { handleSel: '.wd-tg-col-resize', minWidth: 80 });
+
+    /* Notes grid */
+    function _getNewNoteRow() { return notesGrid.querySelector('.wd-ng-new-row'); }
+
+    function _promoteNoteRow(newRow) {
+      _noteSeq++;
+      const newId = 'WON-new-' + _noteSeq;
+      newRow.dataset.noteId = newId;
+      newRow.classList.remove('wd-ng-new-row');
+      newRow.querySelector('.wd-ng-del-cell').innerHTML = `<button class="wd-ng-del-btn" title="Remove">&#215;</button>`;
+      notesGrid.insertAdjacentHTML('beforeend', _wdNewNoteRowHTML());
+      _bindNewNoteRow(_getNewNoteRow());
+      const newTsEl = tsCol.querySelector('.wd-ng-ts-new');
+      if (newTsEl) {
+        newTsEl.textContent = _wdFmtTimestamp(null);
+        newTsEl.dataset.noteId = newId;
+        newTsEl.classList.remove('wd-ng-ts-new');
+        tsCol.insertAdjacentHTML('beforeend', '<div class="wd-ng-ts-item wd-ng-ts-new"></div>');
+      }
+    }
+
+    function _bindNewNoteRow(newRow) {
+      newRow.querySelector('.wd-ng-inp').addEventListener('blur', function () {
+        if (this.value.trim()) _promoteNoteRow(newRow);
+      });
+    }
+
+    notesGrid.addEventListener('click', e => {
+      const btn = e.target.closest('.wd-ng-del-btn');
+      if (!btn) return;
+      const row    = btn.closest('.wd-ng-row');
+      const noteId = row.dataset.noteId;
+      row.remove();
+      const tsItem = tsCol.querySelector(`.wd-ng-ts-item[data-note-id="${noteId}"]`);
+      if (tsItem) tsItem.remove();
+    });
+
+    _bindNewNoteRow(_getNewNoteRow());
+
+    /* Duration — auto-calculate from Started + Completed */
+    const durationInp = el.querySelector('.wd-duration-inp');
+    function _updateDuration() {
+      const s = el.querySelector('[data-field="dateStarted"]').value;
+      const c = el.querySelector('[data-field="dateCompleted"]').value;
+      if (!s || !c) { durationInp.value = ''; return; }
+      const diff = Math.round((new Date(c) - new Date(s)) / 60000);
+      if (diff <= 0) { durationInp.value = ''; return; }
+      const h = Math.floor(diff / 60), m = diff % 60;
+      durationInp.value = h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
+    }
+    el.querySelector('[data-field="dateStarted"]').addEventListener('change',    _updateDuration);
+    el.querySelector('[data-field="dateCompleted"]').addEventListener('change',  _updateDuration);
+    _updateDuration();
+
+    /* Split save */
+    const saveMenuBtn  = el.querySelector('[data-action="wd-save-menu"]');
+    const saveDropdown = el.querySelector('.split-btn-dropdown');
+    saveMenuBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      if (!saveDropdown.hasAttribute('hidden')) { saveDropdown.setAttribute('hidden', ''); return; }
+      const rect = saveMenuBtn.getBoundingClientRect();
+      saveDropdown.removeAttribute('hidden');
+      saveDropdown.style.top  = (rect.bottom + 2) + 'px';
+      saveDropdown.style.left = (rect.right - saveDropdown.offsetWidth) + 'px';
+    });
+    function _closeSaveMenu(e) {
+      if (!document.contains(el)) { document.removeEventListener('click', _closeSaveMenu); return; }
+      if (!el.querySelector('.split-btn').contains(e.target)) saveDropdown.setAttribute('hidden', '');
+    }
+    document.addEventListener('click', _closeSaveMenu);
+
+    el.querySelector('[data-action="wd-save"]').addEventListener('click', () => {
+      document.removeEventListener('click', _closeSaveMenu);
       Toast.show('✓ Work Order saved.');
-      const rows = tasksListEl.querySelectorAll('.wo-task-row');
-      rows[rows.length - 1]?.querySelector('.wo-task-desc-inp')?.focus();
     });
-
-    /* Save */
-    el.querySelector('[data-action="wo-save"]').addEventListener('click', () => {
+    el.querySelector('[data-action="wd-save-new"]').addEventListener('click', () => {
+      saveDropdown.setAttribute('hidden', '');
+      document.removeEventListener('click', _closeSaveMenu);
       Toast.show('✓ Work Order saved.');
+      WidgetManager.close(widgetId);
+      openWorkOrderIntake();
     });
-
-    /* New WO from detail */
-    el.querySelector('[data-action="wo-new-from-detail"]').addEventListener('click', () => {
-      openNewWorkOrder(widgetId);
-    });
-
-    /* Print / Refresh */
-    el.querySelector('[data-action="wo-print"]').addEventListener('click',   () => Toast.show('Sent to printer.'));
-    el.querySelector('[data-action="wo-refresh"]').addEventListener('click', () => Toast.show('Refreshed.'));
+    el.querySelector('[data-action="wd-cancel"]').addEventListener('click', () => WidgetManager.close(widgetId));
+    el.querySelector('[data-action="wd-print"]').addEventListener('click',   () => Toast.show('Sent to printer.'));
+    el.querySelector('[data-action="wd-refresh"]').addEventListener('click', () => Toast.show('Refreshed.'));
   }
 
   /* ── Work Order Intake Form ─────────────────────────────────── */
@@ -966,6 +1071,6 @@ const WorkOrders = (() => {
     requestAnimationFrame(() => searchInp.focus());
   }
 
-  return { openWorkOrderList, openWorkOrder, openNewWorkOrder, openWorkOrderIntake };
+  return { openWorkOrderList, openWorkOrder, openWorkOrderIntake };
 
 })();
