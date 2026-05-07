@@ -266,7 +266,8 @@ const Dispatch = (() => {
       const dayIdx  = Math.floor(colIdx / _techs.length);
       const techIdx = colIdx % _techs.length;
       let y = innerY - _DAY_HDR - _TECH_HDR;
-      if (y < 0) return { valid: false };
+      /* Clamp to top boundary */
+      if (y < 0) return { valid: true, dayIdx, techIdx, hour: 0, min: 0 };
       for (let h = 0; h < 24; h++) {
         const rh = _rowHeightForHour(h);
         if (y < rh) {
@@ -278,7 +279,8 @@ const Dispatch = (() => {
         }
         y -= rh;
       }
-      return { valid: false };
+      /* Clamp to bottom boundary */
+      return { valid: true, dayIdx, techIdx, hour: 23, min: 45 };
     }
 
     function _cardLeft(dayIdx, techIdx) {
@@ -302,12 +304,13 @@ const Dispatch = (() => {
       return (diffDays >= 0 && diffDays <= 6) ? diffDays : -1;
     }
 
-    /* Time-range conflict check */
-    function _hasConflict(excludeCard, date, techIdx, startHour, startMin, durationMin) {
+    /* Time-range conflict check; crewWoId exempts same-WO cards (used when finding a free tech slot) */
+    function _hasConflict(excludeCard, date, techIdx, startHour, startMin, durationMin, crewWoId) {
       const newStart = startHour * 60 + startMin;
       const newEnd   = newStart + durationMin;
       return _GRID_CARDS.some(c => {
         if (c === excludeCard) return false;
+        if (crewWoId && c.woId === crewWoId) return false;
         if (c.date !== date || c.techIdx !== techIdx) return false;
         const cs = c.startHour * 60 + c.startMin;
         return newStart < cs + c.durationMin && cs < newEnd;
@@ -331,7 +334,7 @@ const Dispatch = (() => {
       ghost.className = `db-card db-card--${cardData.status || 'scheduled'}`;
       ghost.style.cssText = `position:fixed;width:${ghostW}px;height:${ghostH}px;pointer-events:none;z-index:200;opacity:0.85;box-sizing:border-box;`;
       ghost.innerHTML = `
-        <div class="db-card-header"></div>
+        <div class="db-card-header"><span class="db-card-wo">${cardData.woId}</span></div>
         <div class="db-card-body">
           <div class="db-card-name">${cardData.clientName}</div>
           <div class="db-card-phone">${cardData.phone}</div>
@@ -414,8 +417,7 @@ const Dispatch = (() => {
         const unsR    = unsEl.getBoundingClientRect();
         const holdR   = holdEl.getBoundingClientRect();
 
-        const inGrid = me.clientX >= scrollR.left && me.clientX <= scrollR.right &&
-                       me.clientY >= scrollR.top  && me.clientY <= scrollR.bottom;
+        const inGrid = me.clientX >= scrollR.left && me.clientX <= scrollR.right;
         const inUns  = me.clientX >= unsR.left && me.clientX <= unsR.right &&
                        me.clientY >= unsR.top  && me.clientY <= unsR.bottom;
         const inHold = me.clientX >= holdR.left && me.clientX <= holdR.right &&
@@ -446,9 +448,11 @@ const Dispatch = (() => {
         lastEvt = me;
         _updateIndicator(me);
         if (currentZone === 'grid' && currentPos) {
-          const ir = gridInner.getBoundingClientRect();
+          const ir      = gridInner.getBoundingClientRect();
+          const scrollR = scroll.getBoundingClientRect();
+          const rawTop  = ir.top + _cardTop(currentPos.hour, currentPos.min);
           ghost.style.left = (ir.left + _cardLeft(currentPos.dayIdx, currentPos.techIdx)) + 'px';
-          ghost.style.top  = (ir.top  + _cardTop(currentPos.hour, currentPos.min)) + 'px';
+          ghost.style.top  = Math.max(scrollR.top, Math.min(scrollR.bottom - ghostH, rawTop)) + 'px';
         } else {
           ghost.style.left = (me.clientX - offX) + 'px';
           ghost.style.top  = (me.clientY - offY) + 'px';
@@ -556,21 +560,56 @@ const Dispatch = (() => {
     function _startResize(e, div, card) {
       e.preventDefault();
       e.stopPropagation();
-      const startY   = e.clientY;
-      const startDur = card.durationMin;
       document.body.classList.add('is-dragging');
 
-      const pixPerMin = _rowHeightForHour(card.startHour) / 60;
+      const cardStart = card.startHour * 60 + card.startMin;
+      const maxDur    = 24 * 60 - cardStart;
+
+      /* Compute duration from absolute mouse position — no delta, no dead zone at limits */
+      function _durFromMouse(clientY) {
+        const ir = gridInner.getBoundingClientRect();
+        let y    = clientY - ir.top - _DAY_HDR - _TECH_HDR;
+        let mins = 0;
+        for (let h = 0; h < 24; h++) {
+          if (y <= 0) break;
+          const rh = _rowHeightForHour(h);
+          if (y < rh) { mins += (y / rh) * 60; break; }
+          y -= rh; mins += 60;
+        }
+        return Math.max(15, Math.min(maxDur, Math.round((mins - cardStart) / 15) * 15));
+      }
+
+      let vScrollTimer = null;
+      let vScrollDir   = 0;
+      function _stopVScroll() { clearTimeout(vScrollTimer); vScrollTimer = null; vScrollDir = 0; }
+      function _doVScroll(dir) {
+        if (vScrollDir !== dir) return;
+        const maxT = scroll.scrollHeight - scroll.clientHeight;
+        scroll.scrollTop = Math.max(0, Math.min(maxT, scroll.scrollTop + dir * 8));
+        const atEdge = (dir === -1 && scroll.scrollTop <= 0) || (dir === 1 && scroll.scrollTop >= maxT);
+        if (!atEdge) vScrollTimer = setTimeout(() => _doVScroll(dir), 16);
+        else _stopVScroll();
+      }
+      function _startVScroll(dir) {
+        if (vScrollDir === dir) return;
+        _stopVScroll(); vScrollDir = dir;
+        vScrollTimer = setTimeout(() => _doVScroll(dir), 16);
+      }
+
       function onMove(me) {
-        const snapped = Math.max(15, Math.round((startDur + (me.clientY - startY) / pixPerMin) / 15) * 15);
-        div.style.height = _cardHeightPx(card.startHour, card.startMin, snapped) + 'px';
+        div.style.height = _cardHeightPx(card.startHour, card.startMin, _durFromMouse(me.clientY)) + 'px';
+        const scrollR = scroll.getBoundingClientRect();
+        if      (me.clientY <= scrollR.top)    _startVScroll(-1);
+        else if (me.clientY >= scrollR.bottom) _startVScroll(1);
+        else                                   _stopVScroll();
       }
 
       function onUp(me) {
+        _stopVScroll();
         document.body.classList.remove('is-dragging');
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('mouseup', onUp);
-        card.durationMin = Math.max(15, Math.round((startDur + (me.clientY - startY) / pixPerMin) / 15) * 15);
+        card.durationMin = _durFromMouse(me.clientY);
         _dragJustEnded   = true;
         requestAnimationFrame(() => { _dragJustEnded = false; });
         _renderCards();
@@ -608,6 +647,9 @@ const Dispatch = (() => {
 
     let _ctxMenu = null;
     let _ctxTarget = null;
+    let _ctxEvt    = null;
+    let _addTechDlg      = null;
+    let _conflictDlgState = null;
 
     function _showCtxMenu(e, card, source) {
       e.preventDefault();
@@ -645,6 +687,7 @@ const Dispatch = (() => {
       _ctxMenu.querySelectorAll('[data-action]').forEach(item => {
         item.addEventListener('click', ev => {
           ev.stopPropagation();
+          _ctxEvt = ev;
           _handleCtxAction(item.dataset.action, item.dataset.status);
           _hideCtxMenu();
         });
@@ -663,7 +706,8 @@ const Dispatch = (() => {
         _renderUnscheduled();
         _renderOnHold();
       } else if (action === 'add-tech') {
-        Toast.show('Add Another Tech — coming in next build');
+        _showAddTechDialog(_ctxEvt ? _ctxEvt.clientX : window.innerWidth / 2,
+                           _ctxEvt ? _ctxEvt.clientY : window.innerHeight / 2, card);
       } else if (action === 'return-unscheduled') {
         _GRID_CARDS.splice(_GRID_CARDS.indexOf(card), 1);
         _UNSCHEDULED.push({ woId: card.woId, clientName: card.clientName, phone: card.phone, woType: '', status: 'scheduled' });
@@ -674,9 +718,107 @@ const Dispatch = (() => {
       }
     }
 
+    /* ── Add Technician dialog ── */
+    function _hideAddTechDlg() {
+      if (_addTechDlg) _addTechDlg.classList.remove('is-open');
+    }
+
+    function _showAddTechDialog(x, y, card) {
+      if (!_addTechDlg) {
+        _addTechDlg = document.createElement('div');
+        _addTechDlg.className = 'db-add-tech-dlg';
+        document.body.appendChild(_addTechDlg);
+      }
+
+      /* Default tech: first not already on this WO this date */
+      const alreadyOn = new Set(_GRID_CARDS
+        .filter(c => c.woId === card.woId && c.date === card.date)
+        .map(c => c.techIdx));
+      const defaultTechIdx = _techs.findIndex((_, i) => !alreadyOn.has(i));
+      const safeTechIdx    = defaultTechIdx >= 0 ? defaultTechIdx : 0;
+
+      /* Default time: nearest :15 after current time */
+      const now      = new Date();
+      const total    = now.getHours() * 60 + now.getMinutes();
+      const snapped  = Math.ceil((total + 1) / 15) * 15;
+      const dh       = Math.floor(snapped / 60) % 24;
+      const dm       = snapped % 60;
+      const defTime  = String(dh).padStart(2, '0') + ':' + String(dm).padStart(2, '0');
+      const defDate  = new Date().toISOString().slice(0, 10);
+
+      const techOpts = _techs.map((t, i) =>
+        `<option value="${i}"${i === safeTechIdx ? ' selected' : ''}>${t}</option>`
+      ).join('');
+
+      _addTechDlg.innerHTML = `
+        <div class="widget-header db-atd-hdr">
+          <span class="db-card-wo">Add Technician — ${card.woId}</span>
+        </div>
+        <div class="db-atd-body">
+          <div class="db-atd-col">
+            <label class="db-atd-label">Technician</label>
+            <select class="db-atd-tech-sel">${techOpts}</select>
+          </div>
+          <div class="db-atd-col">
+            <label class="db-atd-label">Date</label>
+            <input class="db-atd-date" type="date" value="${defDate}">
+            <label class="db-atd-label">Time</label>
+            <input class="db-atd-time" type="time" value="${defTime}" step="900">
+          </div>
+        </div>
+        <div class="db-atd-footer">
+          <button class="btn-secondary sp-btn" data-action="atd-cancel">Cancel</button>
+          <button class="btn-primary sp-btn" data-action="atd-add">Add Tech</button>
+        </div>`;
+
+      _addTechDlg.classList.add('is-open');
+      _addTechDlg.style.left = '0';
+      _addTechDlg.style.top  = '0';
+      const dw  = _addTechDlg.offsetWidth;
+      const dh2 = _addTechDlg.offsetHeight;
+      const px  = Math.max(8, Math.min(window.innerWidth  - dw  - 8, x - dw  / 2));
+      const py  = Math.max(8, Math.min(window.innerHeight - dh2 - 8, y - dh2 / 2));
+      _addTechDlg.style.left = px + 'px';
+      _addTechDlg.style.top  = py + 'px';
+
+      _addTechDlg.querySelector('[data-action="atd-cancel"]').addEventListener('click', _hideAddTechDlg);
+
+      _addTechDlg.querySelector('[data-action="atd-add"]').addEventListener('click', () => {
+        const techIdx = parseInt(_addTechDlg.querySelector('.db-atd-tech-sel').value);
+        const dateVal = _addTechDlg.querySelector('.db-atd-date').value;
+        const timeVal = _addTechDlg.querySelector('.db-atd-time').value;
+        if (!dateVal || !timeVal) return;
+        const [h, m] = timeVal.split(':').map(Number);
+
+        const dlgRect = _addTechDlg.getBoundingClientRect();
+        _hideAddTechDlg();
+
+        const newCard = {
+          woId: card.woId, clientName: card.clientName, phone: card.phone,
+          date: dateVal, techIdx,
+          startHour: h, startMin: m,
+          durationMin: card.durationMin, status: card.status,
+          cardType: 'crew',
+        };
+        _GRID_CARDS.push(newCard);
+        _renderCards();
+
+        if (_hasConflict(newCard, dateVal, techIdx, h, m, card.durationMin)) {
+          _showConflictDialog(
+            dlgRect.left + dlgRect.width / 2,
+            dlgRect.top  + dlgRect.height / 2,
+            newCard, { zone: 'created' }, newCard
+          );
+        } else {
+          Toast.show(`${_techs[techIdx]} added to ${card.woId}`);
+        }
+      });
+    }
+
     /* ── Resource conflict dialog ── */
     function _showConflictDialog(x, y, placedCard, prevState, origCardData) {
       el.querySelectorAll('.db-conflict-dialog').forEach(d => d.remove());
+      _conflictDlgState = null;
       const dlg = document.createElement('div');
       dlg.className = 'db-conflict-dialog';
       dlg.innerHTML = `
@@ -684,6 +826,7 @@ const Dispatch = (() => {
         <button class="db-conflict-keep"   title="Keep placement">&#10003;</button>
         <button class="db-conflict-revert" title="Snap back">&#10005;</button>`;
       document.body.appendChild(dlg);
+      _conflictDlgState = { dlg, card: placedCard };
 
       /* Position near drop point, constrained to viewport */
       const dw = 220, dh = 40;
@@ -692,15 +835,21 @@ const Dispatch = (() => {
       dlg.style.left = cx + 'px';
       dlg.style.top  = cy + 'px';
 
-      dlg.querySelector('.db-conflict-keep').addEventListener('click', () => dlg.remove());
+      dlg.querySelector('.db-conflict-keep').addEventListener('click', () => {
+        dlg.remove();
+        _conflictDlgState = null;
+      });
 
       dlg.querySelector('.db-conflict-revert').addEventListener('click', () => {
         dlg.remove();
+        _conflictDlgState = null;
         if (prevState.zone === 'grid') {
           placedCard.date      = prevState.date;
           placedCard.techIdx   = prevState.techIdx;
           placedCard.startHour = prevState.startHour;
           placedCard.startMin  = prevState.startMin;
+        } else if (prevState.zone === 'created') {
+          _GRID_CARDS.splice(_GRID_CARDS.indexOf(placedCard), 1);
         } else {
           _GRID_CARDS.splice(_GRID_CARDS.indexOf(placedCard), 1);
           const laneArr = prevState.zone === 'unscheduled' ? _UNSCHEDULED : _ONHOLD;
@@ -778,8 +927,12 @@ const Dispatch = (() => {
         div.dataset.tipName     = card.clientName;
         div.dataset.tipPhone    = card.phone;
         div.style.cssText = `left:${left}px;top:${top}px;width:${width}px;height:${height}px;`;
+        const linkedCount = _GRID_CARDS.filter(c => c.woId === card.woId).length;
         div.innerHTML = `
-          <div class="db-card-header"></div>
+          <div class="db-card-header">
+            <span class="db-card-wo">${card.woId}</span>
+            ${linkedCount > 1 ? `<span class="db-card-link-badge">×${linkedCount}</span>` : ''}
+          </div>
           <div class="db-card-body">
             <div class="db-card-name">${card.clientName}</div>
             <div class="db-card-phone">${card.phone}</div>
@@ -788,6 +941,15 @@ const Dispatch = (() => {
         inner.appendChild(div);
         _attachCardHandlers(div, card);
       });
+
+      /* Auto-dismiss conflict dialog if the conflict has been resolved */
+      if (_conflictDlgState) {
+        const c = _conflictDlgState.card;
+        if (!_hasConflict(c, c.date, c.techIdx, c.startHour, c.startMin, c.durationMin)) {
+          _conflictDlgState.dlg.remove();
+          _conflictDlgState = null;
+        }
+      }
     }
 
     /* ── Render unscheduled lane ── */
@@ -795,7 +957,7 @@ const Dispatch = (() => {
       const lane = el.querySelector('.db-unscheduled .db-lane-cards');
       lane.innerHTML = _UNSCHEDULED.map(c => `
         <div class="db-card db-card--${c.status || 'scheduled'} db-card--lane" data-wo-id="${c.woId}" data-tip-name="${c.clientName}" data-tip-phone="${c.phone}">
-          <div class="db-card-header"></div>
+          <div class="db-card-header"><span class="db-card-wo">${c.woId}</span></div>
           <div class="db-card-body">
             <div class="db-card-name">${c.clientName}</div>
             <div class="db-card-phone">${c.phone}</div>
@@ -817,7 +979,7 @@ const Dispatch = (() => {
       const lane = el.querySelector('.db-onhold .db-lane-cards');
       lane.innerHTML = _ONHOLD.map(c => `
         <div class="db-card db-card--${c.status || 'scheduled'} db-card--lane" data-wo-id="${c.woId}" data-tip-name="${c.clientName}" data-tip-phone="${c.phone}">
-          <div class="db-card-header"></div>
+          <div class="db-card-header"><span class="db-card-wo">${c.woId}</span></div>
           <div class="db-card-body">
             <div class="db-card-name">${c.clientName}</div>
             <div class="db-card-phone">${c.phone}</div>
@@ -896,6 +1058,80 @@ const Dispatch = (() => {
     el.querySelector('[data-action="db-week-pick"]').addEventListener('click', () => Dialog.stub('Calendar Picker'));
     el.querySelector('[data-action="db-new-wo"]').addEventListener('click', () => WorkOrders.openWorkOrderIntake());
     el.querySelector('[data-action="db-techs"]').addEventListener('click', () => Dialog.stub('Tech Select'));
+
+    /* ── Tech column reorder ── */
+    function _reorderTechs(fromIdx, toTechIdx) {
+      const actualTo = toTechIdx > fromIdx ? toTechIdx - 1 : toTechIdx;
+      if (actualTo === fromIdx) return;
+      const names = _techs.slice();
+      _techs.splice(fromIdx, 1);
+      _techs.splice(actualTo, 0, names[fromIdx]);
+      _GRID_CARDS.forEach(card => {
+        card.techIdx = _techs.indexOf(names[card.techIdx]);
+      });
+      _rebuild();
+    }
+
+    function _startTechReorder(e, fromIdx) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const indicator = document.createElement('div');
+      indicator.className = 'db-col-drop-indicator';
+      document.body.appendChild(indicator);
+
+      el.querySelectorAll(`.db-tech-hdr[data-tech-idx="${fromIdx}"]`)
+        .forEach(h => h.classList.add('is-reordering'));
+      document.body.classList.add('is-dragging');
+
+      let toTechIdx = fromIdx;
+      let isValid   = false;
+
+      function onMove(me) {
+        const ir      = gridInner.getBoundingClientRect();
+        const scrollR = scroll.getBoundingClientRect();
+        const contentX = me.clientX - ir.left;
+        const colIdx   = Math.floor(contentX / _colW);
+
+        if (colIdx < 0 || colIdx >= 7 * _techs.length ||
+            me.clientX < scrollR.left || me.clientX > scrollR.right) {
+          indicator.style.display = 'none';
+          isValid = false;
+          return;
+        }
+
+        const dayIdx    = Math.floor(colIdx / _techs.length);
+        const techBase  = dayIdx * _techs.length * _colW;
+        const withinDay = contentX - techBase;
+        toTechIdx = Math.max(0, Math.min(_techs.length, Math.round(withinDay / _colW)));
+
+        const indicatorX = ir.left + techBase + toTechIdx * _colW;
+        indicator.style.display = '';
+        indicator.style.left    = indicatorX + 'px';
+        indicator.style.top     = scrollR.top + 'px';
+        indicator.style.height  = scrollR.height + 'px';
+        isValid = true;
+      }
+
+      function onUp() {
+        indicator.remove();
+        document.body.classList.remove('is-dragging');
+        el.querySelectorAll(`.db-tech-hdr[data-tech-idx="${fromIdx}"]`)
+          .forEach(h => h.classList.remove('is-reordering'));
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        if (isValid) _reorderTechs(fromIdx, toTechIdx);
+      }
+
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    }
+
+    gridInner.addEventListener('mousedown', e => {
+      const techHdr = e.target.closest('.db-tech-hdr');
+      if (!techHdr || e.button !== 0) return;
+      _startTechReorder(e, parseInt(techHdr.dataset.techIdx));
+    });
 
     /* ── Day column resize ── */
     gridInner.addEventListener('mousedown', e => {
@@ -1020,10 +1256,11 @@ const Dispatch = (() => {
 
     /* ── Dismiss context menu on outside click or Escape ── */
     document.addEventListener('mousedown', e => {
-      if (_ctxMenu && !_ctxMenu.contains(e.target)) _hideCtxMenu();
+      if (_ctxMenu    && !_ctxMenu.contains(e.target))    _hideCtxMenu();
+      if (_addTechDlg && !_addTechDlg.contains(e.target)) _hideAddTechDlg();
     });
     document.addEventListener('keydown', e => {
-      if (e.key === 'Escape') _hideCtxMenu();
+      if (e.key === 'Escape') { _hideCtxMenu(); _hideAddTechDlg(); }
     });
 
     /* ── Card hover tooltip ── */
@@ -1037,10 +1274,12 @@ const Dispatch = (() => {
         _cardTip.innerHTML = `<div class="db-tip-name">${cardEl.dataset.tipName}</div>
           <div class="db-tip-phone">${cardEl.dataset.tipPhone}</div>`;
         document.body.appendChild(_cardTip);
-        const r = cardEl.getBoundingClientRect();
+        const r   = cardEl.getBoundingClientRect();
+        const hdr = cardEl.querySelector('.db-card-header');
+        const top = hdr ? hdr.getBoundingClientRect().bottom : r.top;
         _cardTip.style.left = r.left + 'px';
-        _cardTip.style.top  = r.top  + 'px';
-      }, 400);
+        _cardTip.style.top  = top + 'px';
+      }, 800);
     }
     function _hideCardTip() {
       clearTimeout(_cardTipTimer);
